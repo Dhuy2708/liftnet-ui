@@ -1,5 +1,4 @@
 import { User } from "@/types/user"
-import { toast } from "react-toastify"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
@@ -17,8 +16,8 @@ type AuthState = {
 }
 
 type AuthActions = {
-  login: (username: string, password: string) => Promise<void>
-  register: (firstName: string, lastName: string, email: string, password: string, role?: number, username?: string, address?: Address) => Promise<boolean>
+  login: (email: string, password: string) => Promise<void>
+  register: (firstName: string, lastName: string, email: string, password: string, role?: number, address?: Address) => Promise<boolean>
   logout: () => Promise<void>
   clearError: () => void
 }
@@ -31,7 +30,7 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       isLoading: false,
       error: null,
-      login: async (username: string, password: string) => {
+      login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
           const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Auth/login`, {
@@ -39,7 +38,7 @@ export const useAuthStore = create<AuthStore>()(
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ username, password }),
+            body: JSON.stringify({ email, password }),
           });
 
           const data = await response.json();
@@ -75,18 +74,16 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      register: async (firstName: string, lastName: string, email: string, password: string, role = 1, username = "", address = { provinceCode: 0, districtCode: 0, wardCode: 0, placeId: "string" }) => {
+      register: async (firstName: string, lastName: string, email: string, password: string, role = 1, address?: Address | null) => {
         set({ isLoading: true, error: null });
         try {
-          // Create registration object with all required information
           const registerData = {
             email,
             firstName,
             lastName,
-            username: username || email, // Use email as username if not provided
             password,
             role,
-            address
+            address: address || null // If address is undefined or empty, set it to null
           };
 
           const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Auth/register`, {
