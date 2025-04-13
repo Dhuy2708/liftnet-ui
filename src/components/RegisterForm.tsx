@@ -6,33 +6,33 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AtSign, Lock, User, Loader2 } from "lucide-react";
+import { AtSign, Lock, User, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuthStore } from "@/store/AuthStore";
 import { toast } from "react-toastify";
 import { useLocationStore } from "@/store/useLocationStore";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const registerSchema = z
   .object({
     firstName: z.string().min(1, { message: "First name is required" }),
     lastName: z.string().min(1, { message: "Last name is required" }),
     email: z.string().email({ message: "Please enter a valid email address" }),
-    username: z
-      .string()
-      .min(2, { message: "Username must be at least 2 characters" }),
     password: z
       .string()
-      .min(8, { message: "Password must be at least 8 characters" }),
+      .min(6, { message: "Password must be at least 6 characters" })
+      .regex(/[a-z]/, { message: "Password must contain at least 1 lowercase letter" })
+      .regex(/[0-9]/, { message: "Password must contain at least 1 number" }),
     confirmPassword: z.string(),
-    provinceCode: z.string(),
-    districtCode: z.string(),
-    wardCode: z.string(),
+    provinceCode: z.string().optional(),
+    districtCode: z.string().optional(),
+    wardCode: z.string().optional(),
     location: z.string().optional(),
     role: z.string(),
   })
   .superRefine((data, ctx) => {
-    if (data.provinceCode !== "") {
+    if (data.provinceCode) {
       if (data.districtCode === "") {
         ctx.addIssue({
           code: "custom",
@@ -94,7 +94,6 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       firstName: "",
       lastName: "",
       email: "",
-      username: "",
       password: "",
       confirmPassword: "",
       provinceCode: "",
@@ -109,6 +108,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   const wardCode = watch("wardCode");
 
   const [selectedRole, setSelectedRole] = useState("1");
+  const [showAddress, setShowAddress] = useState(false);
 
   useEffect(() => {
     fetchProvinces();
@@ -135,52 +135,45 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true);
     try {
-      const address = {
-        provinceCode: parseInt(data.provinceCode),
-        districtCode: parseInt(data.districtCode),
-        wardCode: parseInt(data.wardCode),
-        placeId: data.location || "string",
-      };
+      if (data.provinceCode || data.districtCode || data.wardCode || data.location) {
+        const address = {
+          provinceCode: parseInt(data.provinceCode || "0"),
+          districtCode: parseInt(data.districtCode || "0"),
+          wardCode: parseInt(data.wardCode || "0"),
+          placeId: data.location || "string",
+        };
 
-      let success;
-      if (
-        address.provinceCode === 0 ||
-        address.districtCode === 0 ||
-        address.wardCode === 0 ||
-        address.provinceCode === null ||
-        address.districtCode === null ||
-        address.wardCode === null ||
-        isNaN(address.provinceCode) ||
-        isNaN(address.districtCode) ||
-        isNaN(address.wardCode)
-      ) {
-        success = await registerUser(
+        if (address.provinceCode && address.districtCode && address.wardCode) {
+          const success = await registerUser(
+            data.firstName,
+            data.lastName,
+            data.email,
+            data.password,
+            parseInt(data.role),
+            address
+          );
+          handleRegistrationResult(success);
+        } else {
+          const success = await registerUser(
+            data.firstName,
+            data.lastName,
+            data.email,
+            data.password,
+            parseInt(data.role),
+            null
+          );
+          handleRegistrationResult(success);
+        }
+      } else {
+        const success = await registerUser(
           data.firstName,
           data.lastName,
           data.email,
           data.password,
           parseInt(data.role),
-          data.username
+          null
         );
-      } else {
-        success = await registerUser(
-          data.firstName,
-          data.lastName,
-          data.email,
-          data.password,
-          parseInt(data.role),
-          data.username,
-          address
-        );
-      }
-     
-      if (success) {
-        toast.success("Registration successful! Please login.");
-        onSuccess();
-      } else {
-        // Get error from store and display it
-        const error = useAuthStore.getState().error;
-        toast.error(error || "Registration failed. Please try again.");
+        handleRegistrationResult(success);
       }
     } catch (error) {
       console.error("Registration failed:", error);
@@ -189,6 +182,26 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       setIsLoading(false);
     }
   }
+
+  function handleRegistrationResult(success: boolean) {
+    if (success) {
+      toast.success("Registration successful! Please login.");
+      onSuccess();
+    } else {
+      const error = useAuthStore.getState().error;
+      toast.error(error || "Registration failed. Please try again.");
+    }
+  }
+
+  const clearAddressFields = () => {
+    setValue("provinceCode", "");
+    setValue("districtCode", "");
+    setValue("wardCode", "");
+    setValue("location", "");
+    useLocationStore.setState({ districts: [], wards: [] });
+    setSelectedProvince("");
+    setSelectedDistrict("");
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -263,117 +276,131 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         )}
       </div>
 
-      {/* Username */}
-      <div className="space-y-2">
-        <Label htmlFor="username">Username</Label>
-        <div className="relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <User size={18} />
+      {/* Address Section Toggle */}
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="enable-address"
+          checked={showAddress}
+          onCheckedChange={(checked) => {
+            setShowAddress(!!checked);
+            if (!checked) {
+              clearAddressFields();
+            }
+          }}
+          className="data-[state=checked]:bg-[#de9151] data-[state=checked]:border-[#de9151]"
+        />
+        <Label 
+          htmlFor="enable-address" 
+          className="text-sm text-gray-600 cursor-pointer"
+        >
+          Address (Optional)
+        </Label>
+      </div>
+
+      {/* Address Fields */}
+      <div 
+        className={`
+          overflow-hidden transition-all duration-500 ease-in-out
+          ${showAddress ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
+        `}
+      >
+        <div className="space-y-4">
+          {/* Province and District */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="province">Province</Label>
+              <Select
+                value={provinceCode}
+                onValueChange={(value) => {
+                  setValue("provinceCode", value);
+                  trigger("provinceCode");
+                }}
+                disabled={!showAddress}
+              >
+                <SelectTrigger id="province" className="w-full">
+                  <SelectValue placeholder="Select province" />
+                </SelectTrigger>
+                <SelectContent>
+                  {provinces.map((province) => (
+                    <SelectItem key={province.code} value={String(province.code)}>
+                      {province.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.provinceCode && (
+                <p className="text-sm text-red-500">{errors.provinceCode.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="district">District</Label>
+              <Select
+                value={districtCode}
+                onValueChange={(value) => {
+                  setValue("districtCode", value);
+                  trigger("districtCode");
+                }}
+                disabled={!showAddress || !selectedProvince || districts.length === 0}
+              >
+                <SelectTrigger id="district" className="w-full">
+                  <SelectValue placeholder="Select district" />
+                </SelectTrigger>
+                <SelectContent>
+                  {districts.map((district) => (
+                    <SelectItem key={district.code} value={String(district.code)}>
+                      {district.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.districtCode && (
+                <p className="text-sm text-red-500">{errors.districtCode.message}</p>
+              )}
+            </div>
           </div>
-          <Input
-            id="username"
-            placeholder="username"
-            className="pl-10"
-            {...formRegister("username")}
-          />
-        </div>
-        {errors.username && (
-          <p className="text-sm text-red-500">{errors.username.message}</p>
-        )}
-      </div>
 
-      {/* Province and District */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="province">Province</Label>
-          <Select
-            value={provinceCode}
-            onValueChange={(value) => {
-              setValue("provinceCode", value);
-              trigger("provinceCode");
-            }}
-          >
-            <SelectTrigger id="province" className="w-full">
-              <SelectValue placeholder="Select province" />
-            </SelectTrigger>
-            <SelectContent>
-              {provinces.map((province) => (
-                <SelectItem key={province.code} value={String(province.code)}>
-                  {province.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.provinceCode && (
-            <p className="text-sm text-red-500">{errors.provinceCode.message}</p>
-          )}
-        </div>
+          {/* Ward and Location */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="ward">Ward</Label>
+              <Select
+                value={wardCode}
+                onValueChange={(value) => {
+                  setValue("wardCode", value);
+                  trigger("wardCode");
+                }}
+                disabled={!showAddress || !selectedDistrict || wards.length === 0}
+              >
+                <SelectTrigger id="ward" className="w-full">
+                  <SelectValue placeholder="Select ward" />
+                </SelectTrigger>
+                <SelectContent>
+                  {wards.map((ward) => (
+                    <SelectItem key={ward.code} value={String(ward.code)}>
+                      {ward.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.wardCode && (
+                <p className="text-sm text-red-500">{errors.wardCode.message}</p>
+              )}
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="district">District</Label>
-          <Select
-            value={districtCode}
-            onValueChange={(value) => {
-              setValue("districtCode", value);
-              trigger("districtCode");
-            }}
-            disabled={!selectedProvince || districts.length === 0}
-          >
-            <SelectTrigger id="district" className="w-full">
-              <SelectValue placeholder="Select district" />
-            </SelectTrigger>
-            <SelectContent>
-              {districts.map((district) => (
-                <SelectItem key={district.code} value={String(district.code)}>
-                  {district.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.districtCode && (
-            <p className="text-sm text-red-500">{errors.districtCode.message}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Ward and Location */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="ward">Ward</Label>
-          <Select
-            value={wardCode}
-            onValueChange={(value) => {
-              setValue("wardCode", value);
-              trigger("wardCode");
-            }}
-            disabled={!selectedDistrict || wards.length === 0}
-          >
-            <SelectTrigger id="ward" className="w-full">
-              <SelectValue placeholder="Select ward" />
-            </SelectTrigger>
-            <SelectContent>
-              {wards.map((ward) => (
-                <SelectItem key={ward.code} value={String(ward.code)}>
-                  {ward.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.wardCode && (
-            <p className="text-sm text-red-500">{errors.wardCode.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="location">Location (Optional)</Label>
-          <Input
-            id="location"
-            placeholder="104 Nguyễn Chí Thanh"
-            {...formRegister("location")}
-          />
-          {errors.location && (
-            <p className="text-sm text-red-500">{errors.location.message}</p>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="location">Location (Optional)</Label>
+              <Input
+                id="location"
+                placeholder="104 Nguyễn Chí Thanh"
+                {...formRegister("location")}
+                disabled={!showAddress || !provinceCode || !districtCode || !wardCode}
+              />
+              {errors.location && (
+                <p className="text-sm text-red-500">{errors.location.message}</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

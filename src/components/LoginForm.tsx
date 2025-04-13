@@ -12,7 +12,7 @@ import { useAuthStore } from "@/store/AuthStore";
 import { toast } from "react-hot-toast";
 
 const loginSchema = z.object({
-  username: z.string().min(1, { message: "Please enter your username" }),
+  email: z.string().email({ message: "Please enter a valid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
 
@@ -33,7 +33,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -43,7 +43,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
     try {
       console.log("Login data:", data);
-      await login(data.username, data.password);
+      await login(data.email, data.password);
       
       const user = useAuthStore.getState().user; 
       if (user) {
@@ -64,20 +64,21 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="username">Username</Label>
+        <Label htmlFor="email">Email</Label>
         <div className="relative">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
             <AtSign size={18} />
           </div>
           <Input
-            id="username"
-            placeholder="Enter your username"
+            id="email"
+            type="email"
+            placeholder="email@example.com"
             className="pl-10"
-            {...register("username")}
+            {...register("email")}
           />
         </div>
-        {errors.username && (
-          <p className="text-sm text-red-500">{errors.username.message}</p>
+        {errors.email && (
+          <p className="text-sm text-red-500">{errors.email.message}</p>
         )}
       </div>
 
