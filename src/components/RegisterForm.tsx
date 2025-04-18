@@ -208,7 +208,14 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       {/* Role Selection Tabs */}
       <div className="space-y-2">
         <Label>Role</Label>
-        <Tabs value={selectedRole} onValueChange={setSelectedRole} className="w-full">
+        <Tabs 
+          value={selectedRole} 
+          onValueChange={(value) => {
+            setSelectedRole(value);
+            setValue("role", value);
+          }} 
+          className="w-full"
+        >
           <TabsList className="flex w-full rounded-md bg-[#fffff] border p-1 gap-2">
             <TabsTrigger
               value="1"

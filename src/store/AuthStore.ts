@@ -1,6 +1,7 @@
 import { User } from "@/types/user"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import axios from "axios"
 
 type Address = {
   provinceCode: number;
@@ -9,10 +10,20 @@ type Address = {
   placeId: string;
 }
 
+interface BasicInfo {
+  id: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  avatar: string;
+  role: number;
+}
+
 type AuthState = {
   user: User | null
   isLoading: boolean
   error: string | null
+  basicInfo: BasicInfo | null
 }
 
 type AuthActions = {
@@ -20,6 +31,7 @@ type AuthActions = {
   register: (firstName: string, lastName: string, email: string, password: string, role?: number, address?: Address) => Promise<boolean>
   logout: () => Promise<void>
   clearError: () => void
+  getBasicInfo: () => Promise<boolean>
 }
 
 export type AuthStore = AuthState & AuthActions
@@ -30,6 +42,7 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       isLoading: false,
       error: null,
+      basicInfo: null,
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
@@ -154,6 +167,25 @@ export const useAuthStore = create<AuthStore>()(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      getBasicInfo: async () => {
+        try {
+          const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/Auth/basicInfo`, {
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "*/*",
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          console.log(response.data);
+          const basicInfo = response.data.datas[0];
+          set({ basicInfo });
+          return true;
+        } catch (error) {
+          console.error('Failed to fetch basic info:', error);
+          return false;
+        }
       },
     }),
     {
