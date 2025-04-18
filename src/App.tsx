@@ -5,8 +5,7 @@ import "./App.css";
 import { AuthPage } from "./pages/AuthPage";
 import { AuthRoute } from "./routes/AuthRoute";
 import { HomePage } from "./pages/HomePage";
-
-
+import { ProtectedRoute } from "./routes/ProtectedRoute";
 
 function App() {
   return (
@@ -16,7 +15,9 @@ function App() {
         <Route
           path="/"
           element={
+            <ProtectedRoute>
               <HomePage />
+            </ProtectedRoute>
           }
         />
 
@@ -28,7 +29,6 @@ function App() {
             </AuthRoute>
           }
         />
-
       </Routes>
     </BrowserRouter>
   );

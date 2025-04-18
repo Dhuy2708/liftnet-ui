@@ -47,9 +47,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       
       const user = useAuthStore.getState().user; 
       if (user) {
-        onSuccess(); 
+        // Fetch basic info after successful login
+        const basicInfoSuccess = await useAuthStore.getState().getBasicInfo();
+        if (basicInfoSuccess) {
+          onSuccess();
+        } else {
+          toast.error("Failed to fetch user information");
+        }
       } else {
-        // Get error from store and display it
         const error = useAuthStore.getState().error;
         toast.error(error || "Login failed. Please try again.");
       }
