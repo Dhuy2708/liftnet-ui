@@ -10,13 +10,23 @@ type Address = {
   placeId: string;
 }
 
+interface ValidationFailure {
+  propertyName: string
+  errorMessage: string
+  attemptedValue: string
+  customState: string
+  severity: number
+  errorCode: string
+  formattedMessagePlaceholderValues: Record<string, string>
+}
+
 interface BasicInfo {
-  id: string;
-  username: string;
-  firstName: string;
-  lastName: string;
-  avatar: string;
-  role: number;
+  id: string
+  username: string
+  firstName: string
+  lastName: string
+  avatar: string
+  role: number
 }
 
 type AuthState = {
@@ -32,6 +42,7 @@ type AuthActions = {
   logout: () => Promise<void>
   clearError: () => void
   getBasicInfo: () => Promise<boolean>
+  setBasicInfo: (info: BasicInfo) => void
 }
 
 export type AuthStore = AuthState & AuthActions
@@ -43,6 +54,12 @@ export const useAuthStore = create<AuthStore>()(
       isLoading: false,
       error: null,
       basicInfo: null,
+
+      setBasicInfo: (info: BasicInfo) => {
+        set({ basicInfo: info })
+        localStorage.setItem('basicInfo', JSON.stringify(info))
+      },
+
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
@@ -57,24 +74,40 @@ export const useAuthStore = create<AuthStore>()(
           const data = await response.json();
           
           if (!response.ok) {
-            // Check for validation failures first
             if (data.validationFailure && data.validationFailure.length > 0) {
-              // Get the specific validation error messages
               const validationMessages = data.validationFailure.map(
-                (failure: any) => failure.errorMessage
+                (failure: ValidationFailure) => failure.errorMessage
               );
               set({ error: validationMessages.join(", "), isLoading: false });
             } else {
-              // Use the general message if no specific validation errors
               set({ error: data.message || 'Login failed', isLoading: false });
             }
             return;
           }
 
           if (data.datas && data.datas.length > 0) {
-            set({ user: data.datas[0] });
-            localStorage.setItem('user', JSON.stringify(data.datas[0]));
-            localStorage.setItem('token', data.datas[0].token);
+            const user = data.datas[0];
+            set({ user });
+            localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('token', user.token);
+
+            // Get basic info immediately after successful login
+            const basicInfoResponse = await axios.get(
+              `${import.meta.env.VITE_API_URL}/api/Auth/basicInfo`,
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  Accept: "*/*",
+                  Authorization: `Bearer ${user.token}`
+                }
+              }
+            );
+
+            if (basicInfoResponse.data.datas && basicInfoResponse.data.datas.length > 0) {
+              const basicInfo = basicInfoResponse.data.datas[0];
+              set({ basicInfo });
+              localStorage.setItem('basicInfo', JSON.stringify(basicInfo));
+            }
           } else {
             console.error("No user data found");
             set({ error: "Username and password invalid", isLoading: false });
@@ -84,6 +117,8 @@ export const useAuthStore = create<AuthStore>()(
             error: error instanceof Error ? error.message : "Login failed",
             isLoading: false,
           });
+        } finally {
+          set({ isLoading: false });
         }
       },
 
@@ -96,7 +131,7 @@ export const useAuthStore = create<AuthStore>()(
             lastName,
             password,
             role,
-            address: address || null // If address is undefined or empty, set it to null
+            address: address || null
           };
 
           const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Auth/register`, {
@@ -108,18 +143,14 @@ export const useAuthStore = create<AuthStore>()(
           });
 
           const data = await response.json();
-          console.log(data);
           
           if (!response.ok) {
-            // Check for validation failures first
             if (data.validationFailure && data.validationFailure.length > 0) {
-              // Get the specific validation error messages
               const validationMessages = data.validationFailure.map(
-                (failure: any) => failure.errorMessage
+                (failure: ValidationFailure) => failure.errorMessage
               );
               set({ error: validationMessages.join(", ") });
             } else {
-              // Use the general message if no specific validation errors
               set({ error: data.message || 'Registration failed' });
             }
             return false;
@@ -152,9 +183,10 @@ export const useAuthStore = create<AuthStore>()(
             throw new Error('Logout failed');
           }
 
-          set({ user: null });
+          set({ user: null, basicInfo: null });
           localStorage.removeItem('user');
           localStorage.removeItem('token');
+          localStorage.removeItem('basicInfo');
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : "Logout failed",
@@ -170,6 +202,15 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       getBasicInfo: async () => {
+        // First try to get from localStorage
+        const storedBasicInfo = localStorage.getItem('basicInfo');
+        if (storedBasicInfo) {
+          const basicInfo = JSON.parse(storedBasicInfo);
+          set({ basicInfo });
+          return true;
+        }
+
+        // If not in localStorage, fetch from API
         try {
           const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/Auth/basicInfo`, {
             headers: {
@@ -178,10 +219,14 @@ export const useAuthStore = create<AuthStore>()(
               Authorization: `Bearer ${localStorage.getItem('token')}`
             }
           });
-          console.log(response.data);
-          const basicInfo = response.data.datas[0];
-          set({ basicInfo });
-          return true;
+          
+          if (response.data.datas && response.data.datas.length > 0) {
+            const basicInfo = response.data.datas[0];
+            set({ basicInfo });
+            localStorage.setItem('basicInfo', JSON.stringify(basicInfo));
+            return true;
+          }
+          return false;
         } catch (error) {
           console.error('Failed to fetch basic info:', error);
           return false;
@@ -189,8 +234,8 @@ export const useAuthStore = create<AuthStore>()(
       },
     }),
     {
-      name: "auth-storage", 
-      partialize: (state) => ({ user: state.user }), 
+      name: "auth-storage",
+      partialize: (state) => ({ user: state.user, basicInfo: state.basicInfo }),
     },
   ),
 )

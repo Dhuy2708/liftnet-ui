@@ -5,8 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { useAuthStore } from "@/store/AuthStore"
-import { Home, MessageSquare, Calendar, Dumbbell, Users, Settings, LogOut } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Home, MessageSquare, Calendar, Dumbbell, Users, Settings } from "lucide-react"
 
 interface SidebarLinkProps {
   to: string
@@ -38,7 +37,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ isOpen, setIsOpen }: AppSidebarProps) {
   const location = useLocation()
-  const { basicInfo, logout } = useAuthStore()
+  const { basicInfo } = useAuthStore()
   const [isMobile, setIsMobile] = useState(false)
 
   // Check if mobile on mount and when window resizes
@@ -53,21 +52,16 @@ export function AppSidebar({ isOpen, setIsOpen }: AppSidebarProps) {
     return () => window.removeEventListener("resize", checkIsMobile)
   }, [])
 
-  const handleLogout = async () => {
-    await logout()
-  }
-
   const isSeeker = basicInfo?.role === 1
   const isPT = basicInfo?.role === 2
 
   return (
-    <div
+    <aside
       className={`${
         isOpen ? "w-64" : "w-0"
-      } md:w-64 transition-all duration-300 ease-in-out bg-white border-r shadow-sm h-[calc(100vh-3.5rem)] overflow-hidden`}
+      } h-full bg-white border-r shadow-sm overflow-hidden transition-all duration-300 ease-in-out z-30`}
     >
-      {/* Sidebar Content */}
-      <div className="p-2 overflow-y-auto h-[calc(100vh-3.5rem-56px)]">
+      <div className="h-full overflow-y-auto p-2">
         <nav className="space-y-1">
           <SidebarLink to="/" icon={Home} label="Home" isActive={location.pathname === "/"} />
           <SidebarLink to="/chat" icon={MessageSquare} label="Messages" isActive={location.pathname === "/chat"} />
@@ -110,18 +104,6 @@ export function AppSidebar({ isOpen, setIsOpen }: AppSidebarProps) {
           <SidebarLink to="/settings" icon={Settings} label="Settings" isActive={location.pathname === "/settings"} />
         </nav>
       </div>
-
-      {/* Sidebar Footer */}
-      <div className="p-4 border-t absolute bottom-0 w-full bg-white">
-        <Button
-          variant="ghost"
-          onClick={handleLogout}
-          className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
-        >
-          <LogOut className="h-5 w-5 mr-2" />
-          <span>Logout</span>
-        </Button>
-      </div>
-    </div>
+    </aside>
   )
 }
