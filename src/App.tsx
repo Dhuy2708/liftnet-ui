@@ -4,7 +4,8 @@ import "react-toastify/dist/ReactToastify.css"
 import "./App.css"
 import { AuthPage } from "./pages/AuthPage"
 import { AuthRoute } from "./routes/AuthRoute"
-import { HomePage } from "./pages/HomePage"
+import { FeedPage } from "./pages/FeedPage"
+import { ProfilePage } from "./pages/ProfilePage"
 import { ProtectedRoute } from "./routes/ProtectedRoute"
 import { AppLayout } from "./components/layout/app-layout"
 
@@ -18,13 +19,23 @@ function App() {
           element={
             <ProtectedRoute>
               <AppLayout>
-                <HomePage />
+                <FeedPage />
               </AppLayout>
             </ProtectedRoute>
           }
         />
 
-        {/* Add more protected routes with the AppLayout */}
+        <Route
+          path="/profile/:userId"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ProfilePage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/chat"
           element={

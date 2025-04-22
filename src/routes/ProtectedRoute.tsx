@@ -1,30 +1,27 @@
-import { useAuthStore } from "@/store/AuthStore";
-import { ReactNode, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom"
+import { useAuthStore } from "@/store/AuthStore"
+import { useEffect } from "react"
 
 interface ProtectedRouteProps {
-  children: ReactNode;
+  children: React.ReactNode
 }
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, basicInfo, getBasicInfo } = useAuthStore();
-  const navigate = useNavigate();
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, basicInfo, setBasicInfo } = useAuthStore()
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
+    // If we don't have basicInfo in the store, try to get it from localStorage
+    if (!basicInfo) {
+      const storedBasicInfo = localStorage.getItem('basicInfo')
+      if (storedBasicInfo) {
+        setBasicInfo(JSON.parse(storedBasicInfo))
+      }
     }
+  }, [basicInfo, setBasicInfo])
 
-    // Only fetch basic info if we have a user but no basic info
-    if (user && !basicInfo) {
-      getBasicInfo();
-    }
-  }, [user, basicInfo, getBasicInfo, navigate]);
-
-  if (!user || !basicInfo) {
-    return null;
+  if (!user) {
+    return <Navigate to="/auth" />
   }
 
-  return <>{children}</>;
-};
+  return <>{children}</>
+}
