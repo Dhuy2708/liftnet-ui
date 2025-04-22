@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, Navigate } from "react-router-dom"
 import { useSocialStore } from "@/store/SocialStore"
 import { Button } from "@/components/ui/button"
 import {
@@ -32,10 +32,26 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState("overview")
 
   useEffect(() => {
-    if (userId) {
-      getProfile(userId)
+    const fetchProfile = async () => {
+      // If no userId provided, get the current user's ID from localStorage
+      if (!userId) {
+        const basicInfo = localStorage.getItem('basicInfo')
+        if (basicInfo) {
+          const { id } = JSON.parse(basicInfo)
+          await getProfile(id)
+        }
+      } else {
+        await getProfile(userId)
+      }
     }
+
+    fetchProfile()
   }, [userId, getProfile])
+
+  // If no userId and no basicInfo in localStorage, redirect to home
+  if (!userId && !localStorage.getItem('basicInfo')) {
+    return <Navigate to="/" />
+  }
 
   const primaryTabs = [
     { id: "overview", label: "Overview", icon: Eye },
