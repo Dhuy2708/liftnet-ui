@@ -10,6 +10,8 @@ export interface Post {
   modifiedAt: string
   content: string
   medias: string[]
+  likeCount: number
+  isLiked: boolean
   // Additional fields for UI display
   userFirstName?: string
   userLastName?: string
@@ -44,7 +46,8 @@ type FeedState = {
 // Define the store actions
 type FeedActions = {
   fetchPosts: () => Promise<void>
-  createPost: (content: string, mediaFiles?: File[]) => Promise<boolean>
+  fetchProfilePosts: (userId: string) => Promise<void>
+  createPost: (content: string, mediaFiles?: File[], userId?: string) => Promise<boolean>
   likePost: (postId: string) => Promise<boolean>
   deletePost: (postId: string) => Promise<boolean>
   clearError: () => void
@@ -62,9 +65,6 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
   fetchPosts: async () => {
     set({ isLoading: true, error: null })
     try {
-      // For now, we'll use sample data since we don't have the actual API endpoint
-      // In a real implementation, you would call your API here
-      // const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/Feed/posts`)
 
       // Simulate API call with sample data
       await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -80,7 +80,35 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
     }
   },
 
-  createPost: async (content: string, mediaFiles?: File[]) => {
+  fetchProfilePosts: async (userId: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      const token = localStorage.getItem("token")
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Feed/list/${userId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (response.data.success) {
+        set({ posts: response.data.datas, isLoading: false })
+      } else {
+        set({ error: response.data.message || "Failed to fetch profile posts", isLoading: false })
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile posts:", error)
+      set({
+        error: error instanceof Error ? error.message : "Failed to fetch profile posts",
+        isLoading: false,
+      })
+    }
+  },
+
+  createPost: async (content: string, mediaFiles?: File[], userId?: string) => {
     set({ isLoading: true, error: null })
     try {
       const formData = new FormData()
@@ -107,8 +135,10 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
       )
 
       if (response.status === 200 && response.data.success) {
-        // Refresh posts after successful creation
-        await get().fetchPosts()
+        // Always refresh profile posts if userId is provided
+        if (userId) {
+          await get().fetchProfilePosts(userId)
+        }
         return true
       } else {
         // Handle API error
@@ -125,6 +155,8 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
         isLoading: false,
       })
       return false
+    } finally {
+      set({ isLoading: false })
     }
   },
 
@@ -144,32 +176,3 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
     set({ error: null })
   },
 }))
-
-// Helper function to generate sample posts for development
-function generateSamplePosts(): Post[] {
-  const samplePosts = []
-
-  for (let i = 0; i < 10; i++) {
-    samplePosts.push({
-      id: `post-${i}`,
-      userId: `user-${i % 2}`,
-      schema: 0,
-      createdAt: new Date(Date.now() - i * 3600000).toISOString(),
-      modifiedAt: new Date(Date.now() - i * 3600000).toISOString(),
-      content:
-        i % 3 === 0
-          ? "Just finished an amazing HIIT session with my clients! Remember, consistency is key to achieving your fitness goals. 💪"
-          : i % 3 === 1
-            ? "New personal best on my deadlift today! 315 lbs x 5 reps. Thanks to everyone who's been supporting my journey."
-            : "Today's workout was tough but worth it. Focusing on form over weight has really improved my results.",
-      medias: i % 4 === 0 ? [`https://images.unsplash.com/photo-${1517836357463 + i}-d25dfeac3438`] : [],
-      // Additional fields for UI display
-      userFirstName: i % 2 === 0 ? "Sarah" : "Mike",
-      userLastName: i % 2 === 0 ? "Johnson" : "Thompson",
-      userAvatar: `https://randomuser.me/api/portraits/${i % 2 === 0 ? "women" : "men"}/${20 + i}.jpg`,
-      userRole: i % 2 === 0 ? 2 : 1, // 2 for PT, 1 for Seeker
-    })
-  }
-
-  return samplePosts
-}
