@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useEffect } from "react"
+import { useParams, Navigate, useSearchParams } from "react-router-dom"
 import { useSocialStore } from "@/store/SocialStore"
+import { useFeedStore } from "@/store/FeedStore"
 import { Button } from "@/components/ui/button"
 import {
   UserPlus,
@@ -28,14 +29,42 @@ import {
 
 export function ProfilePage() {
   const { userId } = useParams()
-  const { profile, isLoading, getProfile } = useSocialStore()
-  const [activeTab, setActiveTab] = useState("overview")
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { profile, isLoading: isProfileLoading, getProfile } = useSocialStore()
+  const { posts, isLoading: isPostsLoading, fetchProfilePosts, createPost } = useFeedStore()
+  const activeTab = searchParams.get("tab") || "overview"
 
   useEffect(() => {
-    if (userId) {
-      getProfile(userId)
+    const fetchProfile = async () => {
+      // If no userId provided, get the current user's ID from localStorage
+      if (!userId) {
+        const basicInfo = localStorage.getItem('basicInfo')
+        if (basicInfo) {
+          const { id } = JSON.parse(basicInfo)
+          await getProfile(id)
+        }
+      } else {
+        await getProfile(userId)
+      }
     }
+
+    fetchProfile()
   }, [userId, getProfile])
+
+  useEffect(() => {
+    if (activeTab === "posts" && profile) {
+      fetchProfilePosts(profile.id)
+    }
+  }, [activeTab, profile, fetchProfilePosts])
+
+  const handleTabChange = (tabId: string) => {
+    setSearchParams({ tab: tabId })
+  }
+
+  // If no userId and no basicInfo in localStorage, redirect to home
+  if (!userId && !localStorage.getItem('basicInfo')) {
+    return <Navigate to="/" />
+  }
 
   const primaryTabs = [
     { id: "overview", label: "Overview", icon: Eye },
@@ -51,7 +80,7 @@ export function ProfilePage() {
     { id: "downvoted", label: "Downvoted", icon: ThumbsDown },
   ]
 
-  if (isLoading) {
+  if (isProfileLoading) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
         <div className="text-center">
@@ -176,7 +205,7 @@ export function ProfilePage() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-all hover:bg-gray-50 ${
                       activeTab === tab.id
                         ? "border-[#de9151] text-[#de9151]"
@@ -209,7 +238,7 @@ export function ProfilePage() {
                     return (
                       <DropdownMenuItem
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
+                        onClick={() => handleTabChange(tab.id)}
                         className={`flex items-center gap-2 px-3 py-2 cursor-pointer ${
                           activeTab === tab.id ? "text-[#de9151]" : ""
                         }`}
@@ -234,6 +263,59 @@ export function ProfilePage() {
                 <div className="flex items-center justify-center h-40 text-gray-500">
                   <p>No overview items to show yet.</p>
                 </div>
+              </div>
+            )}
+            {activeTab === "posts" && (
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                {isPostsLoading ? (
+                  <div className="flex items-center justify-center h-40">
+                    <Loader2 className="h-8 w-8 animate-spin text-[#de9151]" />
+                  </div>
+                ) : posts.length === 0 ? (
+                  <div className="flex items-center justify-center h-40 text-gray-500">
+                    <p>No posts to show yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {posts.map((post) => (
+                      <div key={post.id} className="border-b pb-4 last:border-b-0">
+                        <div className="flex items-start gap-3">
+                          <img
+                            src={profile?.avatar || `https://ui-avatars.com/api/?name=${profile?.firstName}+${profile?.lastName}&background=de9151&color=fff`}
+                            alt="Profile"
+                            className="w-10 h-10 rounded-full"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{profile?.firstName} {profile?.lastName}</span>
+                              <span className="text-sm text-gray-500">@{profile?.userName}</span>
+                            </div>
+                            <p className="mt-1 text-gray-800">{post.content}</p>
+                            {post.medias && post.medias.length > 0 && (
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {post.medias.map((media, index) => (
+                                  <img
+                                    key={index}
+                                    src={media}
+                                    alt={`Post media ${index + 1}`}
+                                    className="w-full h-48 object-cover rounded-lg"
+                                  />
+                                ))}
+                              </div>
+                            )}
+                            <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
+                              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                              <div className="flex items-center gap-1">
+                                <ThumbsUp className="w-4 h-4" />
+                                <span>{post.likeCount}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {activeTab === "achievements" && (
