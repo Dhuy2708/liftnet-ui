@@ -1,17 +1,24 @@
 import { useEffect } from "react"
 import { useAuthStore } from "@/store/AuthStore"
 import { useFeedStore } from "@/store/FeedStore"
-import { Loader2 } from "lucide-react"
+import { Loader2, LogOut } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 export function HomePage() {
-  const { basicInfo } = useAuthStore()
+  const { basicInfo, logout } = useAuthStore()
   const { posts, isLoading, fetchProfilePosts } = useFeedStore()
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (basicInfo) {
       fetchProfilePosts(basicInfo.id)
     }
   }, [basicInfo, fetchProfilePosts])
+
+  const handleLogout = async () => {
+    await logout()
+    navigate("/auth")
+  }
 
   if (!basicInfo) {
     return null
@@ -21,9 +28,18 @@ export function HomePage() {
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h1 className="text-2xl font-bold mb-4">
-            Welcome, {basicInfo.firstName} {basicInfo.lastName}
-          </h1>
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold">
+              Welcome, {basicInfo.firstName} {basicInfo.lastName}
+            </h1>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              <LogOut size={20} />
+              Logout
+            </button>
+          </div>
 
           <div className="mb-4">
             <p className="text-gray-600">

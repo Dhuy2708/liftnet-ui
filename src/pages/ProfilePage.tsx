@@ -11,14 +11,14 @@ import {
   Calendar,
   Award,
   Bookmark,
-  ThumbsUp,
-  ThumbsDown,
+  Heart,
   Eye,
   Mail,
   MessageSquare,
   EyeOff,
   MoreHorizontal,
   Trophy,
+  MessageCircle,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -27,11 +27,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+// Helper to format time ago
+const formatTimeAgo = (dateString: string): string => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+  if (diffInSeconds < 60) return `${diffInSeconds} minutes ago`
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+  return date.toLocaleDateString()
+}
+
 export function ProfilePage() {
   const { userId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const { profile, isLoading: isProfileLoading, getProfile } = useSocialStore()
-  const { posts, isLoading: isPostsLoading, fetchProfilePosts, createPost } = useFeedStore()
+  const { posts, isLoading: isPostsLoading, fetchProfilePosts, reactPost } = useFeedStore()
   const activeTab = searchParams.get("tab") || "overview"
 
   useEffect(() => {
@@ -76,8 +87,8 @@ export function ProfilePage() {
   const secondaryTabs = [
     { id: "saved", label: "Saved", icon: Bookmark },
     { id: "hidden", label: "Hidden", icon: EyeOff },
-    { id: "upvoted", label: "Upvoted", icon: ThumbsUp },
-    { id: "downvoted", label: "Downvoted", icon: ThumbsDown },
+    { id: "upvoted", label: "Upvoted", icon: Heart },
+    { id: "downvoted", label: "Downvoted", icon: Heart },
   ]
 
   if (isProfileLoading) {
@@ -114,7 +125,7 @@ export function ProfilePage() {
       </div>
 
       {/* Profile Content */}
-      <div className="max-w-[90rem] mx-auto px-6 -mt-20 relative z-10">
+      <div className="w-[7/10] max-w-7xl mx-auto px-6 -mt-20 relative z-10">
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           {/* Profile Header */}
           <div className="flex flex-col md:flex-row md:items-start gap-6">
@@ -278,38 +289,56 @@ export function ProfilePage() {
                 ) : (
                   <div className="space-y-4">
                     {posts.map((post) => (
-                      <div key={post.id} className="border-b pb-4 last:border-b-0">
-                        <div className="flex items-start gap-3">
+                      <div key={post.id} className="bg-white rounded-xl shadow p-4 mb-3">
+                        <div className="flex items-start gap-3 mb-1">
                           <img
                             src={profile?.avatar || `https://ui-avatars.com/api/?name=${profile?.firstName}+${profile?.lastName}&background=de9151&color=fff`}
                             alt="Profile"
-                            className="w-10 h-10 rounded-full"
+                            className="w-10 h-10 rounded-full object-cover border"
                           />
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{profile?.firstName} {profile?.lastName}</span>
-                              <span className="text-sm text-gray-500">@{profile?.userName}</span>
+                              <span className="font-semibold text-base text-gray-900">{profile?.firstName} {profile?.lastName}</span>
+                              <span className="ml-2 text-xs text-gray-400">• {formatTimeAgo(post.createdAt)}</span>
                             </div>
-                            <p className="mt-1 text-gray-800">{post.content}</p>
-                            {post.medias && post.medias.length > 0 && (
-                              <div className="mt-2 grid grid-cols-2 gap-2">
-                                {post.medias.map((media, index) => (
-                                  <img
-                                    key={index}
-                                    src={media}
-                                    alt={`Post media ${index + 1}`}
-                                    className="w-full h-48 object-cover rounded-lg"
-                                  />
-                                ))}
-                              </div>
+                            {profile?.email && profile?.isSelf && (
+                              <div className="text-xs text-gray-500">{profile.email}</div>
                             )}
-                            <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
-                              <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-                              <div className="flex items-center gap-1">
-                                <ThumbsUp className="w-4 h-4" />
-                                <span>{post.likeCount}</span>
-                              </div>
+                          </div>
+                          <div className="ml-auto text-gray-400 cursor-pointer">
+                            <MoreHorizontal />
+                          </div>
+                        </div>
+                        <div className="mb-1">
+                          <div className="text-gray-800 text-sm whitespace-pre-line">{post.content}</div>
+                          {post.medias && post.medias.length > 0 && (
+                            <div className="mt-2">
+                              {post.medias.map((media, index) => (
+                                <img
+                                  key={index}
+                                  src={media}
+                                  alt={`Post media ${index + 1}`}
+                                  className="block w-auto max-w-full max-h-64 object-contain rounded-lg"
+                                />
+                              ))}
                             </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 mt-2">
+                          <button
+                            className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-red-50 transition-colors group"
+                            onClick={() => reactPost(post.id, post.isLiked ? 2 : 1)}
+                          >
+                            <Heart className={`w-5 h-5 transition ${post.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-500'}`} />
+                            <span className="ml-1 text-gray-700 font-medium">{post.likeCount}</span>
+                          </button>
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer">
+                            <MessageCircle className="w-5 h-5 text-gray-400" />
+                            <span className="ml-1 text-gray-700 font-medium">0</span>
+                          </div>
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer">
+                            <Share2 className="w-5 h-5 text-gray-400" />
+                            <span className="ml-1 text-gray-700 font-medium">Share</span>
                           </div>
                         </div>
                       </div>
