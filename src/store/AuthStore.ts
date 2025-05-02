@@ -171,22 +171,25 @@ export const useAuthStore = create<AuthStore>()(
       logout: async () => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Auth/logout`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            },
-          });
+          const token = localStorage.getItem('token');
+          const response = await axios.post(
+            `${import.meta.env.VITE_API_URL}/api/Auth/logout`,
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
 
-          if (!response.ok) {
+          if (response.status === 200) {
+            set({ user: null, basicInfo: null });
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            localStorage.removeItem('basicInfo');
+          } else {
             throw new Error('Logout failed');
           }
-
-          set({ user: null, basicInfo: null });
-          localStorage.removeItem('user');
-          localStorage.removeItem('token');
-          localStorage.removeItem('basicInfo');
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : "Logout failed",

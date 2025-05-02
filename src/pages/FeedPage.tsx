@@ -3,13 +3,17 @@
 import { useEffect } from "react"
 import { CreatePostBox } from "@/components/ui/create-post-box"
 import { useFeedStore } from "@/store/FeedStore"
+import { useAuthStore } from "@/store/AuthStore"
 
 export function FeedPage() {
-  const { posts, isLoading, error, fetchPosts } = useFeedStore()
+  const { basicInfo } = useAuthStore()
+  const { posts, isLoading, error, fetchProfilePosts } = useFeedStore()
 
   useEffect(() => {
-    fetchPosts()
-  }, [fetchPosts])
+    if (basicInfo) {
+      fetchProfilePosts(basicInfo.id)
+    }
+  }, [basicInfo, fetchProfilePosts])
 
   // Helper function to format time ago
   const formatTimeAgo = (dateString: string): string => {
@@ -47,9 +51,14 @@ export function FeedPage() {
       return (
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
           <p>{error}</p>
-          <button onClick={fetchPosts} className="mt-2 text-sm font-medium text-red-600 hover:text-red-800">
-            Try again
-          </button>
+          {basicInfo && (
+            <button 
+              onClick={() => fetchProfilePosts(basicInfo.id)} 
+              className="mt-2 text-sm font-medium text-red-600 hover:text-red-800"
+            >
+              Try again
+            </button>
+          )}
         </div>
       )
     }

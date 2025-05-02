@@ -45,10 +45,9 @@ type FeedState = {
 
 // Define the store actions
 type FeedActions = {
-  fetchPosts: () => Promise<void>
   fetchProfilePosts: (userId: string) => Promise<void>
   createPost: (content: string, mediaFiles?: File[], userId?: string) => Promise<boolean>
-  likePost: (postId: string) => Promise<boolean>
+  reactPost: (feedId: string, type: number) => Promise<boolean>
   deletePost: (postId: string) => Promise<boolean>
   clearError: () => void
 }
@@ -61,24 +60,6 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
   posts: [],
   isLoading: false,
   error: null,
-
-  fetchPosts: async () => {
-    set({ isLoading: true, error: null })
-    try {
-
-      // Simulate API call with sample data
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      const samplePosts = generateSamplePosts()
-      set({ posts: samplePosts, isLoading: false })
-    } catch (error) {
-      console.error("Failed to fetch posts:", error)
-      set({
-        error: error instanceof Error ? error.message : "Failed to fetch posts",
-        isLoading: false,
-      })
-    }
-  },
 
   fetchProfilePosts: async (userId: string) => {
     set({ isLoading: true, error: null })
@@ -160,10 +141,42 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
     }
   },
 
-  likePost: async (postId: string) => {
-    // Implement when you have the API endpoint
-    // For now, just return true
-    return true
+  reactPost: async (feedId: string, type: number) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Feed/react`,
+        {
+          feedId,
+          type
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (response.status === 200) {
+        // Update the post's like status in the store
+        set((state) => ({
+          posts: state.posts.map((post) =>
+            post.id === feedId
+              ? {
+                  ...post,
+                  isLiked: type === 1,
+                  likeCount: type === 1 ? post.likeCount + 1 : post.likeCount - 1,
+                }
+              : post
+          ),
+        }))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error("Failed to react to post:", error)
+      return false
+    }
   },
 
   deletePost: async (postId: string) => {

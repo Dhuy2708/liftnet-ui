@@ -13,7 +13,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <TopBar />
       <div className="flex-1">
         <div className="flex justify-center">
-          <div className="w-full max-w-3xl px-4">{children}</div>
+          <div className="w-full max-w-4xl px-4">{children}</div>
         </div>
       </div>
     </div>
