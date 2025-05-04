@@ -7,8 +7,9 @@ import { AuthRoute } from "./routes/AuthRoute"
 import { FeedPage } from "./pages/FeedPage"
 import { ProfilePage } from "./pages/ProfilePage"
 import { ProtectedRoute } from "./routes/ProtectedRoute"
-import { AppLayout } from "./components/layout/app-layout"
-
+import { CommonAppLayout } from "./components/layout/app-layout"
+import { AppointmentsPage } from "./pages/AppointmentsPage"
+import { LargeAppLayout } from "./components/layout/large-app-layout"
 function App() {
   return (
     <BrowserRouter>
@@ -18,9 +19,9 @@ function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <AppLayout>
+              <CommonAppLayout>
                 <FeedPage />
-              </AppLayout>
+              </CommonAppLayout>
             </ProtectedRoute>
           }
         />
@@ -29,9 +30,9 @@ function App() {
           path="/profile"
           element={
             <ProtectedRoute>
-              <AppLayout>
+              <CommonAppLayout>
                 <ProfilePage />
-              </AppLayout>
+              </CommonAppLayout>
             </ProtectedRoute>
           }
         />
@@ -40,9 +41,9 @@ function App() {
           path="/profile/:userId"
           element={
             <ProtectedRoute>
-              <AppLayout>
+              <CommonAppLayout>
                 <ProfilePage />
-              </AppLayout>
+              </CommonAppLayout>
             </ProtectedRoute>
           }
         />
@@ -51,12 +52,12 @@ function App() {
           path="/chat"
           element={
             <ProtectedRoute>
-              <AppLayout>
+              <CommonAppLayout>
                 <div className="p-8">
                   <h1 className="text-2xl font-bold">Chat Page</h1>
                   <p className="text-gray-600">Coming soon...</p>
                 </div>
-              </AppLayout>
+              </CommonAppLayout>
             </ProtectedRoute>
           }
         />
@@ -65,12 +66,20 @@ function App() {
           path="/appointments"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <div className="p-8">
-                  <h1 className="text-2xl font-bold">Appointments Page</h1>
-                  <p className="text-gray-600">Coming soon...</p>
-                </div>
-              </AppLayout>
+              <LargeAppLayout>
+                <AppointmentsPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/appointments/:appointmentId"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <AppointmentsPage />
+              </LargeAppLayout>
             </ProtectedRoute>
           }
         />
