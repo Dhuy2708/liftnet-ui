@@ -34,6 +34,8 @@ interface SocialState {
 interface SocialActions {
   getProfile: (userId: string) => Promise<void>
   clearError: () => void
+  followUser: (targetId: string) => Promise<boolean>
+  unfollowUser: (targetId: string) => Promise<boolean>
 }
 
 type SocialStore = SocialState & SocialActions
@@ -66,6 +68,64 @@ export const useSocialStore = create<SocialStore>()((set) => ({
       })
     } finally {
       set({ isLoading: false })
+    }
+  },
+
+  followUser: async (targetId: string) => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Social/follow?targetId=${targetId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      )
+
+      if (response.status === 200) {
+        set((state) => ({
+          profile: state.profile ? {
+            ...state.profile,
+            isFollowing: true,
+            follower: state.profile.follower + 1
+          } : null
+        }))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error("Failed to follow user:", error)
+      return false
+    }
+  },
+
+  unfollowUser: async (targetId: string) => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Social/unfollow?targetId=${targetId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      )
+
+      if (response.status === 200) {
+        set((state) => ({
+          profile: state.profile ? {
+            ...state.profile,
+            isFollowing: false,
+            follower: state.profile.follower - 1
+          } : null
+        }))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error("Failed to unfollow user:", error)
+      return false
     }
   },
 
