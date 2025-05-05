@@ -41,7 +41,7 @@ const formatTimeAgo = (dateString: string): string => {
 export function ProfilePage() {
   const { userId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { profile, isLoading: isProfileLoading, getProfile } = useSocialStore()
+  const { profile, isLoading: isProfileLoading, getProfile, followUser, unfollowUser } = useSocialStore()
   const { posts, isLoading: isPostsLoading, fetchProfilePosts, reactPost } = useFeedStore()
   const activeTab = searchParams.get("tab") || "overview"
 
@@ -66,7 +66,7 @@ export function ProfilePage() {
     if (activeTab === "posts" && profile) {
       fetchProfilePosts(profile.id)
     }
-  }, [activeTab, profile, fetchProfilePosts])
+  }, [activeTab, fetchProfilePosts])
 
   const handleTabChange = (tabId: string) => {
     setSearchParams({ tab: tabId })
@@ -75,6 +75,15 @@ export function ProfilePage() {
   const handleReact = async (feedId: string, type: number) => {
     if (!userId) return
     await reactPost(feedId, type, userId)
+  }
+
+  const handleFollow = async () => {
+    if (!profile) return
+    if (profile.isFollowing) {
+      await unfollowUser(profile.id)
+    } else {
+      await followUser(profile.id)
+    }
   }
 
   // If no userId and no basicInfo in localStorage, redirect to home
@@ -171,6 +180,7 @@ export function ProfilePage() {
                     <Button 
                       variant={profile.isFollowing ? "outline" : "default"}
                       className="flex items-center gap-2 px-6 py-2 transition-all hover:shadow-md"
+                      onClick={handleFollow}
                     >
                       {profile.isFollowing ? (
                         <>

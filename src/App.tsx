@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom"
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom"
 import { ToastContainer } from "react-toastify"
 import "react-toastify/dist/ReactToastify.css"
 import "./App.css"
@@ -10,10 +10,16 @@ import { ProtectedRoute } from "./routes/ProtectedRoute"
 import { CommonAppLayout } from "./components/layout/app-layout"
 import { AppointmentsPage } from "./pages/AppointmentsPage"
 import { LargeAppLayout } from "./components/layout/large-app-layout"
-function App() {
+import { SessionCheck } from "./components/SessionCheck"
+
+function AppContent() {
+  const location = useLocation();
+  const isAuthPage = location.pathname === "/auth";
+
   return (
-    <BrowserRouter>
+    <>
       <ToastContainer />
+      {!isAuthPage && <SessionCheck />}
       <Routes>
         <Route
           path="/"
@@ -93,8 +99,16 @@ function App() {
           }
         />
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
-  )
+  );
 }
 
 export default App

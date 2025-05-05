@@ -1,15 +1,15 @@
 import { create } from "zustand";
 
-export interface LocationData {
+export interface GeoData {
   code: string;
   name: string;
   phoneCode?: string;
 }
 
-interface LocationStore {
-  provinces: LocationData[];
-  districts: LocationData[];
-  wards: LocationData[];
+interface GeoStore {
+  provinces: GeoData[];
+  districts: GeoData[];
+  wards: GeoData[];
   selectedProvince: string | null;
   selectedDistrict: string | null;
   fetchProvinces: () => Promise<void>;
@@ -19,8 +19,8 @@ interface LocationStore {
   setSelectedDistrict: (district: string | null) => void;
 }
 
-export const useLocationStore = create<LocationStore>(
-  (set: (partial: Partial<LocationStore> | ((state: LocationStore) => Partial<LocationStore>)) => void) => ({
+export const GeoStore = create<GeoStore>(
+  (set: (partial: Partial<GeoStore> | ((state: GeoStore) => Partial<GeoStore>)) => void) => ({
     provinces: [],
     districts: [],
     wards: [],
@@ -32,7 +32,7 @@ export const useLocationStore = create<LocationStore>(
           `${import.meta.env.VITE_API_URL}/api/Geo/provinces/search`
         );
         const data = await response.json();
-        const formattedProvinces: LocationData[] = [];
+        const formattedProvinces: GeoData[] = [];
         if (data && data.datas && Array.isArray(data.datas)) {
           const provincesData = data.datas as Array<Record<string, unknown>>;
           provincesData.forEach((provinceObject) => {
@@ -64,7 +64,7 @@ export const useLocationStore = create<LocationStore>(
           `${import.meta.env.VITE_API_URL}/api/Geo/districts/search?provinceCode=${provinceCode}`
         );
         const data = await response.json();
-        const formattedDistricts: LocationData[] = [];
+        const formattedDistricts: GeoData[] = [];
         if (data && data.datas && Array.isArray(data.datas)) {
           const districtsData = data.datas as Array<Record<string, unknown>>;
           districtsData.forEach((districtObject) => {
@@ -94,7 +94,7 @@ export const useLocationStore = create<LocationStore>(
           `${import.meta.env.VITE_API_URL}/api/Geo/wards/search?provinceCode=${provinceCode}&districtCode=${districtCode}`
         );
         const data = await response.json();
-        const formattedWards: LocationData[] = [];
+        const formattedWards: GeoData[] = [];
         if (data && data.datas && Array.isArray(data.datas)) {
           const wardsData = data.datas as Array<Record<string, unknown>>;
           wardsData.forEach((wardObject) => {

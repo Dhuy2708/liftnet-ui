@@ -1,5 +1,6 @@
 import { MapPin, Users, Calendar, Clock, Search, Filter, ArrowUpDown, Edit, Trash2 } from "lucide-react"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
+import { formatInTimeZone } from "date-fns-tz"
 import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useNavigate, useParams } from "react-router-dom"
+import { useAppointmentStore } from "@/store/AppointmentStore"
+import { toZonedTime } from "date-fns-tz"
 
 interface Location {
   placeName: string
@@ -45,104 +48,62 @@ interface Appointment {
   repeatingType: number
   created: string
   modified: string
+  participantCount: number
 }
-
-const mockAppointments: Appointment[] = [
-  {
-    id: "602ebf77-a4be-47a9-806f-1c46a597f01c",
-    editable: true,
-    booker: {
-      id: "3d2452f0-66b6-4731-938c-a01dd4e52584",
-      email: "vodinhhuy2708@gmail.com",
-      username: "vodinhhuy2708@gmail.com",
-      firstName: "Vo",
-      lastName: "Huy",
-      role: 0,
-      avatar: "https://res.cloudinary.com/dvwgt4tm1/image/upload/v1730031850/360_F_549983970_bRCkYfk0P6PP5fKbMhZMIb07mCJ6esXL_t9czwt.jpg",
-      isDeleted: false,
-      isSuspended: false
-    },
-    otherParticipants: [
-      {
-        id: "04d660c2-9193-4f80-aeb8-a9abaec58d6d",
-        email: "minhtridn03@gmail.com",
-        username: "minhtri03",
-        firstName: "Minh Tri",
-        lastName: "Tran",
-        role: 0,
-        avatar: "https://res.cloudinary.com/dvwgt4tm1/image/upload/v1730031850/360_F_549983970_bRCkYfk0P6PP5fKbMhZMIb07mCJ6esXL_t9czwt.jpg",
-        isDeleted: false,
-        isSuspended: false
-      }
-    ],
-    name: "Leg Workout Session",
-    description: "Intensive leg workout focusing on form and technique",
-    location: {
-      placeName: "300 Hải Phòng",
-      placeId: "e3dt9qzerSVJgEMHmAvl2nnYRzGgfYLYf5BHlp9srBiyfzTXtG6B1a-_UyKoQ7DkeIYwJ5FXqSd_v0v-sFKSGnSEZlu1fZ3Ve75IXJ5unvId6hFsIqAiOf3msUyOenuUJ",
-      latitude: 16.069239098000025,
-      longitude: 108.20510677800007,
-      formattedAddress: "300 Hải Phòng, Tân Chính, Thanh Khê, Đà Nẵng"
-    },
-    startTime: "2024-04-15T09:00:00.000",
-    endTime: "2024-04-15T10:30:00.000",
-    status: 1,
-    repeatingType: 0,
-    created: "2024-04-08T22:20:45.3169238",
-    modified: "2024-04-08T22:20:45.6674901"
-  },
-  {
-    id: "796d0ee0-a657-4fd0-b172-b076b1eb008e",
-    editable: false,
-    booker: {
-      id: "3d2452f0-66b6-4731-938c-a01dd4e52585",
-      email: "trainer@example.com",
-      username: "trainer@example.com",
-      firstName: "John",
-      lastName: "Smith",
-      role: 2,
-      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-      isDeleted: false,
-      isSuspended: false
-    },
-    otherParticipants: [],
-    name: "Personal Training Session",
-    description: "One-on-one training focusing on strength and conditioning",
-    location: {
-      placeName: "Fitness Center",
-      placeId: "fitness_center_123",
-      latitude: 16.069239098000025,
-      longitude: 108.20510677800007,
-      formattedAddress: "123 Fitness Street, Đà Nẵng"
-    },
-    startTime: "2024-04-16T14:00:00.000",
-    endTime: "2024-04-16T15:00:00.000",
-    status: 0,
-    repeatingType: 0,
-    created: "2024-04-09T10:20:45.3169238",
-    modified: "2024-04-09T10:20:45.6674901"
-  }
-]
 
 export function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<number | null>(null)
-  const [sortBy, setSortBy] = useState<"date" | "name">("date")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  const [sortBy, setSortBy] = useState<"starttime" | "endtime">("endtime")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
   const [hoveredBookerId, setHoveredBookerId] = useState<string | null>(null)
   const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
   const navigate = useNavigate()
   const { appointmentId } = useParams<{ appointmentId?: string }>()
 
+  const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById } = useAppointmentStore()
+
+  useEffect(() => {
+    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+  }, [])
+
+  useEffect(() => {
+    const loadAppointmentDetails = async () => {
+      if (appointmentId) {
+        setIsLoadingDetails(true)
+        const appointment = await fetchAppointmentById(appointmentId)
+        if (appointment) {
+          setSelectedAppointment(appointment)
+        }
+        setIsLoadingDetails(false)
+      }
+    }
+    loadAppointmentDetails()
+  }, [appointmentId])
+
+  const handleSearch = () => {
+    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+  }
+
+  const handleStatusFilter = (status: number | null) => {
+    setStatusFilter(status)
+    fetchAppointments(searchQuery, sortBy, sortOrder, status)
+  }
+
   const getStatusColor = (status: number) => {
     switch (status) {
       case 0:
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-gray-100 text-gray-800"
       case 1:
-        return "bg-green-100 text-green-800"
+        return "bg-yellow-100 text-yellow-800"
       case 2:
+        return "bg-green-100 text-green-800"
+      case 3:
         return "bg-red-100 text-red-800"
+      case 4:
+        return "bg-gray-100 text-gray-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -151,11 +112,15 @@ export function AppointmentsPage() {
   const getStatusText = (status: number) => {
     switch (status) {
       case 0:
-        return "Pending"
+        return "None"
       case 1:
-        return "Confirmed"
+        return "Pending"
       case 2:
-        return "Cancelled"
+        return "Accepted"
+      case 3:
+        return "Rejected"
+      case 4:
+        return "Canceled"
       default:
         return "Unknown"
     }
@@ -167,33 +132,40 @@ export function AppointmentsPage() {
     return "User"
   }
 
-  const filteredAppointments = mockAppointments
+  const filteredAppointments = appointments
     .filter((appointment) => {
-      const matchesSearch = appointment.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        appointment.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        appointment.location.formattedAddress.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesStatus = statusFilter === null || appointment.status === statusFilter
-      return matchesSearch && matchesStatus
-    })
-    .sort((a, b) => {
-      if (sortBy === "date") {
-        return sortOrder === "asc"
-          ? new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-          : new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-      } else {
-        return sortOrder === "asc"
-          ? a.name.localeCompare(b.name)
-          : b.name.localeCompare(a.name)
-      }
+      return matchesStatus
     })
 
-  // Select appointment by URL param
-  useEffect(() => {
-    if (appointmentId && filteredAppointments.length > 0) {
-      const found = filteredAppointments.find(a => a.id === appointmentId)
-      if (found) setSelectedAppointment(found)
+  const handleAppointmentClick = async (appointment: Appointment) => {
+    setIsLoadingDetails(true)
+    const details = await fetchAppointmentById(appointment.id)
+    if (details) {
+      setSelectedAppointment(details)
+      navigate(`/appointments/${appointment.id}`)
     }
-  }, [appointmentId, filteredAppointments])
+    setIsLoadingDetails(false)
+  }
+
+  const formatLocalTime = (utcTime: string) => {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    console.log('Timezone:', timeZone)
+    console.log('UTC Time:', utcTime)
+    const localTime = formatInTimeZone(utcTime, timeZone, "MMM d, yyyy h:mm a")
+    console.log('Local Time:', localTime)
+    return localTime
+  }
+
+  const formatLocalDate = (utcTime: string) => {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return formatInTimeZone(utcTime, timeZone, "MMM d, yyyy")
+  }
+
+  const formatLocalTimeOnly = (utcTime: string) => {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return formatInTimeZone(utcTime, timeZone, "h:mm a")
+  }
 
   return (
     <div className="p-8 h-[calc(100vh-4rem)]">
@@ -207,8 +179,16 @@ export function AppointmentsPage() {
               className="pl-10 w-56"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch()
+                }
+              }}
             />
           </div>
+          <Button onClick={handleSearch} className="bg-[#de9151] hover:bg-[#de9151]/90">
+            Search
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
@@ -217,17 +197,23 @@ export function AppointmentsPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setStatusFilter(null)}>
+              <DropdownMenuItem onClick={() => handleStatusFilter(null)}>
                 All Statuses
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter(0)}>
+              <DropdownMenuItem onClick={() => handleStatusFilter(0)}>
+                None
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusFilter(1)}>
                 Pending
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter(1)}>
-                Confirmed
+              <DropdownMenuItem onClick={() => handleStatusFilter(2)}>
+                Accepted
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setStatusFilter(2)}>
-                Cancelled
+              <DropdownMenuItem onClick={() => handleStatusFilter(3)}>
+                Rejected
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusFilter(4)}>
+                Canceled
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -240,28 +226,28 @@ export function AppointmentsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={() => {
-                setSortBy("date")
+                setSortBy("starttime")
                 setSortOrder("asc")
               }}>
-                Date (Oldest First)
+                Start Time (Oldest First)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
-                setSortBy("date")
+                setSortBy("starttime")
                 setSortOrder("desc")
               }}>
-                Date (Newest First)
+                Start Time (Newest First)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
-                setSortBy("name")
+                setSortBy("endtime")
                 setSortOrder("asc")
               }}>
-                Name (A-Z)
+                End Time (Oldest First)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
-                setSortBy("name")
+                setSortBy("endtime")
                 setSortOrder("desc")
               }}>
-                Name (Z-A)
+                End Time (Newest First)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -285,10 +271,7 @@ export function AppointmentsPage() {
                           ? "border-2 border-[#de9151]"
                           : "hover:shadow-lg"
                       }`}
-                      onClick={() => {
-                        setSelectedAppointment(appointment)
-                        navigate(`/appointments/${appointment.id}`)
-                      }}
+                      onClick={() => handleAppointmentClick(appointment)}
                     >
                       <div className="flex justify-between items-center mb-1 gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -355,17 +338,16 @@ export function AppointmentsPage() {
                         </div>
                         <div className="flex items-center text-gray-600 text-sm">
                           <Users className="h-4 w-4 mr-1.5" />
-                          <span>{appointment.otherParticipants.length + 1} participants</span>
+                          <span>{appointment.participantCount} participants</span>
                         </div>
                         <div className="flex items-center text-gray-600 text-sm">
                           <Calendar className="h-4 w-4 mr-1.5" />
-                          <span>{format(new Date(appointment.startTime), "MMM d, yyyy")}</span>
+                          <span>{formatLocalDate(appointment.startTime)}</span>
                         </div>
                         <div className="flex items-center text-gray-600 text-sm">
                           <Clock className="h-4 w-4 mr-1.5" />
                           <span>
-                            {format(new Date(appointment.startTime), "h:mm a")} -{" "}
-                            {format(new Date(appointment.endTime), "h:mm a")}
+                            {formatLocalTimeOnly(appointment.startTime)} - {formatLocalTimeOnly(appointment.endTime)}
                           </span>
                         </div>
                       </div>
@@ -378,7 +360,11 @@ export function AppointmentsPage() {
 
           {/* Right Side - Details */}
           <div className="flex-1 bg-white rounded-lg shadow-lg p-6 overflow-y-auto h-full">
-            {selectedAppointment ? (
+            {isLoadingDetails ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#de9151]"></div>
+              </div>
+            ) : selectedAppointment ? (
               <>
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex items-center w-full justify-between gap-2">
@@ -433,13 +419,13 @@ export function AppointmentsPage() {
                       <div>
                         <p className="text-sm text-gray-500">Start Time</p>
                         <p className="text-gray-600">
-                          {format(new Date(selectedAppointment.startTime), "MMM d, yyyy h:mm a")}
+                          {formatLocalTime(selectedAppointment.startTime)}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">End Time</p>
                         <p className="text-gray-600">
-                          {format(new Date(selectedAppointment.endTime), "MMM d, yyyy h:mm a")}
+                          {formatLocalTime(selectedAppointment.endTime)}
                         </p>
                       </div>
                     </div>

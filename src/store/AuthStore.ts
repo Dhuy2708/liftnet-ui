@@ -43,6 +43,7 @@ type AuthActions = {
   clearError: () => void
   getBasicInfo: () => Promise<boolean>
   setBasicInfo: (info: BasicInfo) => void
+  checkSession: () => Promise<boolean>
 }
 
 export type AuthStore = AuthState & AuthActions
@@ -232,6 +233,23 @@ export const useAuthStore = create<AuthStore>()(
           return false;
         } catch (error) {
           console.error('Failed to fetch basic info:', error);
+          return false;
+        }
+      },
+
+      checkSession: async () => {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) return false;
+
+          const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/Auth/check`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+
+          return response.status === 200;
+        } catch (error) {
           return false;
         }
       },

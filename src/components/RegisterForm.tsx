@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { AtSign, Lock, User, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuthStore } from "@/store/AuthStore";
 import { toast } from "react-toastify";
-import { useLocationStore } from "@/store/useLocationStore";
+import { GeoStore } from "@/store/GeoStore";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -79,7 +79,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     fetchWards,
     setSelectedProvince,
     setSelectedDistrict,
-  } = useLocationStore();
+  } = GeoStore();
 
   const {
     register: formRegister,
@@ -109,15 +109,18 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
 
   const [selectedRole, setSelectedRole] = useState("1");
   const [showAddress, setShowAddress] = useState(false);
+  const [isProvinceOpen, setIsProvinceOpen] = useState(false);
 
   useEffect(() => {
-    fetchProvinces();
-  }, [fetchProvinces]);
+    if (isProvinceOpen && provinces.length === 0) {
+      fetchProvinces();
+    }
+  }, [isProvinceOpen, provinces.length, fetchProvinces]);
 
   useEffect(() => {
     if (provinceCode) {
       setSelectedProvince(provinceCode);
-      useLocationStore.setState({ districts: [], wards: [] });
+      GeoStore.setState({ districts: [], wards: [] });
       setValue("districtCode", "");
       setValue("wardCode", "");
       fetchDistricts(provinceCode);
@@ -198,7 +201,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     setValue("districtCode", "");
     setValue("wardCode", "");
     setValue("location", "");
-    useLocationStore.setState({ districts: [], wards: [] });
+    GeoStore.setState({ districts: [], wards: [] });
     setSelectedProvince("");
     setSelectedDistrict("");
   };
@@ -322,6 +325,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
                   setValue("provinceCode", value);
                   trigger("provinceCode");
                 }}
+                onOpenChange={setIsProvinceOpen}
                 disabled={!showAddress}
               >
                 <SelectTrigger id="province" className="w-full">
