@@ -47,7 +47,7 @@ type FeedState = {
 type FeedActions = {
   fetchProfilePosts: (userId: string) => Promise<void>
   createPost: (content: string, mediaFiles?: File[], userId?: string) => Promise<boolean>
-  reactPost: (feedId: string, type: number) => Promise<boolean>
+  reactPost: (feedId: string, type: number, feedOwnerId: string) => Promise<boolean>
   deletePost: (postId: string) => Promise<boolean>
   clearError: () => void
 }
@@ -141,12 +141,13 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
     }
   },
 
-  reactPost: async (feedId: string, type: number) => {
+  reactPost: async (feedId: string, type: number, feedOwnerId: string) => {
     try {
       const token = localStorage.getItem("token")
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/Feed/react`,
         {
+          feedOwnerId,
           feedId,
           type
         },
@@ -158,7 +159,6 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
       )
 
       if (response.status === 200) {
-        // Update the post's like status in the store
         set((state) => ({
           posts: state.posts.map((post) =>
             post.id === feedId
@@ -180,9 +180,21 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
   },
 
   deletePost: async (postId: string) => {
-    // Implement when you have the API endpoint
-    // For now, just return true
-    return true
+    try {
+      const token = localStorage.getItem("token")
+      const response = await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/Feed/${postId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      return response.status === 200
+    } catch (error) {
+      console.error("Failed to delete post:", error)
+      return false
+    }
   },
 
   clearError: () => {
