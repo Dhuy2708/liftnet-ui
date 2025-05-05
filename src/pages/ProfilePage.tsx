@@ -72,6 +72,11 @@ export function ProfilePage() {
     setSearchParams({ tab: tabId })
   }
 
+  const handleReact = async (feedId: string, type: number) => {
+    if (!userId) return
+    await reactPost(feedId, type, userId)
+  }
+
   // If no userId and no basicInfo in localStorage, redirect to home
   if (!userId && !localStorage.getItem('basicInfo')) {
     return <Navigate to="/" />
@@ -327,7 +332,7 @@ export function ProfilePage() {
                         <div className="flex items-center gap-4 mt-2">
                           <button
                             className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-red-50 transition-colors group"
-                            onClick={() => reactPost(post.id, post.isLiked ? 2 : 1)}
+                            onClick={() => handleReact(post.id, post.isLiked ? 2 : 1)}
                           >
                             <Heart className={`w-5 h-5 transition ${post.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-400 group-hover:text-red-500'}`} />
                             <span className="ml-1 text-gray-700 font-medium">{post.likeCount}</span>
