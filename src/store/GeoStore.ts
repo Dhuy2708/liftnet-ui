@@ -6,6 +6,11 @@ export interface GeoData {
   phoneCode?: string;
 }
 
+interface LocationSuggestion {
+  description: string;
+  placeId: string;
+}
+
 interface GeoStore {
   provinces: GeoData[];
   districts: GeoData[];
@@ -17,6 +22,7 @@ interface GeoStore {
   fetchWards: (provinceCode: string, districtCode: string) => Promise<void>;
   setSelectedProvince: (province: string | null) => void;
   setSelectedDistrict: (district: string | null) => void;
+  searchLocations: (searchText: string) => Promise<LocationSuggestion[]>;
 }
 
 export const GeoStore = create<GeoStore>(
@@ -122,5 +128,26 @@ export const GeoStore = create<GeoStore>(
       set({ selectedProvince: province }),
     setSelectedDistrict: (district: string | null) =>
       set({ selectedDistrict: district }),
+    searchLocations: async (searchText: string) => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/Geo/location/search?q=${encodeURIComponent(searchText)}&searchRelated=true`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
+          }
+        );
+        const data = await response.json();
+        if (data && data.datas && Array.isArray(data.datas)) {
+          return data.datas as LocationSuggestion[];
+        }
+        return [];
+      } catch (error) {
+        return [];
+      }
+    },
   })
 );

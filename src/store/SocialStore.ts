@@ -36,6 +36,7 @@ interface SocialActions {
   clearError: () => void
   followUser: (targetId: string) => Promise<boolean>
   unfollowUser: (targetId: string) => Promise<boolean>
+  searchFollowedUsers: (search: string, pageNumber?: number) => Promise<ProfileData[]>;
 }
 
 type SocialStore = SocialState & SocialActions
@@ -126,6 +127,30 @@ export const useSocialStore = create<SocialStore>()((set) => ({
     } catch (error) {
       console.error("Failed to unfollow user:", error)
       return false
+    }
+  },
+
+  searchFollowedUsers: async (search: string, pageNumber = 1) => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Social/search/followed`,
+        {
+          pageNumber,
+          search
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json"
+          },
+        }
+      );
+      if (response.data.success && Array.isArray(response.data.datas)) {
+        return response.data.datas;
+      }
+      return [];
+    } catch (error) {
+      return [];
     }
   },
 

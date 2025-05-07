@@ -97,7 +97,9 @@ export function TopBar() {
           <nav className="flex-1 flex justify-center space-x-1">
             {tabs.map((tab) => {
               const Icon = tab.icon
-              const isActive = location.pathname === tab.path
+              const isActive = tab.path === "/appointments" 
+                ? location.pathname.startsWith("/appointments")
+                : location.pathname === tab.path
               return (
                 <Link
                   key={tab.path}
