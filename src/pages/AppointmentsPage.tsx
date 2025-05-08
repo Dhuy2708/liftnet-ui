@@ -91,9 +91,10 @@ export function AppointmentsPage() {
   const [isBooking, setIsBooking] = useState(false)
   const [bookingMessage, setBookingMessage] = useState<{text: string, success: boolean} | null>(null)
 
-  const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById } = useAppointmentStore()
+  const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize } = useAppointmentStore()
 
   useEffect(() => {
+    setPageSize(10)
     fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
   }, [])
 
@@ -301,6 +302,13 @@ export function AppointmentsPage() {
     }
   }, [showBookingForm])
 
+  const handlePageChange = (newPage: number) => {
+    setPageNumber(newPage)
+    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+  }
+
+  const totalPages = Math.ceil(totalCount / 10)
+
   return (
     <div className="p-8 h-[calc(100vh-4rem)]">
       <div className="flex flex-col h-full">
@@ -400,120 +408,154 @@ export function AppointmentsPage() {
           {/* Left Side - List */}
           <div className="w-[30%] flex flex-col h-full">
             <div className="flex-1 overflow-y-auto pr-2">
+              <div className="text-sm text-gray-500 mb-2">Total count: {totalCount}</div>
               {filteredAppointments.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-lg shadow-sm">
                   <p className="text-gray-500">No appointments found</p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {filteredAppointments.map((appointment) => (
-                    <div
-                      key={appointment.id}
-                      className={`bg-white rounded-lg shadow-md p-4 cursor-pointer transition-all ${
-                        selectedAppointment?.id === appointment.id
-                          ? "border-2 border-[#de9151]"
-                          : "hover:shadow-lg"
-                      }`}
-                      onClick={() => handleAppointmentClick(appointment)}
-                    >
-                      <div className="flex justify-between items-center mb-1 gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <h2 className="text-lg font-semibold truncate">{appointment.name}</h2>
-                          <div
-                            id={`booker-${appointment.id}`}
-                            className="relative flex items-center group"
-                            onMouseEnter={() => {
-                              hoverTimeout.current = setTimeout(() => {
-                                setHoveredBooker({id: appointment.booker.id, elementId: `booker-${appointment.id}`})
-                              }, 300)
-                            }}
-                            onMouseLeave={() => {
-                              if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
-                              setHoveredBooker(null)
-                            }}
-                          >
-                            <img
-                              src={appointment.booker.avatar}
-                              alt={`${appointment.booker.firstName} ${appointment.booker.lastName}`}
-                              className="w-6 h-6 rounded-full ml-2 mr-1"
-                            />
-                            <span className="text-sm text-gray-600 truncate">
-                              {appointment.booker.firstName} {appointment.booker.lastName}
-                            </span>
-                            {hoveredBooker?.id === appointment.booker.id && hoveredBooker.elementId === `booker-${appointment.id}` && (
-                              <div
-                                className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white p-4 shadow-lg border text-sm text-gray-800 whitespace-normal"
-                              >
-                                <div className="flex items-center mb-2">
-                                  <img
-                                    src={appointment.booker.avatar}
-                                    alt={`${appointment.booker.firstName} ${appointment.booker.lastName}`}
-                                    className="w-10 h-10 rounded-full mr-3"
-                                  />
-                                  <div>
-                                    <button
-                                      className="font-semibold flex items-center hover:underline focus:outline-none"
-                                      onClick={() => navigate(`/profile/${appointment.booker.id}`)}
-                                    >
-                                      {appointment.booker.firstName} {appointment.booker.lastName}
-                                      <span className="text-xs text-gray-400 ml-2">{getRoleText(appointment.booker.role)}</span>
-                                    </button>
-                                    <button
-                                      className="text-xs text-blue-500 hover:underline focus:outline-none text-left"
-                                      onClick={() => navigate(`/profile/${appointment.booker.id}`)}
-                                    >
-                                      {appointment.booker.username}
-                                    </button>
+                <>
+                  <div className="space-y-2">
+                    {filteredAppointments.map((appointment) => (
+                      <div
+                        key={appointment.id}
+                        className={`bg-white rounded-lg shadow-md p-4 cursor-pointer transition-all ${
+                          selectedAppointment?.id === appointment.id
+                            ? "border-2 border-[#de9151]"
+                            : "hover:shadow-lg"
+                        }`}
+                        onClick={() => handleAppointmentClick(appointment)}
+                      >
+                        <div className="flex justify-between items-center mb-1 gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <h2 className="text-lg font-semibold truncate">{appointment.name}</h2>
+                            <div
+                              id={`booker-${appointment.id}`}
+                              className="relative flex items-center group"
+                              onMouseEnter={() => {
+                                hoverTimeout.current = setTimeout(() => {
+                                  setHoveredBooker({id: appointment.booker.id, elementId: `booker-${appointment.id}`})
+                                }, 300)
+                              }}
+                              onMouseLeave={() => {
+                                if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
+                                setHoveredBooker(null)
+                              }}
+                            >
+                              <img
+                                src={appointment.booker.avatar}
+                                alt={`${appointment.booker.firstName} ${appointment.booker.lastName}`}
+                                className="w-6 h-6 rounded-full ml-2 mr-1"
+                              />
+                              <span className="text-sm text-gray-600 truncate">
+                                {appointment.booker.firstName} {appointment.booker.lastName}
+                              </span>
+                              {hoveredBooker?.id === appointment.booker.id && hoveredBooker.elementId === `booker-${appointment.id}` && (
+                                <div
+                                  className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white p-4 shadow-lg border text-sm text-gray-800 whitespace-normal"
+                                >
+                                  <div className="flex items-center mb-2">
+                                    <img
+                                      src={appointment.booker.avatar}
+                                      alt={`${appointment.booker.firstName} ${appointment.booker.lastName}`}
+                                      className="w-10 h-10 rounded-full mr-3"
+                                    />
+                                    <div>
+                                      <button
+                                        className="font-semibold flex items-center hover:underline focus:outline-none"
+                                        onClick={() => navigate(`/profile/${appointment.booker.id}`)}
+                                      >
+                                        {appointment.booker.firstName} {appointment.booker.lastName}
+                                        <span className="text-xs text-gray-400 ml-2">{getRoleText(appointment.booker.role)}</span>
+                                      </button>
+                                      <button
+                                        className="text-xs text-blue-500 hover:underline focus:outline-none text-left"
+                                        onClick={() => navigate(`/profile/${appointment.booker.id}`)}
+                                      >
+                                        {appointment.booker.username}
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                          {getStatusText(appointment.status)}
-                        </span>
-                        {getRepeatingTypeLabel(appointment.repeatingType) && (
-                          <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {getRepeatingTypeLabel(appointment.repeatingType)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 mb-2">
-                        <div className="flex items-center text-gray-600 text-sm">
-                          <MapPin className="h-4 w-4 mr-1.5" />
-                          <span className="truncate">{appointment.location?.formattedAddress || 'No location'}</span>
-                        </div>
-                        <div className="flex items-center text-gray-600 text-sm">
-                          <Users className="h-4 w-4 mr-1.5" />
-                          <span>{appointment.participantCount ?? 1} participants</span>
-                        </div>
-                        {formatLocalDate(appointment.startTime) === formatLocalDate(appointment.endTime) ? (
-                          <>
-                            <div className="flex items-center text-gray-600 text-sm">
-                              <Calendar className="h-4 w-4 mr-1.5" />
-                              <span>{formatLocalDate(appointment.startTime)}</span>
+                              )}
                             </div>
-                            <div className="flex items-center text-gray-600 text-sm">
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                            {getStatusText(appointment.status)}
+                          </span>
+                          {getRepeatingTypeLabel(appointment.repeatingType) && (
+                            <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {getRepeatingTypeLabel(appointment.repeatingType)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div className="flex items-center text-gray-600 text-sm">
+                            <MapPin className="h-4 w-4 mr-1.5" />
+                            <span className="truncate">{appointment.location?.formattedAddress || 'No location'}</span>
+                          </div>
+                          <div className="flex items-center text-gray-600 text-sm">
+                            <Users className="h-4 w-4 mr-1.5" />
+                            <span>{appointment.participantCount ?? 1} participants</span>
+                          </div>
+                          {formatLocalDate(appointment.startTime) === formatLocalDate(appointment.endTime) ? (
+                            <>
+                              <div className="flex items-center text-gray-600 text-sm">
+                                <Calendar className="h-4 w-4 mr-1.5" />
+                                <span>{formatLocalDate(appointment.startTime)}</span>
+                              </div>
+                              <div className="flex items-center text-gray-600 text-sm">
+                                <Clock className="h-4 w-4 mr-1.5" />
+                                <span>
+                                  {formatLocalTimeOnly(appointment.startTime)} - {formatLocalTimeOnly(appointment.endTime)}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex items-center text-gray-600 text-sm col-span-2">
                               <Clock className="h-4 w-4 mr-1.5" />
                               <span>
-                                {formatLocalTimeOnly(appointment.startTime)} - {formatLocalTimeOnly(appointment.endTime)}
+                                {formatLocalTime(appointment.startTime)} - {formatLocalTime(appointment.endTime)}
                               </span>
                             </div>
-                          </>
-                        ) : (
-                          <div className="flex items-center text-gray-600 text-sm col-span-2">
-                            <Clock className="h-4 w-4 mr-1.5" />
-                            <span>
-                              {formatLocalTime(appointment.startTime)} - {formatLocalTime(appointment.endTime)}
-                            </span>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex justify-center gap-2 mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pageNumber - 1)}
+                        disabled={pageNumber === 1}
+                      >
+                        Previous
+                      </Button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <Button
+                          key={page}
+                          variant={page === pageNumber ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                          className={page === pageNumber ? "bg-[#de9151] hover:bg-[#de9151]/90" : ""}
+                        >
+                          {page}
+                        </Button>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pageNumber + 1)}
+                        disabled={pageNumber === totalPages}
+                      >
+                        Next
+                      </Button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
           </div>
