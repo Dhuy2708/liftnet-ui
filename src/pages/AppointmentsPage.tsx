@@ -39,6 +39,7 @@ interface User {
   avatar: string
   isDeleted: boolean
   isSuspended: boolean
+  status?: number
 }
 
 interface Appointment {
@@ -113,11 +114,15 @@ export function AppointmentsPage() {
   }, [appointmentId])
 
   const handleSearch = () => {
+    setPageNumber(1)
+    setSelectedAppointment(null)
     fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
   }
 
   const handleStatusFilter = (status: number | null) => {
     setStatusFilter(status)
+    setPageNumber(1)
+    setSelectedAppointment(null)
     fetchAppointments(searchQuery, sortBy, sortOrder, status)
   }
 
@@ -183,7 +188,13 @@ export function AppointmentsPage() {
       return matchesStatus
     })
 
-  const handleAppointmentClick = (appointment: Appointment) => {
+  const handleAppointmentClick = async (appointment: Appointment) => {
+    setIsLoadingDetails(true)
+    const freshAppointment = await fetchAppointmentById(appointment.id)
+    if (freshAppointment) {
+      setSelectedAppointment(freshAppointment)
+    }
+    setIsLoadingDetails(false)
     navigate(`/appointments/${appointment.id}`)
   }
 
@@ -308,6 +319,40 @@ export function AppointmentsPage() {
   }
 
   const totalPages = Math.ceil(totalCount / 10)
+
+  const getParticipantStatusColor = (status: number) => {
+    switch (status) {
+      case 0:
+        return "bg-gray-100 text-gray-800"
+      case 1:
+        return "bg-yellow-100 text-yellow-800"
+      case 2:
+        return "bg-green-100 text-green-800"
+      case 3:
+        return "bg-red-100 text-red-800"
+      case 4:
+        return "bg-gray-100 text-gray-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getParticipantStatusText = (status: number) => {
+    switch (status) {
+      case 0:
+        return "None"
+      case 1:
+        return "Pending"
+      case 2:
+        return "Accepted"
+      case 3:
+        return "Rejected"
+      case 4:
+        return "Canceled"
+      default:
+        return "Unknown"
+    }
+  }
 
   return (
     <div className="p-8 h-[calc(100vh-4rem)]">
@@ -480,14 +525,16 @@ export function AppointmentsPage() {
                               )}
                             </div>
                           </div>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                            {getStatusText(appointment.status)}
-                          </span>
-                          {getRepeatingTypeLabel(appointment.repeatingType) && (
-                            <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {getRepeatingTypeLabel(appointment.repeatingType)}
+                          <div className="flex items-center gap-2">
+                            {getRepeatingTypeLabel(appointment.repeatingType) && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {getRepeatingTypeLabel(appointment.repeatingType)}
+                              </span>
+                            )}
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                              {getStatusText(appointment.status)}
                             </span>
-                          )}
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 mb-2">
@@ -609,7 +656,10 @@ export function AppointmentsPage() {
                   <div>
                     <h3 className="text-lg font-semibold mb-2">Participants</h3>
                     <div className="space-y-4">
-                      {[{...selectedAppointment.booker, roleLabel: 'Booker'}, ...(selectedAppointment.otherParticipants ?? []).map(p => ({...p, roleLabel: 'Participant'}))].map((user) => (
+                      {[
+                        {...selectedAppointment.booker, roleLabel: 'Booker', status: 2}, 
+                        ...(selectedAppointment.otherParticipants || []).map(p => ({...p, roleLabel: 'Participant'}))
+                      ].map((user) => (
                         <div key={user.id} className="flex items-center gap-3">
                           <button
                             className="focus:outline-none"
@@ -629,7 +679,12 @@ export function AppointmentsPage() {
                               >
                                 {user.firstName} {user.lastName}
                               </button>
-                              <span className="text-xs text-gray-400">{user.role === 1 ? 'Seeker' : user.role === 2 ? 'Personal Trainer' : user.roleLabel || 'User'}</span>
+                              <span className="text-xs text-gray-400">{user.roleLabel}</span>
+                              {user.status !== undefined && (
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getParticipantStatusColor(user.status)}`}>
+                                  {getParticipantStatusText(user.status)}
+                                </span>
+                              )}
                             </div>
                             <button
                               className="text-xs text-blue-500 text-left truncate focus:outline-none"
@@ -722,7 +777,7 @@ export function AppointmentsPage() {
               <div>
                 <Label className="mb-2 block">Participants</Label>
                 <div className="relative" ref={participantDropdownRef}>
-                  <div className="w-full flex items-center gap-2 rounded-md border border-input bg-white px-3 h-10 text-sm focus-within:ring-2 focus-within:ring-[#2563eb] overflow-x-auto">
+                  <div className="w-full flex flex-wrap items-center gap-2 rounded-md border border-input bg-white px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-[#2563eb]">
                     {selectedParticipants.map(user => (
                       <div key={user.id} className="flex items-center gap-1 bg-gray-100 rounded-full px-2 py-1 text-sm border border-gray-300">
                         <img src={user.avatar} alt={user.firstName} className="w-6 h-6 rounded-full" />
