@@ -18,6 +18,7 @@ import {
   Calendar,
   Dumbbell,
   Users,
+  Clock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CreatePostModal } from "@/components/ui/create-post-modal"
@@ -58,25 +59,13 @@ export function TopBar() {
     setDarkMode(!darkMode)
   }
 
-  const isSeeker = basicInfo?.role === 1
-  const isPT = basicInfo?.role === 2
-
   const tabs = [
     { icon: Home, label: "Home", path: "/" },
     { icon: MessageSquare, label: "Chat", path: "/chat" },
     { icon: Calendar, label: "Appointments", path: "/appointments" },
-    ...(isSeeker
-      ? [
-          { icon: Dumbbell, label: "Find Trainers", path: "/trainers" },
-          { icon: Dumbbell, label: "My Workouts", path: "/workouts" },
-        ]
-      : []),
-    ...(isPT
-      ? [
-          { icon: Users, label: "My Clients", path: "/clients" },
-          { icon: Dumbbell, label: "Training Programs", path: "/programs" },
-        ]
-      : []),
+    { icon: Clock, label: "Schedule", path: "/schedule" },
+    { icon: Users, label: "My Clients", path: "/clients" },
+    { icon: Dumbbell, label: "Training Programs", path: "/programs" },
   ]
 
   return (
