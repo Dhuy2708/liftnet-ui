@@ -1,5 +1,4 @@
 import { MapPin, Users, Calendar, Clock, Search, Filter, ArrowUpDown, Edit, Trash2, Plus, X } from "lucide-react"
-import { format, parseISO } from "date-fns"
 import { formatInTimeZone } from "date-fns-tz"
 import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
@@ -12,12 +11,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useNavigate, useParams } from "react-router-dom"
 import { useAppointmentStore } from "@/store/AppointmentStore"
-import { toZonedTime } from "date-fns-tz"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useSocialStore } from "@/store/SocialStore"
 import { GeoStore } from "@/store/GeoStore"
-import { Select } from "@/components/ui/select"
 import axios from "axios"
 import { toast } from "react-toastify"
 
@@ -141,6 +138,16 @@ export function AppointmentsPage() {
       default:
         return "bg-gray-100 text-gray-800"
     }
+  }
+
+  const getAppointmentTimeStatus = (startTime: string, endTime: string) => {
+    const now = new Date()
+    const start = new Date(startTime)
+    const end = new Date(endTime)
+    
+    if (now > end) return { status: 'expired', color: 'bg-gray-100 text-gray-800' }
+    if (now >= start && now <= end) return { status: 'in-progress', color: 'bg-blue-100 text-blue-800' }
+    return { status: 'upcoming', color: 'bg-green-100 text-green-800' }
   }
 
   const getStatusText = (status: number) => {
@@ -273,18 +280,18 @@ export function AppointmentsPage() {
       repeatingType: repeatingType
     };
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/Appointment/book`, body, {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/Appointment/book`, body, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json"
         }
       });
-      toast.success(res.data.message || 'Success', { position: 'top-right' })
       setTimeout(() => {
         setShowBookingForm(false)
+        fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
       }, 1200)
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Error', { position: 'top-right' })
+      setBookingMessage({text: err?.response?.data?.message || 'Error', success: false})
     } finally {
       setIsBooking(false)
     }
@@ -351,6 +358,38 @@ export function AppointmentsPage() {
         return "Canceled"
       default:
         return "Unknown"
+    }
+  }
+
+  const handleStatusChange = async (newStatus: number) => {
+    if (!selectedAppointment) return
+
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Appointment/actionRequest`,
+        {
+          appointmentId: selectedAppointment.id,
+          action: newStatus === 2 ? 1 : newStatus === 3 ? 2 : 3
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json"
+          }
+        }
+      )
+
+      if (response.data.success) {
+        toast.success(response.data.message || 'Action successful', { position: 'top-right' })
+        if (selectedAppointment) {
+          setSelectedAppointment({...selectedAppointment, status: newStatus})
+        }
+        fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+      } else {
+        toast.error(response.data.message || 'Action failed', { position: 'top-right' })
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Action failed', { position: 'top-right' })
     }
   }
 
@@ -534,6 +573,12 @@ export function AppointmentsPage() {
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
                               {getStatusText(appointment.status)}
                             </span>
+                            {appointment.status === 2 && (
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAppointmentTimeStatus(appointment.startTime, appointment.endTime).color}`}>
+                                {getAppointmentTimeStatus(appointment.startTime, appointment.endTime).status === 'in-progress' ? 'In Progress' : 
+                                 getAppointmentTimeStatus(appointment.startTime, appointment.endTime).status === 'expired' ? 'Expired' : 'Upcoming'}
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -619,16 +664,64 @@ export function AppointmentsPage() {
                   <div className="flex items-center w-full justify-between gap-2">
                     <div className="flex items-center gap-4">
                       <h2 className="text-2xl font-bold">{selectedAppointment.name}</h2>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedAppointment.status)}`}>
-                        {getStatusText(selectedAppointment.status)}
-                      </span>
                       {getRepeatingTypeLabel(selectedAppointment.repeatingType) && (
-                        <span className="ml-2 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                           {getRepeatingTypeLabel(selectedAppointment.repeatingType)}
                         </span>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            className={`px-3 py-1 rounded-full text-sm font-medium hover:opacity-80 transition-all ${getStatusColor(selectedAppointment.status)} flex items-center gap-1.5`}
+                          >
+                            {getStatusText(selectedAppointment.status)}
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-32 p-1">
+                          {selectedAppointment.status === 1 && (
+                            <>
+                              <DropdownMenuItem 
+                                onClick={() => handleStatusChange(2)}
+                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                Accept
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleStatusChange(3)}
+                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                Decline
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {selectedAppointment.status === 2 && (
+                            <DropdownMenuItem 
+                              onClick={() => handleStatusChange(4)}
+                              className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
+                            >
+                              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                              Cancel
+                            </DropdownMenuItem>
+                          )}
+                          {(selectedAppointment.status === 3 || selectedAppointment.status === 4) && (
+                            <DropdownMenuItem 
+                              onClick={() => handleStatusChange(2)}
+                              className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
+                            >
+                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                              Accept
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       {selectedAppointment.editable && (
                         <>
                           <Button variant="outline" size="icon">
@@ -657,7 +750,7 @@ export function AppointmentsPage() {
                     <h3 className="text-lg font-semibold mb-2">Participants</h3>
                     <div className="space-y-4">
                       {[
-                        {...selectedAppointment.booker, roleLabel: 'Booker', status: 2}, 
+                        {...selectedAppointment.booker, roleLabel: 'Booker'}, 
                         ...(selectedAppointment.otherParticipants || []).map(p => ({...p, roleLabel: 'Participant'}))
                       ].map((user) => (
                         <div key={user.id} className="flex items-center gap-3">
@@ -719,7 +812,7 @@ export function AppointmentsPage() {
                   </div>
 
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">Schedule</h3>
+                    <h3 className="text-lg font-semibold mb-2">{selectedAppointment.repeatingType ? 'Upcoming Schedule' : 'Schedule'}</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-500">Start Time</p>
@@ -733,6 +826,15 @@ export function AppointmentsPage() {
                           {formatLocalTime(selectedAppointment.endTime)}
                         </p>
                       </div>
+                      {selectedAppointment.status === 2 && (
+                        <div className="col-span-2">
+                          <p className="text-sm text-gray-500">Current Status</p>
+                          <p className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).color}`}>
+                            {getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).status === 'in-progress' ? 'In Progress' : 
+                             getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).status === 'expired' ? 'Expired' : 'Upcoming'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

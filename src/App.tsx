@@ -9,8 +9,10 @@ import { ProfilePage } from "./pages/ProfilePage"
 import { ProtectedRoute } from "./routes/ProtectedRoute"
 import { CommonAppLayout } from "./components/layout/app-layout"
 import { AppointmentsPage } from "./pages/AppointmentsPage"
+import { SchedulePage } from "./pages/SchedulePage"
 import { LargeAppLayout } from "./components/layout/large-app-layout"
 import { SessionCheck } from "./components/SessionCheck"
+import { TopBar } from "./components/topbar/topbar"
 
 function AppContent() {
   const location = useLocation();
@@ -85,6 +87,17 @@ function AppContent() {
             <ProtectedRoute>
               <LargeAppLayout>
                 <AppointmentsPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/schedule"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <SchedulePage />
               </LargeAppLayout>
             </ProtectedRoute>
           }
