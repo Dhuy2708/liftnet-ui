@@ -2,6 +2,7 @@ import { User } from "@/types/user"
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import axios from "axios"
+import { signalRService } from "../services/signalRService"
 
 type Address = {
   provinceCode: number;
@@ -38,7 +39,7 @@ type AuthState = {
 
 type AuthActions = {
   login: (email: string, password: string) => Promise<void>
-  register: (firstName: string, lastName: string, email: string, password: string, role?: number, address?: Address) => Promise<boolean>
+  register: (firstName: string, lastName: string, email: string, password: string, role?: number, address?: Address, age?: number, gender?: number) => Promise<boolean>
   logout: () => Promise<void>
   clearError: () => void
   getBasicInfo: () => Promise<boolean>
@@ -123,7 +124,7 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      register: async (firstName: string, lastName: string, email: string, password: string, role = 1, address?: Address | null) => {
+      register: async (firstName: string, lastName: string, email: string, password: string, role = 1, address?: Address | null, age?: number, gender?: number) => {
         set({ isLoading: true, error: null });
         try {
           const registerData = {
@@ -132,7 +133,9 @@ export const useAuthStore = create<AuthStore>()(
             lastName,
             password,
             role,
-            address: address || null
+            address: address || null,
+            age,
+            gender
           };
 
           const response = await fetch(`${import.meta.env.VITE_API_URL}/api/Auth/register`, {
@@ -184,10 +187,11 @@ export const useAuthStore = create<AuthStore>()(
           );
 
           if (response.status === 200) {
-            set({ user: null, basicInfo: null });
+            await signalRService.stopConnection();
             localStorage.removeItem('user');
             localStorage.removeItem('token');
             localStorage.removeItem('basicInfo');
+            set({ user: null, basicInfo: null, isLoading: false });
           } else {
             throw new Error('Logout failed');
           }
@@ -196,8 +200,6 @@ export const useAuthStore = create<AuthStore>()(
             error: error instanceof Error ? error.message : "Logout failed",
             isLoading: false,
           });
-        } finally {
-          set({ isLoading: false });
         }
       },
 

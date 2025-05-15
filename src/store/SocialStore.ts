@@ -1,16 +1,6 @@
 import { create } from "zustand"
 import axios from "axios"
 
-interface ValidationFailure {
-  propertyName: string
-  errorMessage: string
-  attemptedValue: string
-  customState: string
-  severity: number
-  errorCode: string
-  formattedMessagePlaceholderValues: Record<string, string>
-}
-
 interface ProfileData {
   id: string
   isSelf: boolean
@@ -29,6 +19,9 @@ interface SocialState {
   profile: ProfileData | null
   isLoading: boolean
   error: string | null
+  searchResults: ProfileData[]
+  hasMore: boolean
+  currentPage: number
 }
 
 interface SocialActions {
@@ -36,7 +29,9 @@ interface SocialActions {
   clearError: () => void
   followUser: (targetId: string) => Promise<boolean>
   unfollowUser: (targetId: string) => Promise<boolean>
-  searchFollowedUsers: (search: string, pageNumber?: number) => Promise<ProfileData[]>;
+  searchFollowedUsers: (search: string, pageNumber?: number) => Promise<ProfileData[]>
+  searchPrioritizedUsers: (search: string, pageNumber?: number) => Promise<ProfileData[]>
+  clearSearchResults: () => void
 }
 
 type SocialStore = SocialState & SocialActions
@@ -45,6 +40,9 @@ export const useSocialStore = create<SocialStore>()((set) => ({
   profile: null,
   isLoading: false,
   error: null,
+  searchResults: [],
+  hasMore: true,
+  currentPage: 1,
 
   getProfile: async (userId: string) => {
     set({ isLoading: true, error: null })
@@ -149,9 +147,45 @@ export const useSocialStore = create<SocialStore>()((set) => ({
         return response.data.datas;
       }
       return [];
-    } catch (error) {
+    } catch {
       return [];
     }
+  },
+
+  searchPrioritizedUsers: async (search: string, pageNumber = 1) => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Social/search/prioritized`,
+        {
+          pageNumber,
+          search
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json"
+          },
+        }
+      );
+
+      if (response.data.success && Array.isArray(response.data.datas)) {
+        const newResults = response.data.datas;
+        set((state) => ({
+          searchResults: pageNumber === 1 ? newResults : [...state.searchResults, ...newResults],
+          hasMore: newResults.length > 0,
+          currentPage: pageNumber
+        }));
+        return newResults;
+      }
+      return [];
+    } catch (error) {
+      console.error("Failed to search users:", error);
+      return [];
+    }
+  },
+
+  clearSearchResults: () => {
+    set({ searchResults: [], hasMore: true, currentPage: 1 });
   },
 
   clearError: () => {

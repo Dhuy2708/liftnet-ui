@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { useAuthStore } from "@/store/AuthStore"
+import { useSocialStore } from "@/store/SocialStore"
 import {
   BellRing,
   MessageSquare,
@@ -19,18 +20,39 @@ import {
   Dumbbell,
   Users,
   Clock,
+  Search,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CreatePostModal } from "@/components/ui/create-post-modal"
+import { Input } from "@/components/ui/input"
+import { useDebounce } from "@/hooks/useDebounce"
 
 export function TopBar() {
   const location = useLocation()
   const { basicInfo, logout } = useAuthStore()
+  const { searchPrioritizedUsers, searchResults, hasMore, currentPage, clearSearchResults } = useSocialStore()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const searchResultsRef = useRef<HTMLDivElement>(null)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const profileButtonRef = useRef<HTMLButtonElement>(null)
+  const debouncedSearch = useDebounce(searchQuery, 500)
+
+  useEffect(() => {
+    if (debouncedSearch) {
+      setIsSearching(true)
+      searchPrioritizedUsers(debouncedSearch, 1).finally(() => {
+        setIsSearching(false)
+      })
+    } else {
+      clearSearchResults()
+    }
+  }, [debouncedSearch])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -41,6 +63,12 @@ export function TopBar() {
         !profileButtonRef.current.contains(event.target as Node)
       ) {
         setShowProfileMenu(false)
+      }
+      if (
+        searchResultsRef.current &&
+        !searchResultsRef.current.contains(event.target as Node)
+      ) {
+        setShowSearchResults(false)
       }
     }
 
@@ -59,6 +87,29 @@ export function TopBar() {
     setDarkMode(!darkMode)
   }
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery) {
+      setIsSearching(true)
+      searchPrioritizedUsers(searchQuery, 1).finally(() => {
+        setIsSearching(false)
+      })
+    }
+  }
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
+    const bottom = scrollHeight - scrollTop <= clientHeight * 1.5
+
+    if (bottom && hasMore && !isSearching) {
+      const nextPage = currentPage + 1
+      setIsSearching(true)
+      searchPrioritizedUsers(searchQuery, nextPage).finally(() => {
+        setIsSearching(false)
+      })
+    }
+  }
+
   const tabs = [
     { icon: Home, label: "Home", path: "/" },
     { icon: MessageSquare, label: "Chat", path: "/chat" },
@@ -72,15 +123,80 @@ export function TopBar() {
     <>
       <header className="sticky top-0 z-40 w-full bg-white border-b shadow-sm backdrop-blur-sm bg-opacity-95">
         <div className="flex items-center justify-between h-14 px-4">
-          <div className="flex-1 max-w-xs">
+          <div className="flex items-center space-x-4 flex-1 max-w-xs">
             <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
               <img
                 src="https://ui-avatars.com/api/?name=Lift+Net&background=de9151&color=fff&bold=true"
                 alt="LiftNet Logo"
                 className="h-8 w-8 rounded-full"
               />
-              <span className="ml-2 font-bold text-lg text-[#de9151]">LiftNet</span>
             </Link>
+
+            <form onSubmit={handleSearch} className="relative flex-1 max-w-2xl">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search people..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setShowSearchResults(true)
+                  }}
+                  className="pl-10 w-full bg-gray-50 border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] rounded-full"
+                />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+                )}
+              </div>
+
+              {showSearchResults && searchResults.length > 0 && (
+                <div
+                  ref={searchResultsRef}
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border max-h-96 overflow-y-auto"
+                  onScroll={handleScroll}
+                >
+                  {searchResults.map((user) => (
+                    <Link
+                      key={user.id}
+                      to={`/profile/${user.id}`}
+                      className="flex items-center p-2 hover:bg-gray-50 transition-colors"
+                      onClick={() => setShowSearchResults(false)}
+                    >
+                      <img
+                        src={user.avatar || "https://randomuser.me/api/portraits/men/32.jpg"}
+                        alt={`${user.firstName} ${user.lastName}`}
+                        className="h-8 w-8 rounded-full object-cover mr-2"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium truncate">
+                            {user.firstName} {user.lastName}
+                          </span>
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                            {user.role === 1 ? "User" : "PT"}
+                          </span>
+                          {user.isFollowing && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#de9151]/10 text-[#de9151]">
+                              Following
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {user.email}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                  {isSearching && (
+                    <div className="flex items-center justify-center p-4 border-t">
+                      <Loader2 className="h-5 w-5 text-[#de9151] animate-spin mr-2" />
+                      <span className="text-sm text-gray-500">Loading more results...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </form>
           </div>
 
           <nav className="flex-1 flex justify-center space-x-1">

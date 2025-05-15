@@ -13,10 +13,20 @@ import { SchedulePage } from "./pages/SchedulePage"
 import { LargeAppLayout } from "./components/layout/large-app-layout"
 import { SessionCheck } from "./components/SessionCheck"
 import { TopBar } from "./components/topbar/topbar"
+import { useEffect } from "react"
+import { signalRService } from "./services/signalRService"
+import { useAuthStore } from "./store/AuthStore"
 
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === "/auth";
+  const { basicInfo } = useAuthStore();
+
+  useEffect(() => {
+    if (basicInfo) {
+      signalRService.startConnection();
+    }
+  }, [basicInfo]);
 
   return (
     <>
