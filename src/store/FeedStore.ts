@@ -12,11 +12,18 @@ export interface Post {
   medias: string[]
   likeCount: number
   isLiked: boolean
-  // Additional fields for UI display
-  userFirstName?: string
-  userLastName?: string
-  userAvatar?: string
-  userRole?: number
+  userOverview: {
+    id: string
+    email: string
+    username: string
+    firstName: string
+    lastName: string
+    role: number
+    avatar: string
+    isDeleted: boolean
+    isSuspended: boolean
+    isFollowing: boolean
+  }
 }
 
 // Define the API response type
@@ -46,10 +53,12 @@ type FeedState = {
 // Define the store actions
 type FeedActions = {
   fetchProfilePosts: (userId: string) => Promise<void>
+  fetchFeedList: () => Promise<Post[]>
   createPost: (content: string, mediaFiles?: File[], userId?: string) => Promise<boolean>
   reactPost: (feedId: string, type: number, feedOwnerId: string) => Promise<boolean>
   deletePost: (postId: string) => Promise<boolean>
   clearError: () => void
+  clearPosts: () => void
 }
 
 // Combine state and actions
@@ -60,6 +69,10 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
   posts: [],
   isLoading: false,
   error: null,
+
+  clearPosts: () => {
+    set({ posts: [] })
+  },
 
   fetchProfilePosts: async (userId: string) => {
     set({ isLoading: true, error: null })
@@ -86,6 +99,40 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
         error: error instanceof Error ? error.message : "Failed to fetch profile posts",
         isLoading: false,
       })
+    }
+  },
+
+  fetchFeedList: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const token = localStorage.getItem("token")
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/Feed/list`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (response.data.success) {
+        const datas = response.data.datas || []
+        set((state) => ({ 
+          posts: [...state.posts, ...datas],
+          isLoading: false 
+        }))
+        return datas
+      } else {
+        set({ error: response.data.message || "Failed to fetch feed list", isLoading: false })
+        return []
+      }
+    } catch (error) {
+      console.error("Failed to fetch feed list:", error)
+      set({
+        error: error instanceof Error ? error.message : "Failed to fetch feed list",
+        isLoading: false,
+      })
+      return []
     }
   },
 

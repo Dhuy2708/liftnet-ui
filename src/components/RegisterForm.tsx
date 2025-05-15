@@ -6,12 +6,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AtSign, Lock, User, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { AtSign, Lock, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/AuthStore";
 import { toast } from "react-toastify";
 import { GeoStore } from "@/store/GeoStore";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const registerSchema = z
@@ -30,6 +30,8 @@ const registerSchema = z
     wardCode: z.string().optional(),
     location: z.string().optional(),
     role: z.string(),
+    age: z.number().min(1, { message: "Age is required" }).max(120, { message: "Age must be less than 120" }),
+    gender: z.number().min(0).max(3, { message: "Please select a valid gender" }),
   })
   .superRefine((data, ctx) => {
     if (data.provinceCode) {
@@ -100,6 +102,8 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
       districtCode: "",
       wardCode: "",
       role: "1",
+      age: undefined,
+      gender: 0,
     },
   });
 
@@ -153,7 +157,9 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
             data.email,
             data.password,
             parseInt(data.role),
-            address
+            address,
+            data.age,
+            data.gender
           );
           handleRegistrationResult(success);
         } else {
@@ -163,7 +169,9 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
             data.email,
             data.password,
             parseInt(data.role),
-            null
+            undefined,
+            data.age,
+            data.gender
           );
           handleRegistrationResult(success);
         }
@@ -174,7 +182,9 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           data.email,
           data.password,
           parseInt(data.role),
-          null
+          undefined,
+          data.age,
+          data.gender
         );
         handleRegistrationResult(success);
       }
@@ -284,6 +294,45 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         {errors.email && (
           <p className="text-sm text-red-500">{errors.email.message}</p>
         )}
+      </div>
+
+      {/* Age and Gender */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="age">Age</Label>
+          <Input
+            id="age"
+            type="number"
+            placeholder="Enter your age"
+            {...formRegister("age", { valueAsNumber: true })}
+          />
+          {errors.age && (
+            <p className="text-sm text-red-500">{errors.age.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="gender">Gender</Label>
+          <div className="relative">
+            <Select
+              value={String(watch("gender"))}
+              onValueChange={(value) => setValue("gender", Number(value))}
+            >
+              <SelectTrigger id="gender" className="w-full">
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
+              <SelectContent position="popper" className="w-full">
+                <SelectItem value="0">None</SelectItem>
+                <SelectItem value="1">Male</SelectItem>
+                <SelectItem value="2">Female</SelectItem>
+                <SelectItem value="3">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {errors.gender && (
+            <p className="text-sm text-red-500">{errors.gender.message}</p>
+          )}
+        </div>
       </div>
 
       {/* Address Section Toggle */}
