@@ -16,6 +16,8 @@ import { TopBar } from "./components/topbar/topbar"
 import { useEffect } from "react"
 import { signalRService } from "./services/signalRService"
 import { useAuthStore } from "./store/AuthStore"
+import { ChatPage } from "./pages/ChatPage"
+import { TopBarOnlyLayout } from "./components/layout/topbar-only"
 
 function AppContent() {
   const location = useLocation();
@@ -70,12 +72,9 @@ function AppContent() {
           path="/chat"
           element={
             <ProtectedRoute>
-              <CommonAppLayout>
-                <div className="p-8">
-                  <h1 className="text-2xl font-bold">Chat Page</h1>
-                  <p className="text-gray-600">Coming soon...</p>
-                </div>
-              </CommonAppLayout>
+              <TopBarOnlyLayout>
+                <ChatPage />
+              </TopBarOnlyLayout>
             </ProtectedRoute>
           }
         />
