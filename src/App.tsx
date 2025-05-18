@@ -80,6 +80,17 @@ function AppContent() {
         />
 
         <Route
+          path="/chat/:conversationId"
+          element={
+            <ProtectedRoute>
+              <TopBarOnlyLayout>
+                <ChatPage />
+              </TopBarOnlyLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/appointments"
           element={
             <ProtectedRoute>
