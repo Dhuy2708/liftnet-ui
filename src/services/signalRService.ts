@@ -4,7 +4,14 @@ class SignalRService {
   private connection: signalR.HubConnection | null = null;
   private static instance: SignalRService;
 
-  private constructor() {}
+  private constructor() {
+    // Stop connection on window unload to prevent leaks
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        this.stopConnection();
+      });
+    }
+  }
 
   public static getInstance(): SignalRService {
     if (!SignalRService.instance) {
@@ -14,7 +21,16 @@ class SignalRService {
   }
 
   public async startConnection(): Promise<void> {
-    if (this.connection) return;
+    if (this.connection) {
+      // If already connected or connecting, do not start a new one
+      if (
+        this.connection.state === signalR.HubConnectionState.Connected ||
+        this.connection.state === signalR.HubConnectionState.Connecting
+      ) {
+        return;
+      }
+      // If disconnected, try to start again
+    }
 
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(`${import.meta.env.VITE_API_URL}/chat-hub`, {
@@ -37,7 +53,11 @@ class SignalRService {
 
   public async stopConnection(): Promise<void> {
     if (this.connection) {
-      await this.connection.stop();
+      try {
+        await this.connection.stop();
+      } catch {
+        // ignore
+      }
       this.connection = null;
     }
   }
