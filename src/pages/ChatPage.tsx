@@ -59,7 +59,7 @@ export function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const connection = signalRService.getConnection()
-  const { conversations, fetchConversations, isLoading, messages, fetchMessages, nextPageToken, clearMessages, messagesLoading } = useConversationStore()
+  const { conversations, fetchConversations, isLoading, messages, fetchMessages, nextPageToken, clearMessages, messagesLoading, createConversation, getConversationByUserId } = useConversationStore()
   const { searchResults, searchPrioritizedUsers, clearSearchResults } = useSocialStore()
   const [sidebarInfo, setSidebarInfo] = useState<SidebarInfo | null>(null)
   const navigate = useNavigate()
@@ -259,45 +259,32 @@ export function ChatPage() {
     if (!newMessage.trim() || !selectedChat) return
 
     try {
-      const token = localStorage.getItem("token")
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/Conversation`,
-        {
-          params: { conversationId: selectedChat.id },
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      
-      if (response.data.success && response.data.datas && response.data.datas.length > 0) {
-        const conv = response.data.datas[0]
-        if (!conv.isGroup && conv.otherMembers && conv.otherMembers.length > 0) {
-          const receiverId = conv.otherMembers[0].id
-          await sendSignalRMessage(selectedChat.id, [receiverId], newMessage)
-          // Only update local state, do not reload or fetch messages
-          const updatedConversations = conversations.map(conv => {
-            if (conv.id === selectedChat.id) {
-              return {
-                ...conv,
-                lastMessage: {
-                  id: '',
-                  senderId: currentUserId || '',
-                  type: 1,
-                  body: newMessage,
-                  conversationId: selectedChat.id
-                }
-              }
+      // Just send the message since conversation is already created
+      await sendSignalRMessage(selectedChat.id, [selectedChat.id], newMessage)
+
+      // Update local state
+      const updatedConversations = conversations.map(conv => {
+        if (conv.id === selectedChat.id) {
+          return {
+            ...conv,
+            lastMessage: {
+              id: '',
+              senderId: currentUserId || '',
+              type: 1,
+              body: newMessage,
+              conversationId: selectedChat.id
             }
-            return conv
-          })
-          updatedConversations.sort((a, b) => {
-            if (a.id === selectedChat.id) return -1
-            if (b.id === selectedChat.id) return 1
-            return 0
-          })
-          useConversationStore.setState({ conversations: updatedConversations })
-          setNewMessage("")
+          }
         }
-      }
+        return conv
+      })
+      updatedConversations.sort((a, b) => {
+        if (a.id === selectedChat.id) return -1
+        if (b.id === selectedChat.id) return 1
+        return 0
+      })
+      useConversationStore.setState({ conversations: updatedConversations })
+      setNewMessage("")
     } catch (error) {
       console.error("Failed to send message:", error)
     }
@@ -409,63 +396,63 @@ export function ChatPage() {
                     key={user.id}
                     className="flex items-center gap-3 px-4 py-3 mb-2 rounded-lg cursor-pointer hover:bg-[#f3f2fa] transition group"
                     onClick={async () => {
-                      setIsSearching(false)
-                      setShowSearchResults(false)
-                      setSearchQuery("")
-                      clearSearchResults()
-                      let conversationId = null
-                      let chatInfo = {
-                        id: '',
-                        name: `${user.firstName} ${user.lastName}`,
-                        avatar: user.avatar,
-                        lastMessage: "",
-                        lastTime: "Just now",
-                        unread: 0,
-                        isGroup: false,
-                        role: user.role
-                      }
+                      setIsSearching(true)
                       try {
-                        const token = localStorage.getItem("token")
-                        const response = await axios.get(
-                          `${import.meta.env.VITE_API_URL}/api/Conversation`,
-                          {
-                            params: { userId: user.id },
-                            headers: { Authorization: `Bearer ${token}` },
-                          }
-                        )
-                        if (response.status === 200 && response.data.success && response.data.datas && response.data.datas.length > 0) {
-                          const conv = response.data.datas[0]
-                          conversationId = conv.id
-                          chatInfo = {
-                            id: conv.id,
-                            name: conv.name,
-                            avatar: conv.img,
-                            lastMessage: conv.lastMessage?.body || "",
+                        // First check if conversation exists
+                        const conversation = await getConversationByUserId(user.id)
+                        if (conversation) {
+                          // Case 1: Conversation exists
+                          setSelectedChat({
+                            id: conversation.id,
+                            name: `${user.firstName} ${user.lastName}`,
+                            avatar: user.avatar,
+                            lastMessage: "",
                             lastTime: "Just now",
                             unread: 0,
-                            isGroup: conv.isGroup,
-                            role: conv.role
+                            isGroup: false,
+                            role: user.role
+                          })
+                          setShowSearchResults(false)
+                          setSearchQuery("")
+                          clearSearchResults()
+                          clearMessages()
+                          setLocalMessages([])
+                          await fetchMessages(conversation.id)
+                          navigate(`/chat/${conversation.id}`)
+                        } else {
+                          // Case 2: No conversation exists, create one
+                          const newConversationId = await createConversation(user.id)
+                          if (!newConversationId) {
+                            throw new Error("Failed to create conversation")
                           }
-                        } else {
-                          throw new Error('Not found')
+
+                          // Get the new conversation info
+                          const newConversation = await getConversationByUserId(user.id)
+                          if (!newConversation) {
+                            throw new Error("Failed to get conversation info")
+                          }
+
+                          setSelectedChat({
+                            id: newConversation.id,
+                            name: `${user.firstName} ${user.lastName}`,
+                            avatar: user.avatar,
+                            lastMessage: "",
+                            lastTime: "Just now",
+                            unread: 0,
+                            isGroup: false,
+                            role: user.role
+                          })
+                          setShowSearchResults(false)
+                          setSearchQuery("")
+                          clearSearchResults()
+                          clearMessages()
+                          setLocalMessages([])
+                          await fetchMessages(newConversation.id)
+                          navigate(`/chat/${newConversation.id}`)
                         }
-                      } catch {
-                        // Not found, create conversation
-                        const newConvId = await useConversationStore.getState().createConversation(user.id)
-                        if (newConvId) {
-                          conversationId = newConvId
-                          chatInfo.id = newConvId
-                        } else {
-                          // handle error (optional)
-                          return
-                        }
+                      } finally {
+                        setIsSearching(false)
                       }
-                      // Open chat view and fetch messages
-                      navigate(`/chat/${conversationId}`)
-                      setSelectedChat(chatInfo)
-                      clearMessages()
-                      setLocalMessages([])
-                      await fetchMessages(conversationId)
                     }}
                   >
                     <img
