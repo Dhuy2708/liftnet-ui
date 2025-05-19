@@ -204,6 +204,8 @@ export function TopBar() {
               const Icon = tab.icon
               const isActive = tab.path === "/appointments" 
                 ? location.pathname.startsWith("/appointments")
+                : tab.path === "/chat"
+                ? location.pathname.startsWith("/chat")
                 : location.pathname === tab.path
               return (
                 <Link

@@ -93,11 +93,9 @@ export function AppointmentsPage() {
 
   useEffect(() => {
     setPageSize(10)
-    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
-  }, [])
-
-  useEffect(() => {
-    const loadAppointmentDetails = async () => {
+    const loadData = async () => {
+      await fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+      
       if (appointmentId && (!selectedAppointment || selectedAppointment.id !== appointmentId)) {
         setIsLoadingDetails(true)
         const appointment = await fetchAppointmentById(appointmentId)
@@ -107,7 +105,7 @@ export function AppointmentsPage() {
         setIsLoadingDetails(false)
       }
     }
-    loadAppointmentDetails()
+    loadData()
   }, [appointmentId])
 
   const handleSearch = () => {

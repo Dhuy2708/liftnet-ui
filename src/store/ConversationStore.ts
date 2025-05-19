@@ -86,7 +86,8 @@ type ConversationActions = {
   clearConversations: () => void
   fetchMessages: (conversationId: string, pageSize?: number, nextPageToken?: string) => Promise<void>
   clearMessages: () => void
-  createConversation: (userId: string) => Promise<string | null>
+  createConversation: (targetId: string) => Promise<string | null>
+  getConversationByUserId: (targetId: string) => Promise<Conversation | null>
 }
 
 // Combine state and actions
@@ -196,12 +197,34 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
     set({ conversations: [], hasMore: true, currentPage: 1 })
   },
 
-  createConversation: async (userId: string) => {
+  getConversationByUserId: async (targetId: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/Conversation/byUserId`,
+        {
+          params: { targetId },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      if (response.data.success && response.data.datas && response.data.datas.length > 0) {
+        return response.data.datas[0]
+      }
+      return null
+    } catch (error) {
+      console.error("Failed to get conversation by user id:", error)
+      return null
+    }
+  },
+
+  createConversation: async (targetId: string) => {
     try {
       const token = localStorage.getItem("token")
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/Conversation/create`,
-        { userId },
+        JSON.stringify(targetId),
         {
           headers: {
             Authorization: `Bearer ${token}`,
