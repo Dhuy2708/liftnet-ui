@@ -29,6 +29,7 @@ interface ConversationMessage {
 }
 
 interface SidebarInfo {
+  id: string
   name: string
   avatar: string
   email?: string
@@ -259,8 +260,15 @@ export function ChatPage() {
     if (!newMessage.trim() || !selectedChat) return
 
     try {
-      // Just send the message since conversation is already created
-      await sendSignalRMessage(selectedChat.id, [selectedChat.id], newMessage)
+      // Get the receiver ID from the sidebar info
+      const receiverId = sidebarInfo?.isGroup ? null : sidebarInfo?.id
+      if (!receiverId) {
+        console.error("Failed to get receiver ID")
+        return
+      }
+
+      // Send the message with the correct receiver ID
+      await sendSignalRMessage(selectedChat.id, [receiverId], newMessage)
 
       // Update local state
       const updatedConversations = conversations.map(conv => {
@@ -318,6 +326,7 @@ export function ChatPage() {
         if (!conv.isGroup && conv.otherMembers && conv.otherMembers.length > 0) {
           const member = conv.otherMembers[0]
           setSidebarInfo({
+            id: member.id,
             name: `${member.firstName} ${member.lastName}`,
             avatar: member.avatar,
             email: member.email,
@@ -330,6 +339,7 @@ export function ChatPage() {
           })
         } else {
           setSidebarInfo({
+            id: conv.id,
             name: conv.name,
             avatar: chat.avatar,
             isGroup: true
