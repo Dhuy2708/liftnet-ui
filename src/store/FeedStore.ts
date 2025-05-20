@@ -71,7 +71,11 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
   error: null,
 
   clearPosts: () => {
-    set({ posts: [] })
+    set({ 
+      posts: [],
+      isLoading: false,
+      error: null
+    })
   },
 
   fetchProfilePosts: async (userId: string) => {
@@ -117,10 +121,15 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
 
       if (response.data.success) {
         const datas = response.data.datas || []
-        set((state) => ({ 
-          posts: [...state.posts, ...datas],
-          isLoading: false 
-        }))
+        // Only update posts if we have new data
+        if (datas.length > 0) {
+          set((state) => ({ 
+            posts: [...state.posts, ...datas],
+            isLoading: false 
+          }))
+        } else {
+          set({ isLoading: false })
+        }
         return datas
       } else {
         set({ error: response.data.message || "Failed to fetch feed list", isLoading: false })

@@ -4,7 +4,7 @@ import { useConversationStore, Conversation } from "@/store/ConversationStore"
 import { useSocialStore } from "@/store/SocialStore"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Send, Search, MoreVertical, Phone, Video, Users, User, Bell, FileText, ArrowLeft, Loader2, Mail, Calendar, Check, XCircle } from "lucide-react"
+import { Send, Search, MoreVertical, Phone, Video, Users, User, Bell, FileText, ArrowLeft, Loader2, Mail, Calendar, Check, XCircle, MessageSquare } from "lucide-react"
 import axios from "axios"
 import { useNavigate, useParams } from "react-router-dom"
 
@@ -55,6 +55,7 @@ export function ChatPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [localMessages, setLocalMessages] = useState<MessageWithStatus[]>([])
+  const [isLoadingSidebar, setIsLoadingSidebar] = useState(false)
   const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -311,6 +312,7 @@ export function ChatPage() {
     setSelectedChat({ ...chat })
     clearMessages()
     setLocalMessages([])
+    setIsLoadingSidebar(true)
     await fetchMessages(chat.id)
     try {
       const token = localStorage.getItem("token")
@@ -348,6 +350,8 @@ export function ChatPage() {
       }
     } catch {
       setSidebarInfo(null)
+    } finally {
+      setIsLoadingSidebar(false)
     }
   }
 
@@ -366,9 +370,9 @@ export function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-[#f7f7fa] overflow-hidden mt-4 shadow-2xl shadow-gray-800/40 rounded-2xl">
+    <div className="flex h-[calc(100vh-4rem)] bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden shadow-2xl shadow-gray-800/40 rounded-2xl">
       {/* Chat List */}
-      <div className="w-1/4 min-w-[260px] max-w-[350px] border-r bg-white flex flex-col h-full">
+      <div className="w-1/4 min-w-[260px] max-w-[350px] border-r bg-white/80 backdrop-blur-sm flex flex-col h-full">
         <div className="p-4 border-b flex-shrink-0">
           <div className="flex items-center gap-2">
             {showSearchResults && (
@@ -379,20 +383,20 @@ export function ChatPage() {
                 <ArrowLeft className="h-5 w-5 text-gray-500" />
               </button>
             )}
-            <div className="flex items-center gap-2 bg-[#edeef2] rounded-lg px-3 py-2 flex-1">
-              <Search className="h-4 w-4 text-gray-500" />
+            <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 flex-1 border border-gray-200">
+              <Search className="h-4 w-4 text-gray-400" />
               <input
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 onFocus={() => setShowSearchResults(true)}
-                className="bg-transparent outline-none flex-1 text-sm text-[#222] placeholder-gray-500"
+                className="bg-transparent outline-none flex-1 text-sm text-gray-700 placeholder-gray-400"
                 placeholder={showSearchResults ? "Search people..." : "Search"}
               />
             </div>
           </div>
         </div>
-        <div className="overflow-y-auto flex-1 px-3 py-3 gap-y-2 flex flex-col bg-white">
+        <div className="overflow-y-auto flex-1 px-3 py-3 gap-y-2 flex flex-col">
           {showSearchResults ? (
             <>
               {isSearching && searchResults.length === 0 ? (
@@ -404,7 +408,7 @@ export function ChatPage() {
                 searchResults.map(user => (
                   <div
                     key={user.id}
-                    className="flex items-center gap-3 px-4 py-3 mb-2 rounded-lg cursor-pointer hover:bg-[#f3f2fa] transition group"
+                    className="flex items-center gap-3 px-4 py-3 mb-2 rounded-xl cursor-pointer hover:bg-gray-50 transition-all duration-200 group border border-transparent hover:border-gray-200"
                     onClick={async () => {
                       setIsSearching(true)
                       try {
@@ -465,20 +469,23 @@ export function ChatPage() {
                       }
                     }}
                   >
-                    <img
-                      src={user.avatar || "https://ui-avatars.com/api/?name=User&background=ededed&color=888&bold=true"}
-                      alt={`${user.firstName} ${user.lastName}`}
-                      className="h-10 w-10 rounded-full object-cover border border-gray-200"
-                    />
+                    <div className="relative">
+                      <img
+                        src={user.avatar || "https://ui-avatars.com/api/?name=User&background=ededed&color=888&bold=true"}
+                        alt={`${user.firstName} ${user.lastName}`}
+                        className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm"
+                      />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium truncate text-[#222]">{`${user.firstName} ${user.lastName}`}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{user.role === 1 ? "User" : "PT"}</span>
+                        <span className="font-medium truncate text-gray-800 text-base">{`${user.firstName} ${user.lastName}`}</span>
+                        <span className="text-sm px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{user.role === 1 ? "User" : "PT"}</span>
                         {user.isFollowing && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-[#fde9dd] text-[#de9151] border border-[#fde9dd]">Following</span>
+                          <span className="text-sm px-2 py-0.5 rounded-full bg-[#fde9dd] text-[#de9151] border border-[#fde9dd]">Following</span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-500 truncate">{user.email}</div>
+                      <div className="text-sm text-gray-500 truncate">{user.email}</div>
                     </div>
                   </div>
                 ))
@@ -505,20 +512,27 @@ export function ChatPage() {
               return (
                 <div
                   key={chat.id}
-                  className={`flex items-center gap-3 px-5 py-3 rounded-xl cursor-pointer transition-all duration-200 group shadow-sm ${selectedChat?.id === chat.id ? "bg-[#f1f2f4]" : "bg-white hover:bg-[#f5f5fa] hover:shadow-md"}`}
+                  className={`flex items-center gap-3 px-5 py-3 rounded-xl cursor-pointer transition-all duration-200 group ${
+                    selectedChat?.id === chat.id 
+                      ? "bg-[#f1f2f4] shadow-md border border-gray-200" 
+                      : "bg-white hover:bg-gray-50 hover:shadow-sm border border-transparent hover:border-gray-200"
+                  }`}
                   onClick={() => handleConversationClick(chat)}
                 >
-                  <img
-                    src={chat.avatar}
-                    alt={chat.name}
-                    className="h-10 w-10 rounded-full object-cover border border-gray-200"
-                  />
+                  <div className="relative">
+                    <img
+                      src={chat.avatar}
+                      alt={chat.name}
+                      className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm"
+                    />
+                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium truncate text-[#222]">{chat.name}</span>
+                        <span className="font-medium truncate text-gray-800 text-base">{chat.name}</span>
                         {chat.role && (
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          <span className={`text-sm px-2 py-0.5 rounded-full ${
                             chat.role === 1 
                               ? "bg-blue-100 text-blue-700" 
                               : "bg-purple-100 text-purple-700"
@@ -527,10 +541,15 @@ export function ChatPage() {
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-gray-400 ml-2">Just now</span>
+                      <span className="text-sm text-gray-400 ml-2">Just now</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500 truncate">{chat.lastMessage || "No messages yet"}</span>
+                      <span className="text-sm text-gray-500 truncate">{chat.lastMessage || "No messages yet"}</span>
+                      {chat.unread > 0 && (
+                        <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#de9151] text-xs font-medium text-white">
+                          {chat.unread}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -546,23 +565,34 @@ export function ChatPage() {
           {/* Chat Area */}
           <div className="flex flex-col flex-1 h-full">
             {/* Chat Header */}
-            <div className="flex items-center justify-between px-8 py-5 border-b bg-white flex-shrink-0">
+            <div className="flex items-center justify-between px-8 py-5 border-b bg-white/80 backdrop-blur-sm flex-shrink-0">
               <div className="flex items-center gap-4">
-                <img
-                  src={selectedChat.avatar}
-                  alt={selectedChat.name}
-                  className="h-12 w-12 rounded-full object-cover border border-gray-200"
-                />
+                <div className="relative">
+                  <img
+                    src={selectedChat.avatar}
+                    alt={selectedChat.name}
+                    className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm"
+                  />
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
+                </div>
                 <div>
-                  <div className="font-semibold text-lg text-[#222]">{selectedChat.name}</div>
-                  <div className="text-xs text-gray-500">{selectedChat.isGroup ? "23 members, 10 online" : "Online"}</div>
+                  <div className="font-semibold text-xl text-gray-800">{selectedChat.name}</div>
+                  <div className="text-sm text-gray-500">{selectedChat.isGroup ? "23 members, 10 online" : "Online"}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-4 text-[#de9151]">
-                <Phone className="h-5 w-5 cursor-pointer" />
-                <Video className="h-5 w-5 cursor-pointer" />
-                <Users className="h-5 w-5 cursor-pointer" />
-                <MoreVertical className="h-5 w-5 cursor-pointer" />
+              <div className="flex items-center gap-2">
+                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 hover:text-[#de9151]">
+                  <Phone className="h-5 w-5" />
+                </button>
+                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 hover:text-[#de9151]">
+                  <Video className="h-5 w-5" />
+                </button>
+                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 hover:text-[#de9151]">
+                  <Users className="h-5 w-5" />
+                </button>
+                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-600 hover:text-[#de9151]">
+                  <MoreVertical className="h-5 w-5" />
+                </button>
               </div>
             </div>
             {/* Messages */}
@@ -570,7 +600,7 @@ export function ChatPage() {
               <div
                 ref={messagesContainerRef}
                 onScroll={handleMessagesScroll}
-                className="flex-1 overflow-y-auto px-8 py-6 space-y-1 bg-[#f1f2f4]"
+                className="flex-1 overflow-y-auto px-8 py-6 space-y-1 bg-gradient-to-b from-gray-50 to-gray-100"
               >
                 {messagesLoading ? (
                   <div className="flex items-center justify-center h-full w-full">
@@ -588,8 +618,16 @@ export function ChatPage() {
                           <div className="max-w-[70%] relative flex flex-col items-start">
                             <div
                               className={`rounded-2xl shadow-sm mb-1 text-sm ${
-                                isMe ? "bg-[#de9151] text-white" : "bg-white text-gray-900"
-                              } ${isFirstOfGroup ? "rounded-t-2xl" : "rounded-t-md"} ${isLastOfGroup ? "rounded-b-2xl" : "rounded-b-md"} ${message.type === 2 || message.type === 3 ? "px-0 py-0" : "px-4 py-2"}`}
+                                isMe 
+                                  ? "bg-[#de9151] text-white" 
+                                  : "bg-white text-gray-800 border border-gray-200"
+                              } ${
+                                isFirstOfGroup ? "rounded-t-2xl" : "rounded-t-md"
+                              } ${
+                                isLastOfGroup ? "rounded-b-2xl" : "rounded-b-md"
+                              } ${
+                                message.type === 2 || message.type === 3 ? "px-0 py-0" : "px-4 py-2"
+                              }`}
                               onMouseEnter={() => handleMouseEnter(message.id)}
                               onMouseLeave={handleMouseLeave}
                             >
@@ -598,7 +636,7 @@ export function ChatPage() {
                               ) : message.type === 3 ? (
                                 <video controls src={message.body} className="w-full block rounded-b-2xl" />
                               ) : (
-                                <span>{message.body}</span>
+                                <span className="text-base">{message.body}</span>
                               )}
                               {isMe && (
                                 <span className="ml-1 inline-flex items-center">
@@ -623,18 +661,18 @@ export function ChatPage() {
               </div>
             </div>
             {/* Message Input */}
-            <div className="px-8 py-5 bg-white border-t flex-shrink-0">
-              <div className="flex items-center gap-3 rounded-2xl bg-[#fbeee3] px-4 py-2">
+            <div className="px-8 py-5 bg-white/80 backdrop-blur-sm border-t flex-shrink-0">
+              <div className="flex items-center gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-2">
                 <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Your message"
-                  className="flex-1 border-none bg-transparent focus:ring-0 focus:border-none shadow-none text-[#de9151] placeholder-[#de9151]/60"
+                  placeholder="Type your message..."
+                  className="flex-1 border-none bg-transparent focus:ring-0 focus:border-none shadow-none text-gray-700 placeholder-gray-400 text-base"
                 />
                 <Button
                   onClick={sendMessage}
-                  className="bg-[#de9151] hover:bg-[#c27339] rounded-full px-4 py-2"
+                  className="bg-[#de9151] hover:bg-[#c27339] rounded-full p-2 transition-all duration-200 hover:scale-105"
                 >
                   <Send className="h-5 w-5" />
                 </Button>
@@ -642,103 +680,120 @@ export function ChatPage() {
             </div>
           </div>
           {/* Right Sidebar */}
-          <aside className="hidden lg:flex flex-col w-1/4 min-w-[360px] max-w-[420px] bg-white p-0 h-full overflow-y-auto">
-            <div className="p-4 space-y-3">
-              {/* Profile Card */}
-              <div className="bg-white rounded-2xl shadow p-6 flex flex-col items-center mb-4">
-                <div className="relative">
-                  <img
-                    src={sidebarInfo?.avatar || userInfo.avatar}
-                    alt={sidebarInfo?.name || userInfo.name}
-                    className="w-24 h-24 rounded-full object-cover border-4 border-white shadow"
-                  />
-                  {/* Online dot */}
-                  <span className="absolute bottom-2 right-2 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></span>
+          <aside className="hidden lg:flex flex-col w-1/4 min-w-[360px] max-w-[420px] bg-white/80 backdrop-blur-sm p-0 h-full overflow-y-auto">
+            {isLoadingSidebar ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 text-[#de9151] animate-spin mx-auto mb-4" />
+                  <p className="text-sm text-gray-500">Loading conversation info...</p>
                 </div>
-                <div className="mt-4 font-semibold text-lg text-center flex items-center gap-2">
-                  {sidebarInfo?.name || userInfo.name}
-                  {!sidebarInfo?.isGroup && sidebarInfo && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${sidebarInfo.role === 1 ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}>
-                      {sidebarInfo.role === 1 ? "User" : "PT"}
-                    </span>
+              </div>
+            ) : (
+              <div className="p-4 space-y-3">
+                {/* Profile Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col items-center mb-4">
+                  <div className="relative">
+                    <img
+                      src={sidebarInfo?.avatar || userInfo.avatar}
+                      alt={sidebarInfo?.name || userInfo.name}
+                      className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-sm"
+                    />
+                    <span className="absolute bottom-2 right-2 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></span>
+                  </div>
+                  <div className="mt-4 font-semibold text-xl text-center flex items-center gap-2">
+                    {sidebarInfo?.name || userInfo.name}
+                    {!sidebarInfo?.isGroup && sidebarInfo && (
+                      <span className={`text-sm px-2 py-0.5 rounded-full ${
+                        sidebarInfo.role === 1 
+                          ? "bg-blue-100 text-blue-700" 
+                          : "bg-purple-100 text-purple-700"
+                      }`}>
+                        {sidebarInfo.role === 1 ? "User" : "PT"}
+                      </span>
+                    )}
+                  </div>
+                  {!sidebarInfo?.isGroup && sidebarInfo?.username && (
+                    <div className="text-base text-gray-400 text-center">@{sidebarInfo.username}</div>
                   )}
+                  <div className="text-sm text-gray-400 text-center">Product Designer</div>
                 </div>
-                {!sidebarInfo?.isGroup && sidebarInfo?.username && (
-                  <div className="text-sm text-gray-400 text-center">@{sidebarInfo.username}</div>
-                )}
-                <div className="text-xs text-gray-400 text-center">Product Designer</div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-between gap-3 mb-4">
-                <button className="flex flex-col items-center bg-white rounded-xl shadow p-3 flex-1 hover:bg-[#f8f9fb] transition">
-                  <Phone className="w-5 h-5 text-[#de9151] mb-1" />
-                  <span className="text-xs text-gray-700">Call</span>
-                </button>
-                <button className="flex flex-col items-center bg-white rounded-xl shadow p-3 flex-1 hover:bg-[#f8f9fb] transition">
-                  <Video className="w-5 h-5 text-[#de9151] mb-1" />
-                  <span className="text-xs text-gray-700">Video</span>
-                </button>
-                <button className="flex flex-col items-center bg-white rounded-xl shadow p-3 flex-1 hover:bg-[#f8f9fb] transition">
-                  <Bell className="w-5 h-5 text-[#de9151] mb-1" />
-                  <span className="text-xs text-gray-700">Mute</span>
-                </button>
-                <button className="flex flex-col items-center bg-white rounded-xl shadow p-3 flex-1 hover:bg-[#f8f9fb] transition">
-                  <User className="w-5 h-5 text-[#de9151] mb-1" />
-                  <span className="text-xs text-gray-700">Add</span>
-                </button>
-              </div>
+                {/* Action Buttons */}
+                <div className="flex justify-between gap-3 mb-4">
+                  <button className="flex flex-col items-center bg-white rounded-xl shadow-sm border border-gray-200 p-3 flex-1 hover:bg-gray-50 transition">
+                    <Phone className="w-5 h-5 text-[#de9151] mb-1" />
+                    <span className="text-xs text-gray-700">Call</span>
+                  </button>
+                  <button className="flex flex-col items-center bg-white rounded-xl shadow-sm border border-gray-200 p-3 flex-1 hover:bg-gray-50 transition">
+                    <Video className="w-5 h-5 text-[#de9151] mb-1" />
+                    <span className="text-xs text-gray-700">Video</span>
+                  </button>
+                  <button className="flex flex-col items-center bg-white rounded-xl shadow-sm border border-gray-200 p-3 flex-1 hover:bg-gray-50 transition">
+                    <Bell className="w-5 h-5 text-[#de9151] mb-1" />
+                    <span className="text-xs text-gray-700">Mute</span>
+                  </button>
+                  <button className="flex flex-col items-center bg-white rounded-xl shadow-sm border border-gray-200 p-3 flex-1 hover:bg-gray-50 transition">
+                    <User className="w-5 h-5 text-[#de9151] mb-1" />
+                    <span className="text-xs text-gray-700">Add</span>
+                  </button>
+                </div>
 
-              {/* Contact Details */}
-              <div className="bg-white rounded-2xl shadow p-5 mb-4">
-                <div className="font-semibold mb-3 text-gray-700">Contact Details</div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Mail className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-700">{sidebarInfo?.email || "—"}</span>
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Phone className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-700">+1 (555) 123-4567</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-700">Joined January 2022</span>
-                </div>
-              </div>
-
-              {/* Shared Media */}
-              <div className="bg-white rounded-2xl shadow p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="font-semibold text-gray-700">Shared Media</div>
-                  <button className="text-xs text-[#de9151] bg-[#fde9dd] px-3 py-1 rounded-full">View All</button>
-                </div>
-                <div className="flex gap-3 mb-3">
-                  <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center"></div>
-                  <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center"></div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <div className="text-sm text-gray-700">Project_Brief.pdf</div>
-                      <div className="text-xs text-gray-400">2.4 MB • Last week</div>
-                    </div>
+                {/* Contact Details */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-4">
+                  <div className="font-semibold mb-3 text-gray-700 text-lg">Contact Details</div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="w-5 h-5 text-gray-400" />
+                    <span className="text-base text-gray-700">{sidebarInfo?.email || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Phone className="w-5 h-5 text-gray-400" />
+                    <span className="text-base text-gray-700">+1 (555) 123-4567</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-gray-400" />
-                    <div>
-                      <div className="text-sm text-gray-700">Design_Assets.zip</div>
-                      <div className="text-xs text-gray-400">14.8 MB • Last week</div>
+                    <Calendar className="w-5 h-5 text-gray-400" />
+                    <span className="text-base text-gray-700">Joined January 2022</span>
+                  </div>
+                </div>
+
+                {/* Shared Media */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="font-semibold text-gray-700 text-lg">Shared Media</div>
+                    <button className="text-sm text-[#de9151] bg-[#fde9dd] px-3 py-1 rounded-full hover:bg-[#fce4d4] transition-colors">View All</button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div className="w-full aspect-square bg-gray-100 rounded-xl flex items-center justify-center"></div>
+                    <div className="w-full aspect-square bg-gray-100 rounded-xl flex items-center justify-center"></div>
+                    <div className="w-full aspect-square bg-gray-100 rounded-xl flex items-center justify-center"></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <div className="text-base text-gray-700">Project_Brief.pdf</div>
+                        <div className="text-sm text-gray-400">2.4 MB • Last week</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <div className="text-base text-gray-700">Design_Assets.zip</div>
+                        <div className="text-sm text-gray-400">14.8 MB • Last week</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </aside>
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center text-gray-500">
-          Select a conversation to start chatting
+          <div className="text-center">
+            <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-lg font-medium">Select a conversation to start chatting</p>
+            <p className="text-sm text-gray-400 mt-2">Choose from your existing conversations or start a new one</p>
+          </div>
         </div>
       )}
     </div>
