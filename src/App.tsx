@@ -18,6 +18,8 @@ import { signalRService } from "./services/signalRService"
 import { useAuthStore } from "./store/AuthStore"
 import { ChatPage } from "./pages/ChatPage"
 import { TopBarOnlyLayout } from "./components/layout/topbar-only"
+import { StatisticsPage } from "./pages/StatisticsPage"
+import { AiChatPage } from "./pages/AiChatPage"
 
 function AppContent() {
   const location = useLocation();
@@ -91,6 +93,17 @@ function AppContent() {
         />
 
         <Route
+          path="/ai"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <AiChatPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/appointments"
           element={
             <ProtectedRoute>
@@ -118,6 +131,17 @@ function AppContent() {
             <ProtectedRoute>
               <LargeAppLayout>
                 <SchedulePage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/statistics"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <StatisticsPage />
               </LargeAppLayout>
             </ProtectedRoute>
           }

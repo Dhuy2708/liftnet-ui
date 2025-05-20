@@ -17,11 +17,11 @@ import {
   PenSquare,
   Home,
   Calendar,
-  Dumbbell,
-  Users,
   Clock,
   Search,
   Loader2,
+  BarChart2,
+  Bot,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CreatePostModal } from "@/components/ui/create-post-modal"
@@ -115,20 +115,20 @@ export function TopBar() {
     { icon: MessageSquare, label: "Chat", path: "/chat" },
     { icon: Calendar, label: "Appointments", path: "/appointments" },
     { icon: Clock, label: "Schedule", path: "/schedule" },
-    { icon: Users, label: "My Clients", path: "/clients" },
-    { icon: Dumbbell, label: "Training Programs", path: "/programs" },
+    { icon: BarChart2, label: "Statistics", path: "/statistics" },
+    { icon: Bot, label: "AI", path: "/ai" },
   ]
 
   return (
     <>
       <header className="sticky top-0 z-40 w-full bg-white border-b shadow-sm backdrop-blur-sm bg-opacity-95">
-        <div className="flex items-center justify-between h-14 px-4">
-          <div className="flex items-center space-x-4 flex-1 max-w-xs">
+        <div className="flex items-center justify-between h-16 px-6">
+          <div className="flex items-center space-x-6 flex-1 max-w-xs">
             <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
               <img
                 src="https://ui-avatars.com/api/?name=Lift+Net&background=de9151&color=fff&bold=true"
                 alt="LiftNet Logo"
-                className="h-8 w-8 rounded-full"
+                className="h-9 w-9 rounded-xl"
               />
             </Link>
 
@@ -143,7 +143,7 @@ export function TopBar() {
                     setSearchQuery(e.target.value)
                     setShowSearchResults(true)
                   }}
-                  className="pl-10 w-full bg-gray-50 border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] rounded-full"
+                  className="pl-10 w-full bg-gray-50 border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] rounded-xl h-10"
                 />
                 {isSearching && (
                   <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
@@ -153,36 +153,36 @@ export function TopBar() {
               {showSearchResults && searchResults.length > 0 && (
                 <div
                   ref={searchResultsRef}
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border max-h-96 overflow-y-auto"
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border max-h-96 overflow-y-auto"
                   onScroll={handleScroll}
                 >
                   {searchResults.map((user) => (
                     <Link
                       key={user.id}
                       to={`/profile/${user.id}`}
-                      className="flex items-center p-2 hover:bg-gray-50 transition-colors"
+                      className="flex items-center p-3 hover:bg-gray-50 transition-colors"
                       onClick={() => setShowSearchResults(false)}
                     >
                       <img
                         src={user.avatar || "https://randomuser.me/api/portraits/men/32.jpg"}
                         alt={`${user.firstName} ${user.lastName}`}
-                        className="h-8 w-8 rounded-full object-cover mr-2"
+                        className="h-10 w-10 rounded-full object-cover mr-3"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium truncate">
                             {user.firstName} {user.lastName}
                           </span>
-                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
                             {user.role === 1 ? "User" : "PT"}
                           </span>
                           {user.isFollowing && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full bg-[#de9151]/10 text-[#de9151]">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#de9151]/10 text-[#de9151]">
                               Following
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-gray-500 truncate">
+                        <div className="text-sm text-gray-500 truncate">
                           {user.email}
                         </div>
                       </div>
@@ -199,7 +199,7 @@ export function TopBar() {
             </form>
           </div>
 
-          <nav className="flex-1 flex justify-center space-x-1">
+          <nav className="flex-1 flex justify-center space-x-2">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = tab.path === "/appointments" 
@@ -211,29 +211,29 @@ export function TopBar() {
                 <Link
                   key={tab.path}
                   to={tab.path}
-                  className={`relative px-6 py-2 rounded-lg transition-all duration-200 ${
+                  className={`relative px-6 py-2 rounded-xl transition-all duration-200 ${
                     isActive
-                      ? "text-[#de9151]"
+                      ? "text-[#de9151] bg-[#de9151]/5"
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
                   <div className="flex flex-col items-center">
                     <Icon className={`h-6 w-6 ${isActive ? "text-[#de9151]" : "text-gray-500"}`} />
-                    <span className="text-xs mt-0.5">{tab.label}</span>
+                    <span className="text-xs mt-1 font-medium">{tab.label}</span>
                   </div>
                   {isActive && (
-                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#de9151] rounded-t-full" />
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#de9151] rounded-full" />
                   )}
                 </Link>
               )
             })}
           </nav>
 
-          <div className="flex items-center justify-end flex-1 max-w-xs space-x-3">
+          <div className="flex items-center justify-end flex-1 max-w-xs space-x-4">
             <Button
               variant="default"
               size="default"
-              className="rounded-full px-4 py-2 bg-[#de9151] hover:bg-[#c27339] text-white shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105"
+              className="rounded-xl px-5 py-2 bg-[#de9151] hover:bg-[#c27339] text-white shadow-md hover:shadow-lg transform transition-all duration-200 hover:scale-105"
               onClick={() => setShowCreateModal(true)}
             >
               <PenSquare className="h-5 w-5 mr-2" />
@@ -243,7 +243,7 @@ export function TopBar() {
             <Button 
               variant="ghost" 
               size="default"
-              className="rounded-full bg-gray-50 hover:bg-gray-100 p-4 shadow-sm hover:shadow-md transform transition-all duration-200 hover:scale-105 relative"
+              className="rounded-xl bg-gray-50 hover:bg-gray-100 p-4 shadow-sm hover:shadow-md transform transition-all duration-200 hover:scale-105 relative"
             >
               <div className="relative">
                 <BellRing className="h-9 w-9 text-gray-700 stroke-[1.5]" />
@@ -262,27 +262,27 @@ export function TopBar() {
                 <img
                   src={basicInfo?.avatar || "https://randomuser.me/api/portraits/men/32.jpg"}
                   alt="User Avatar"
-                  className="h-8 w-8 rounded-full border-2 border-[#de9151]/20 object-cover"
+                  className="h-10 w-10 rounded-xl border-2 border-[#de9151]/20 object-cover"
                 />
               </button>
 
               {showProfileMenu && (
                 <div
                   ref={profileMenuRef}
-                  className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border overflow-hidden z-50 animate-in fade-in zoom-in"
+                  className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-lg border overflow-hidden z-50 animate-in fade-in zoom-in"
                 >
                   <div className="p-4 border-b">
                     <div className="flex items-center">
                       <img
                         src={basicInfo?.avatar || "https://randomuser.me/api/portraits/men/32.jpg"}
                         alt="User Avatar"
-                        className="h-10 w-10 rounded-full object-cover mr-3"
+                        className="h-12 w-12 rounded-xl object-cover mr-3"
                       />
                       <div>
-                        <div className="font-medium">
+                        <div className="font-medium text-base">
                           {basicInfo?.firstName} {basicInfo?.lastName}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-sm text-gray-500">
                           {basicInfo?.role === 1 ? "Fitness Seeker" : "Personal Trainer"}
                         </div>
                       </div>
@@ -292,7 +292,7 @@ export function TopBar() {
                   <div className="py-1">
                     <Link
                       to={`/profile/${basicInfo?.id}`}
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 transition-colors"
+                      className="flex items-center px-4 py-2.5 text-sm hover:bg-gray-100 transition-colors"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <User className="h-4 w-4 mr-3 text-gray-500" />
@@ -300,7 +300,7 @@ export function TopBar() {
                     </Link>
                     <Link
                       to="/profile/edit"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 transition-colors"
+                      className="flex items-center px-4 py-2.5 text-sm hover:bg-gray-100 transition-colors"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <Edit className="h-4 w-4 mr-3 text-gray-500" />
@@ -308,16 +308,24 @@ export function TopBar() {
                     </Link>
                     <Link
                       to="/achievements"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 transition-colors"
+                      className="flex items-center px-4 py-2.5 text-sm hover:bg-gray-100 transition-colors"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <Award className="h-4 w-4 mr-3 text-gray-500" />
                       <span>Achievements</span>
                       <span className="ml-auto text-xs text-gray-500">3 unlocked</span>
                     </Link>
+                    <Link
+                      to="/ai-chat"
+                      className="flex items-center px-4 py-2.5 text-sm hover:bg-gray-100 transition-colors"
+                      onClick={() => setShowProfileMenu(false)}
+                    >
+                      <Bot className="h-4 w-4 mr-3 text-gray-500" />
+                      <span>AI Assistant</span>
+                    </Link>
 
                     <button
-                      className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100 transition-colors"
+                      className="flex items-center w-full px-4 py-2.5 text-sm hover:bg-gray-100 transition-colors"
                       onClick={toggleDarkMode}
                     >
                       <Moon className="h-4 w-4 mr-3 text-gray-500" />
@@ -341,7 +349,7 @@ export function TopBar() {
                   <div className="border-t py-1">
                     <Link
                       to="/settings"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 transition-colors"
+                      className="flex items-center px-4 py-2.5 text-sm hover:bg-gray-100 transition-colors"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <Settings className="h-4 w-4 mr-3 text-gray-500" />
@@ -349,7 +357,7 @@ export function TopBar() {
                     </Link>
                     <Link
                       to="/premium"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-100 transition-colors"
+                      className="flex items-center px-4 py-2.5 text-sm hover:bg-gray-100 transition-colors"
                       onClick={() => setShowProfileMenu(false)}
                     >
                       <CreditCard className="h-4 w-4 mr-3 text-gray-500" />
@@ -359,7 +367,7 @@ export function TopBar() {
 
                   <div className="border-t py-1">
                     <button
-                      className="flex items-center w-full px-4 py-2 text-sm text-red-500 hover:bg-gray-100 transition-colors"
+                      className="flex items-center w-full px-4 py-2.5 text-sm text-red-500 hover:bg-gray-100 transition-colors"
                       onClick={handleLogout}
                     >
                       <LogOut className="h-4 w-4 mr-3" />

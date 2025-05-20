@@ -214,59 +214,79 @@ export function SchedulePage() {
   }
 
   return (
-    <div className="p-8 h-[calc(100vh-4rem)]">
+    <div className="p-8 h-[calc(100vh-4rem)] bg-[#f9fafb]">
       <div className="flex h-full">
         {/* Sidebar */}
-        <aside className="w-[16%] min-w-[200px] max-w-[250px] bg-white rounded-xl p-4 flex flex-col items-center mr-4 shadow-md border border-gray-200">
-          <div className="w-full mb-4">
-            <div className="flex items-center bg-gray-50 rounded-lg px-3 py-2">
-              <User className="h-4 w-4 text-gray-400 mr-2" />
-              <Input
-                className="bg-transparent border-none text-gray-800 placeholder:text-gray-400 focus:ring-0 focus:border-none"
-                placeholder="Search for people"
-                value={peopleSearch}
-                onChange={e => setPeopleSearch(e.target.value)}
-              />
+        <aside
+          className="w-72 min-w-[220px] max-w-[300px] h-fit bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-8 items-center mr-8 relative overflow-visible mt-6"
+        >
+          {/* Blurred accent background */}
+          <div className="absolute -top-10 -left-10 w-40 h-40 bg-[#de9151] opacity-20 rounded-full blur-2xl z-0" />
+          <div className="relative z-10 flex flex-col gap-8 w-full">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-[#de9151]" />
+                Schedule
+              </h2>
+              <div className="flex items-center bg-gray-50 rounded-lg px-3 py-2 mb-4">
+                <User className="h-4 w-4 text-gray-400 mr-2" />
+                <Input
+                  className="bg-transparent border-none text-gray-800 placeholder:text-gray-400 focus:ring-0 focus:border-none"
+                  placeholder="Search for people"
+                  value={peopleSearch}
+                  onChange={e => setPeopleSearch(e.target.value)}
+                />
+              </div>
+              <nav className="space-y-1">
+                <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors bg-[#de9151]/10 text-[#de9151]">
+                  <Calendar className="w-5 h-5 mr-3" />
+                  Calendar
+                </button>
+                <button className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors text-gray-600 hover:bg-gray-50">
+                  <Users className="w-5 h-5 mr-3" />
+                  People
+                </button>
+              </nav>
             </div>
-          </div>
-          <div className="w-full mb-4">
-            <div className="flex items-center justify-between text-gray-800 mb-2 px-2">
-              <Button variant="ghost" size="icon" onClick={() => setSidebarMonth(subMonths(sidebarMonth, 1))} className="hover:bg-gray-100">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="font-semibold text-sm">{format(sidebarMonth, 'MMMM yyyy')}</span>
-              <Button variant="ghost" size="icon" onClick={() => setSidebarMonth(addMonths(sidebarMonth, 1))} className="hover:bg-gray-100">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="grid grid-cols-7 text-[10px] text-gray-400 mb-1 px-2">
-              {sidebarWeekDayHeaders.map((d) => (
-                <div key={d} className="text-center">{d}</div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-1 px-2">
-              {Array.from({ length: sidebarFirstDayOffset }).map((_, i) => (
-                <div key={i} />
-              ))}
-              {sidebarDays.map((day, idx) => {
-                const isCurrent = isToday(day)
-                const isSelected = isSameDay(day, sidebarSelected)
-                return (
-                  <button
-                    key={idx}
-                    className={`rounded-full w-7 h-7 flex items-center justify-center transition-colors text-xs
-                      ${isSelected ? 'bg-[#de9151] text-white' : isCurrent ? 'border border-gray-300 text-gray-800 bg-gray-50' : 'text-gray-700 hover:bg-gray-100'}
-                    `}
-                    onClick={() => {
-                      setSidebarSelected(day)
-                      setCurrentDate(day)
-                      setSelectedDate(day)
-                    }}
-                  >
-                    {format(day, 'd')}
-                  </button>
-                )
-              })}
+            <div>
+              <div className="flex items-center justify-between text-gray-800 mb-2 px-2">
+                <Button variant="ghost" size="icon" onClick={() => setSidebarMonth(subMonths(sidebarMonth, 1))} className="hover:bg-gray-100">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="font-semibold text-sm">{format(sidebarMonth, 'MMMM yyyy')}</span>
+                <Button variant="ghost" size="icon" onClick={() => setSidebarMonth(addMonths(sidebarMonth, 1))} className="hover:bg-gray-100">
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-7 text-[10px] text-gray-400 mb-1 px-2">
+                {sidebarWeekDayHeaders.map((d) => (
+                  <div key={d} className="text-center">{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1 px-2">
+                {Array.from({ length: sidebarFirstDayOffset }).map((_, i) => (
+                  <div key={i} />
+                ))}
+                {sidebarDays.map((day, idx) => {
+                  const isCurrent = isToday(day)
+                  const isSelected = isSameDay(day, sidebarSelected)
+                  return (
+                    <button
+                      key={idx}
+                      className={`rounded-full w-7 h-7 flex items-center justify-center transition-colors text-xs
+                        ${isSelected ? 'bg-[#de9151] text-white' : isCurrent ? 'border border-gray-300 text-gray-800 bg-gray-50' : 'text-gray-700 hover:bg-gray-100'}
+                      `}
+                      onClick={() => {
+                        setSidebarSelected(day)
+                        setCurrentDate(day)
+                        setSelectedDate(day)
+                      }}
+                    >
+                      {format(day, 'd')}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </aside>

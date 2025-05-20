@@ -9,7 +9,7 @@ interface TopBarOnlyLayoutProps {
 
 export function TopBarOnlyLayout({ children }: TopBarOnlyLayoutProps) {
   return (
-    <div className="flex flex-col min-h-screen bg-[#FEF9F3]/30">
+    <div className="flex flex-col min-h-screen bg-[#f9fafb]">
       <TopBar />
       <div className="flex-1">
         {children}

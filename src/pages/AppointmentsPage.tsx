@@ -392,7 +392,7 @@ export function AppointmentsPage() {
   }
 
   return (
-    <div className="p-8 h-[calc(100vh-4rem)]">
+    <div className="p-8 h-[calc(100vh-4rem)] bg-[#f9fafb]">
       <div className="flex flex-col h-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
