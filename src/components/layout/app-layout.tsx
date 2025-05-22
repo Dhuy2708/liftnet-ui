@@ -9,7 +9,7 @@ interface AppLayoutProps {
 
 export function CommonAppLayout({ children }: AppLayoutProps) {
   return (
-    <div className="flex flex-col min-h-screen bg-[#f9fafb]">
+    <div className="flex flex-col min-h-screen bg-[#fffff]">
       <TopBar />
       <div className="flex-1">
         <div className="flex justify-center">

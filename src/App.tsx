@@ -4,7 +4,7 @@ import "react-toastify/dist/ReactToastify.css"
 import "./App.css"
 import { AuthPage } from "./pages/AuthPage"
 import { AuthRoute } from "./routes/AuthRoute"
-import { FeedPage } from "./pages/FeedPage"
+import { FeedContainer } from "./pages/FeedContainer"
 import { ProfilePage } from "./pages/ProfilePage"
 import { ProtectedRoute } from "./routes/ProtectedRoute"
 import { CommonAppLayout } from "./components/layout/app-layout"
@@ -12,14 +12,15 @@ import { AppointmentsPage } from "./pages/AppointmentsPage"
 import { SchedulePage } from "./pages/SchedulePage"
 import { LargeAppLayout } from "./components/layout/large-app-layout"
 import { SessionCheck } from "./components/SessionCheck"
-import { TopBar } from "./components/topbar/topbar"
 import { useEffect } from "react"
 import { signalRService } from "./services/signalRService"
 import { useAuthStore } from "./store/AuthStore"
 import { ChatPage } from "./pages/ChatPage"
 import { TopBarOnlyLayout } from "./components/layout/topbar-only"
 import { StatisticsPage } from "./pages/StatisticsPage"
-import { AiChatPage } from "./pages/AiChatPage"
+import AiChatPage from "./pages/AiChatPage"
+import { TrainerFinderPage } from "./pages/TrainerFinderPage"
+import { ExploreFindersPage } from "./pages/ExploreFindersPage"
 
 function AppContent() {
   const location = useLocation();
@@ -42,7 +43,7 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <CommonAppLayout>
-                <FeedPage />
+                <FeedContainer />
               </CommonAppLayout>
             </ProtectedRoute>
           }
@@ -142,6 +143,28 @@ function AppContent() {
             <ProtectedRoute>
               <LargeAppLayout>
                 <StatisticsPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/trainer-finder"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <TrainerFinderPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/explore-finders"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <ExploreFindersPage />
               </LargeAppLayout>
             </ProtectedRoute>
           }
