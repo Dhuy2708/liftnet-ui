@@ -60,6 +60,7 @@ export const useAuthStore = create<AuthStore>()(
       setBasicInfo: (info: BasicInfo) => {
         set({ basicInfo: info })
         localStorage.setItem('basicInfo', JSON.stringify(info))
+        window.dispatchEvent(new Event('basicInfoChanged'))
       },
 
       login: async (email: string, password: string) => {
@@ -109,6 +110,7 @@ export const useAuthStore = create<AuthStore>()(
               const basicInfo = basicInfoResponse.data.datas[0];
               set({ basicInfo });
               localStorage.setItem('basicInfo', JSON.stringify(basicInfo));
+              window.dispatchEvent(new Event('basicInfoChanged'))
             }
           } else {
             console.error("No user data found");
