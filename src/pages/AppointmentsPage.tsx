@@ -15,8 +15,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useSocialStore } from "@/store/SocialStore"
 import { GeoStore } from "@/store/GeoStore"
+import { AppLeftSidebar } from "@/components/layout/AppLeftSidebar"
 import axios from "axios"
 import { toast } from "react-toastify"
+import { cn } from "@/lib/utils"
 
 interface Location {
   placeName: string
@@ -88,6 +90,7 @@ export function AppointmentsPage() {
   const [formErrors, setFormErrors] = useState<{name?: string, start?: string, end?: string}>({})
   const [isBooking, setIsBooking] = useState(false)
   const [bookingMessage, setBookingMessage] = useState<{text: string, success: boolean} | null>(null)
+  const [showSidebars, setShowSidebars] = useState(false)
 
   const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize } = useAppointmentStore()
 
@@ -392,298 +395,336 @@ export function AppointmentsPage() {
   }
 
   return (
-    <div className="p-8 h-[calc(100vh-4rem)] bg-[#f9fafb]">
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search appointments..."
-                className="pl-10 w-56 bg-white"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSearch()
-                  }
-                }}
-              />
+    <div className="relative bg-[#f9fafb] min-h-screen">
+      <AppLeftSidebar show={showSidebars} onToggle={() => setShowSidebars(!showSidebars)} />
+      
+      <div className={cn(
+        "p-8 h-[calc(100vh-4rem)] transition-all duration-500",
+        showSidebars ? "lg:pl-72" : "lg:pl-24"
+      )}>
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search appointments..."
+                  className="pl-10 w-56 bg-white"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch()
+                    }
+                  }}
+                />
+              </div>
+              <Button onClick={handleSearch} className="bg-[#de9151] hover:bg-[#de9151]/90">
+                Search
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 bg-white">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleStatusFilter(null)}>
+                    All Statuses
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusFilter(0)}>
+                    None
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusFilter(1)}>
+                    Pending
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusFilter(2)}>
+                    Accepted
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusFilter(3)}>
+                    Rejected
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusFilter(4)}>
+                    Canceled
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2 bg-white">
+                    <ArrowUpDown className="h-4 w-4" />
+                    Sort
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => {
+                    setSortBy("starttime")
+                    setSortOrder("asc")
+                  }}>
+                    Start Time (Oldest First)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setSortBy("starttime")
+                    setSortOrder("desc")
+                  }}>
+                    Start Time (Newest First)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setSortBy("endtime")
+                    setSortOrder("asc")
+                  }}>
+                    End Time (Oldest First)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setSortBy("endtime")
+                    setSortOrder("desc")
+                  }}>
+                    End Time (Newest First)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <Button onClick={handleSearch} className="bg-[#de9151] hover:bg-[#de9151]/90">
-              Search
+            <Button 
+              onClick={() => setShowBookingForm(true)}
+              className="bg-[#de9151] hover:bg-[#de9151]/90 flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Book Appointment
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 bg-white">
-                  <Filter className="h-4 w-4" />
-                  Filter
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleStatusFilter(null)}>
-                  All Statuses
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusFilter(0)}>
-                  None
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusFilter(1)}>
-                  Pending
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusFilter(2)}>
-                  Accepted
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusFilter(3)}>
-                  Rejected
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusFilter(4)}>
-                  Canceled
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 bg-white">
-                  <ArrowUpDown className="h-4 w-4" />
-                  Sort
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => {
-                  setSortBy("starttime")
-                  setSortOrder("asc")
-                }}>
-                  Start Time (Oldest First)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  setSortBy("starttime")
-                  setSortOrder("desc")
-                }}>
-                  Start Time (Newest First)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  setSortBy("endtime")
-                  setSortOrder("asc")
-                }}>
-                  End Time (Oldest First)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  setSortBy("endtime")
-                  setSortOrder("desc")
-                }}>
-                  End Time (Newest First)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
-          <Button 
-            onClick={() => setShowBookingForm(true)}
-            className="bg-[#de9151] hover:bg-[#de9151]/90 flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Book Appointment
-          </Button>
-        </div>
 
-        {/* Content Section - Split View */}
-        <div className="flex flex-1 gap-2 min-h-0">
-          {/* Left Side - List */}
-          <div className="w-[30%] flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto pr-2">
-              <div className="text-sm text-gray-500 mb-2">Total count: {totalCount}</div>
-              {filteredAppointments.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                  <p className="text-gray-500">No appointments found</p>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    {filteredAppointments.map((appointment) => (
-                      <div
-                        key={appointment.id}
-                        className={`bg-white rounded-lg shadow-md p-4 cursor-pointer transition-all ${
-                          selectedAppointment?.id === appointment.id
-                            ? "border-2 border-[#de9151]"
-                            : "hover:shadow-lg"
-                        }`}
-                        onClick={() => handleAppointmentClick(appointment)}
-                      >
-                        <div className="flex justify-between items-center mb-1 gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <h2 className="text-lg font-semibold truncate">{appointment.name}</h2>
-                            <div
-                              id={`booker-${appointment.id}`}
-                              className="relative flex items-center group"
-                              onMouseEnter={() => {
-                                hoverTimeout.current = setTimeout(() => {
-                                  setHoveredBooker({id: appointment.booker.id, elementId: `booker-${appointment.id}`})
-                                }, 300)
-                              }}
-                              onMouseLeave={() => {
-                                if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
-                                setHoveredBooker(null)
-                              }}
-                            >
-                              <img
-                                src={appointment.booker.avatar}
-                                alt={`${appointment.booker.firstName} ${appointment.booker.lastName}`}
-                                className="w-6 h-6 rounded-full ml-2 mr-1"
-                              />
-                              <span className="text-sm text-gray-600 truncate">
-                                {appointment.booker.firstName} {appointment.booker.lastName}
-                              </span>
-                              {hoveredBooker?.id === appointment.booker.id && hoveredBooker.elementId === `booker-${appointment.id}` && (
-                                <div
-                                  className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white p-4 shadow-lg border text-sm text-gray-800 whitespace-normal"
-                                >
-                                  <div className="flex items-center mb-2">
-                                    <img
-                                      src={appointment.booker.avatar}
-                                      alt={`${appointment.booker.firstName} ${appointment.booker.lastName}`}
-                                      className="w-10 h-10 rounded-full mr-3"
-                                    />
-                                    <div>
-                                      <button
-                                        className="font-semibold flex items-center hover:underline focus:outline-none"
-                                        onClick={() => navigate(`/profile/${appointment.booker.id}`)}
-                                      >
-                                        {appointment.booker.firstName} {appointment.booker.lastName}
-                                        <span className="text-xs text-gray-400 ml-2">{getRoleText(appointment.booker.role)}</span>
-                                      </button>
-                                      <button
-                                        className="text-xs text-blue-500 hover:underline focus:outline-none text-left"
-                                        onClick={() => navigate(`/profile/${appointment.booker.id}`)}
-                                      >
-                                        {appointment.booker.username}
-                                      </button>
+          {/* Content Section - Split View */}
+          <div className="flex flex-1 gap-2 min-h-0">
+            {/* Left Side - List */}
+            <div className={cn(
+              "flex flex-col h-full transition-all duration-500",
+              showSidebars ? "w-[30%]" : "w-[35%]"
+            )}>
+              <div className="flex-1 overflow-y-auto pr-2">
+                <div className="text-sm text-gray-500 mb-2">Total count: {totalCount}</div>
+                {filteredAppointments.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-lg shadow-sm">
+                    <p className="text-gray-500">No appointments found</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      {filteredAppointments.map((appointment) => (
+                        <div
+                          key={appointment.id}
+                          className={`bg-white rounded-lg shadow-md p-4 cursor-pointer transition-all ${
+                            selectedAppointment?.id === appointment.id
+                              ? "border-2 border-[#de9151]"
+                              : "hover:shadow-lg"
+                          }`}
+                          onClick={() => handleAppointmentClick(appointment)}
+                        >
+                          <div className="flex justify-between items-center mb-1 gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <h2 className="text-lg font-semibold truncate">{appointment.name}</h2>
+                              <div
+                                id={`booker-${appointment.id}`}
+                                className="relative flex items-center group"
+                                onMouseEnter={() => {
+                                  hoverTimeout.current = setTimeout(() => {
+                                    setHoveredBooker({id: appointment.booker.id, elementId: `booker-${appointment.id}`})
+                                  }, 300)
+                                }}
+                                onMouseLeave={() => {
+                                  if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
+                                  setHoveredBooker(null)
+                                }}
+                              >
+                                <img
+                                  src={appointment.booker.avatar}
+                                  alt={`${appointment.booker.firstName} ${appointment.booker.lastName}`}
+                                  className="w-6 h-6 rounded-full ml-2 mr-1"
+                                />
+                                <span className="text-sm text-gray-600 truncate">
+                                  {appointment.booker.firstName} {appointment.booker.lastName}
+                                </span>
+                                {hoveredBooker?.id === appointment.booker.id && hoveredBooker.elementId === `booker-${appointment.id}` && (
+                                  <div
+                                    className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white p-4 shadow-lg border text-sm text-gray-800 whitespace-normal"
+                                  >
+                                    <div className="flex items-center mb-2">
+                                      <img
+                                        src={appointment.booker.avatar}
+                                        alt={`${appointment.booker.firstName} ${appointment.booker.lastName}`}
+                                        className="w-10 h-10 rounded-full mr-3"
+                                      />
+                                      <div>
+                                        <button
+                                          className="font-semibold flex items-center hover:underline focus:outline-none"
+                                          onClick={() => navigate(`/profile/${appointment.booker.id}`)}
+                                        >
+                                          {appointment.booker.firstName} {appointment.booker.lastName}
+                                          <span className="text-xs text-gray-400 ml-2">{getRoleText(appointment.booker.role)}</span>
+                                        </button>
+                                        <button
+                                          className="text-xs text-blue-500 hover:underline focus:outline-none text-left"
+                                          onClick={() => navigate(`/profile/${appointment.booker.id}`)}
+                                        >
+                                          {appointment.booker.username}
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {getRepeatingTypeLabel(appointment.repeatingType) && (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {getRepeatingTypeLabel(appointment.repeatingType)}
+                                </span>
+                              )}
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                                {getStatusText(appointment.status)}
+                              </span>
+                              {appointment.status === 2 && (
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAppointmentTimeStatus(appointment.startTime, appointment.endTime).color}`}>
+                                  {getAppointmentTimeStatus(appointment.startTime, appointment.endTime).status === 'in-progress' ? 'In Progress' : 
+                                   getAppointmentTimeStatus(appointment.startTime, appointment.endTime).status === 'expired' ? 'Expired' : 'Upcoming'}
+                                </span>
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {getRepeatingTypeLabel(appointment.repeatingType) && (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {getRepeatingTypeLabel(appointment.repeatingType)}
-                              </span>
-                            )}
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                              {getStatusText(appointment.status)}
-                            </span>
-                            {appointment.status === 2 && (
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAppointmentTimeStatus(appointment.startTime, appointment.endTime).color}`}>
-                                {getAppointmentTimeStatus(appointment.startTime, appointment.endTime).status === 'in-progress' ? 'In Progress' : 
-                                 getAppointmentTimeStatus(appointment.startTime, appointment.endTime).status === 'expired' ? 'Expired' : 'Upcoming'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-2 mb-2">
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <MapPin className="h-4 w-4 mr-1.5" />
-                            <span className="truncate">{appointment.location?.formattedAddress || 'No location'}</span>
-                          </div>
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <Users className="h-4 w-4 mr-1.5" />
-                            <span>{appointment.participantCount ?? 1} participants</span>
-                          </div>
-                          {formatLocalDate(appointment.startTime) === formatLocalDate(appointment.endTime) ? (
-                            <>
-                              <div className="flex items-center text-gray-600 text-sm">
-                                <Calendar className="h-4 w-4 mr-1.5" />
-                                <span>{formatLocalDate(appointment.startTime)}</span>
-                              </div>
-                              <div className="flex items-center text-gray-600 text-sm">
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                            <div className="flex items-center text-gray-600 text-sm">
+                              <MapPin className="h-4 w-4 mr-1.5" />
+                              <span className="truncate">{appointment.location?.formattedAddress || 'No location'}</span>
+                            </div>
+                            <div className="flex items-center text-gray-600 text-sm">
+                              <Users className="h-4 w-4 mr-1.5" />
+                              <span>{appointment.participantCount ?? 1} participants</span>
+                            </div>
+                            {formatLocalDate(appointment.startTime) === formatLocalDate(appointment.endTime) ? (
+                              <>
+                                <div className="flex items-center text-gray-600 text-sm">
+                                  <Calendar className="h-4 w-4 mr-1.5" />
+                                  <span>{formatLocalDate(appointment.startTime)}</span>
+                                </div>
+                                <div className="flex items-center text-gray-600 text-sm">
+                                  <Clock className="h-4 w-4 mr-1.5" />
+                                  <span>
+                                    {formatLocalTimeOnly(appointment.startTime)} - {formatLocalTimeOnly(appointment.endTime)}
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex items-center text-gray-600 text-sm col-span-2">
                                 <Clock className="h-4 w-4 mr-1.5" />
                                 <span>
-                                  {formatLocalTimeOnly(appointment.startTime)} - {formatLocalTimeOnly(appointment.endTime)}
+                                  {formatLocalTime(appointment.startTime)} - {formatLocalTime(appointment.endTime)}
                                 </span>
                               </div>
-                            </>
-                          ) : (
-                            <div className="flex items-center text-gray-600 text-sm col-span-2">
-                              <Clock className="h-4 w-4 mr-1.5" />
-                              <span>
-                                {formatLocalTime(appointment.startTime)} - {formatLocalTime(appointment.endTime)}
-                              </span>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                  {totalPages > 1 && (
-                    <div className="flex justify-center gap-2 mt-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(pageNumber - 1)}
-                        disabled={pageNumber === 1}
-                      >
-                        Previous
-                      </Button>
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                        <Button
-                          key={page}
-                          variant={page === pageNumber ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handlePageChange(page)}
-                          className={page === pageNumber ? "bg-[#de9151] hover:bg-[#de9151]/90" : ""}
-                        >
-                          {page}
-                        </Button>
                       ))}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(pageNumber + 1)}
-                        disabled={pageNumber === totalPages}
-                      >
-                        Next
-                      </Button>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Right Side - Details */}
-          <div className="flex-1 bg-white rounded-lg shadow-xl p-6 overflow-y-auto h-full">
-            {isLoadingDetails ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#de9151]"></div>
-              </div>
-            ) : selectedAppointment ? (
-              <>
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex items-center w-full justify-between gap-2">
-                    <div className="flex items-center gap-4">
-                      <h2 className="text-2xl font-bold">{selectedAppointment.name}</h2>
-                      {getRepeatingTypeLabel(selectedAppointment.repeatingType) && (
-                        <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                          {getRepeatingTypeLabel(selectedAppointment.repeatingType)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            className={`px-3 py-1 rounded-full text-sm font-medium hover:opacity-80 transition-all ${getStatusColor(selectedAppointment.status)} flex items-center gap-1.5`}
+                    {totalPages > 1 && (
+                      <div className="flex justify-center gap-2 mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pageNumber - 1)}
+                          disabled={pageNumber === 1}
+                        >
+                          Previous
+                        </Button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <Button
+                            key={page}
+                            variant={page === pageNumber ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(page)}
+                            className={page === pageNumber ? "bg-[#de9151] hover:bg-[#de9151]/90" : ""}
                           >
-                            {getStatusText(selectedAppointment.status)}
-                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
+                            {page}
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-32 p-1">
-                          {selectedAppointment.status === 1 && (
-                            <>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePageChange(pageNumber + 1)}
+                          disabled={pageNumber === totalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Right Side - Details */}
+            <div className={cn(
+              "flex-1 bg-white rounded-lg shadow-xl p-6 overflow-y-auto h-full transition-all duration-500",
+              showSidebars ? "w-[70%]" : "w-[65%]"
+            )}>
+              {isLoadingDetails ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#de9151]"></div>
+                </div>
+              ) : selectedAppointment ? (
+                <>
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center w-full justify-between gap-2">
+                      <div className="flex items-center gap-4">
+                        <h2 className="text-2xl font-bold">{selectedAppointment.name}</h2>
+                        {getRepeatingTypeLabel(selectedAppointment.repeatingType) && (
+                          <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                            {getRepeatingTypeLabel(selectedAppointment.repeatingType)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              className={`px-3 py-1 rounded-full text-sm font-medium hover:opacity-80 transition-all ${getStatusColor(selectedAppointment.status)} flex items-center gap-1.5`}
+                            >
+                              {getStatusText(selectedAppointment.status)}
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-32 p-1">
+                            {selectedAppointment.status === 1 && (
+                              <>
+                                <DropdownMenuItem 
+                                  onClick={() => handleStatusChange(2)}
+                                  className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
+                                >
+                                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                  Accept
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleStatusChange(3)}
+                                  className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
+                                >
+                                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                  Decline
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {selectedAppointment.status === 2 && (
+                              <DropdownMenuItem 
+                                onClick={() => handleStatusChange(4)}
+                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                Cancel
+                              </DropdownMenuItem>
+                            )}
+                            {(selectedAppointment.status === 3 || selectedAppointment.status === 4) && (
                               <DropdownMenuItem 
                                 onClick={() => handleStatusChange(2)}
                                 className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
@@ -691,157 +732,132 @@ export function AppointmentsPage() {
                                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
                                 Accept
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleStatusChange(3)}
-                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
-                              >
-                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                Decline
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {selectedAppointment.status === 2 && (
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(4)}
-                              className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
-                            >
-                              <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                              Cancel
-                            </DropdownMenuItem>
-                          )}
-                          {(selectedAppointment.status === 3 || selectedAppointment.status === 4) && (
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusChange(2)}
-                              className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
-                            >
-                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                              Accept
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      {selectedAppointment.editable && (
-                        <>
-                          <Button variant="outline" size="icon">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        {selectedAppointment.editable && (
+                          <>
+                            <Button variant="outline" size="icon">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="space-y-6">
-                  <div className="flex gap-8 text-xs text-gray-500">
-                    <div>Created: {formatLocalTime(selectedAppointment.created)}</div>
-                    <div>Last modified: {formatLocalTime(selectedAppointment.modified)}</div>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Description</h3>
-                    <p className="text-gray-600">{selectedAppointment.description}</p>
-                  </div>
+                  <div className="space-y-6">
+                    <div className="flex gap-8 text-xs text-gray-500">
+                      <div>Created: {formatLocalTime(selectedAppointment.created)}</div>
+                      <div>Last modified: {formatLocalTime(selectedAppointment.modified)}</div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Description</h3>
+                      <p className="text-gray-600">{selectedAppointment.description}</p>
+                    </div>
 
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Participants</h3>
-                    <div className="space-y-4">
-                      {[
-                        {...selectedAppointment.booker, roleLabel: 'Booker'}, 
-                        ...(selectedAppointment.otherParticipants || []).map(p => ({...p, roleLabel: 'Participant'}))
-                      ].map((user) => (
-                        <div key={user.id} className="flex items-center gap-3">
-                          <button
-                            className="focus:outline-none"
-                            onClick={() => navigate(`/profile/${user.id}`)}
-                          >
-                            <img
-                              src={user.avatar}
-                              alt={`${user.firstName} ${user.lastName}`}
-                              className="w-10 h-10 rounded-full"
-                            />
-                          </button>
-                          <div className="flex flex-col min-w-0">
-                            <div className="flex items-center gap-2">
-                              <button
-                                className="font-medium text-left focus:outline-none truncate"
-                                onClick={() => navigate(`/profile/${user.id}`)}
-                              >
-                                {user.firstName} {user.lastName}
-                              </button>
-                              <span className="text-xs text-gray-400">{user.roleLabel}</span>
-                              {user.status !== undefined && (
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getParticipantStatusColor(user.status)}`}>
-                                  {getParticipantStatusText(user.status)}
-                                </span>
-                              )}
-                            </div>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Participants</h3>
+                      <div className="space-y-4">
+                        {[
+                          {...selectedAppointment.booker, roleLabel: 'Booker'}, 
+                          ...(selectedAppointment.otherParticipants || []).map(p => ({...p, roleLabel: 'Participant'}))
+                        ].map((user) => (
+                          <div key={user.id} className="flex items-center gap-3">
                             <button
-                              className="text-xs text-blue-500 text-left truncate focus:outline-none"
+                              className="focus:outline-none"
                               onClick={() => navigate(`/profile/${user.id}`)}
                             >
-                              {user.email}
+                              <img
+                                src={user.avatar}
+                                alt={`${user.firstName} ${user.lastName}`}
+                                className="w-10 h-10 rounded-full"
+                              />
                             </button>
+                            <div className="flex flex-col min-w-0">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  className="font-medium text-left focus:outline-none truncate"
+                                  onClick={() => navigate(`/profile/${user.id}`)}
+                                >
+                                  {user.firstName} {user.lastName}
+                                </button>
+                                <span className="text-xs text-gray-400">{user.roleLabel}</span>
+                                {user.status !== undefined && (
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getParticipantStatusColor(user.status)}`}>
+                                    {getParticipantStatusText(user.status)}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                className="text-xs text-blue-500 text-left truncate focus:outline-none"
+                                onClick={() => navigate(`/profile/${user.id}`)}
+                              >
+                                {user.email}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Location</h3>
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <MapPin className="h-5 w-5 mr-2" />
-                      <span>{selectedAppointment.location?.formattedAddress || 'No location'}</span>
-                    </div>
-                    {selectedAppointment.location && (
-                      <div className="rounded-lg overflow-hidden border w-[320px] h-[180px]">
-                        <iframe
-                          title="Map overview"
-                          width="320"
-                          height="180"
-                          style={{ border: 0 }}
-                          src={`https://maps.google.com/maps?q=${selectedAppointment.location.latitude},${selectedAppointment.location.longitude}&z=15&output=embed`}
-                          allowFullScreen
-                        ></iframe>
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Location</h3>
+                      <div className="flex items-center text-gray-600 mb-2">
+                        <MapPin className="h-5 w-5 mr-2" />
+                        <span>{selectedAppointment.location?.formattedAddress || 'No location'}</span>
                       </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">{selectedAppointment.repeatingType ? 'Upcoming Schedule' : 'Schedule'}</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Start Time</p>
-                        <p className="text-gray-600">
-                          {formatLocalTime(selectedAppointment.startTime)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">End Time</p>
-                        <p className="text-gray-600">
-                          {formatLocalTime(selectedAppointment.endTime)}
-                        </p>
-                      </div>
-                      {selectedAppointment.status === 2 && (
-                        <div className="col-span-2">
-                          <p className="text-sm text-gray-500">Current Status</p>
-                          <p className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).color}`}>
-                            {getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).status === 'in-progress' ? 'In Progress' : 
-                             getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).status === 'expired' ? 'Expired' : 'Upcoming'}
-                          </p>
+                      {selectedAppointment.location && (
+                        <div className="rounded-lg overflow-hidden border w-[320px] h-[180px]">
+                          <iframe
+                            title="Map overview"
+                            width="320"
+                            height="180"
+                            style={{ border: 0 }}
+                            src={`https://maps.google.com/maps?q=${selectedAppointment.location.latitude},${selectedAppointment.location.longitude}&z=15&output=embed`}
+                            allowFullScreen
+                          ></iframe>
                         </div>
                       )}
                     </div>
+
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">{selectedAppointment.repeatingType ? 'Upcoming Schedule' : 'Schedule'}</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Start Time</p>
+                          <p className="text-gray-600">
+                            {formatLocalTime(selectedAppointment.startTime)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">End Time</p>
+                          <p className="text-gray-600">
+                            {formatLocalTime(selectedAppointment.endTime)}
+                          </p>
+                        </div>
+                        {selectedAppointment.status === 2 && (
+                          <div className="col-span-2">
+                            <p className="text-sm text-gray-500">Current Status</p>
+                            <p className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).color}`}>
+                              {getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).status === 'in-progress' ? 'In Progress' : 
+                               getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).status === 'expired' ? 'Expired' : 'Upcoming'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-500">Select an appointment to view details</p>
                 </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-gray-500">Select an appointment to view details</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
