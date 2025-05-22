@@ -1,7 +1,22 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 export function ExploreFindersPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [authorized, setAuthorized] = useState(false)
+
+  useEffect(() => {
+    const info = localStorage.getItem("basicInfo")
+    if (info) {
+      try {
+        const parsed = JSON.parse(info)
+        setAuthorized(parsed.role === 2)
+      } catch {
+        // ignore
+      }
+    }
+  }, [])
+
+  if (!authorized) return null
 
   return (
     <div className="container mx-auto px-4 py-8">

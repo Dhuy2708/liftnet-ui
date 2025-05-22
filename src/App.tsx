@@ -19,7 +19,7 @@ import { ChatPage } from "./pages/ChatPage"
 import { TopBarOnlyLayout } from "./components/layout/topbar-only"
 import { StatisticsPage } from "./pages/StatisticsPage"
 import AiChatPage from "./pages/AiChatPage"
-import { TrainerFinderPage } from "./pages/TrainerFinderPage"
+import TrainerFinderPage  from "./pages/TrainerFinderPage"
 import { ExploreFindersPage } from "./pages/ExploreFindersPage"
 
 function AppContent() {

@@ -1,19 +1,49 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Home, Clock, BarChart2, Calendar, Dumbbell, Users, Search, Menu } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { useAuthStore } from "@/store/AuthStore"
 
 export function AppLeftSidebar({
-  show = true,
   onToggle,
 }: {
-  show?: boolean
   onToggle?: () => void
 }) {
   const location = useLocation()
-  const { basicInfo } = useAuthStore()
+  const [role, setRole] = useState<number | null>(null)
+  const [show, setShow] = useState(true)
+
+  useEffect(() => {
+    const updateRole = () => {
+      const info = localStorage.getItem("basicInfo")
+      if (info) {
+        try {
+          const parsed = JSON.parse(info)
+          setRole(parsed.role)
+        } catch {
+          // ignore
+        }
+      }
+    }
+    updateRole()
+    const sidebarState = localStorage.getItem("sidebarShow")
+    setShow(sidebarState === null ? true : sidebarState === "true")
+    window.addEventListener('basicInfoChanged', updateRole)
+    window.addEventListener('storage', updateRole)
+    return () => {
+      window.removeEventListener('basicInfoChanged', updateRole)
+      window.removeEventListener('storage', updateRole)
+    }
+  }, [])
+
+  const handleToggle = () => {
+    const newShow = !show
+    setShow(newShow)
+    localStorage.setItem("sidebarShow", String(newShow))
+    window.dispatchEvent(new Event("sidebarToggled"))
+    if (onToggle) onToggle()
+  }
 
   const mainNavItems = [
     { name: "Home", icon: Home, path: "/" },
@@ -23,10 +53,11 @@ export function AppLeftSidebar({
 
   const quickAccessItems = [
     { name: "Appointments", icon: Calendar, path: "/appointments" },
-    ...(String(basicInfo?.role) === "seeker" 
+    ...(role === 1
       ? [{ name: "Trainer Finder", icon: Dumbbell, path: "/trainer-finder" }]
-      : [{ name: "Explore Finders", icon: Search, path: "/explore-finders" }]
-    ),
+      : role === 2
+      ? [{ name: "Explore Finders", icon: Search, path: "/explore-finders" }]
+      : []),
     { name: "Community", icon: Users, path: "/community" },
   ]
 
@@ -49,7 +80,7 @@ export function AppLeftSidebar({
       >
         {/* Toggle button */}
         <button
-          onClick={onToggle}
+          onClick={handleToggle}
           className={cn(
             "absolute right-0 top-20 z-50",
             "w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-md",
@@ -66,7 +97,7 @@ export function AppLeftSidebar({
           <div className="mb-6">
             <ul className="space-y-1">
               {mainNavItems.map((item) => {
-                const isActive = location.pathname === item.path
+                const isActive = location.pathname.startsWith(item.path)
                 return (
                   <li key={item.name}>
                     <Link
@@ -110,7 +141,7 @@ export function AppLeftSidebar({
             </h3>
             <ul className="space-y-1">
               {quickAccessItems.map((item) => {
-                const isActive = location.pathname === item.path
+                const isActive = location.pathname.startsWith(item.path)
                 return (
                   <li key={item.name}>
                     <Link

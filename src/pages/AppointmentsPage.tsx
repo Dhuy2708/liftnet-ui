@@ -90,7 +90,10 @@ export function AppointmentsPage() {
   const [formErrors, setFormErrors] = useState<{name?: string, start?: string, end?: string}>({})
   const [isBooking, setIsBooking] = useState(false)
   const [bookingMessage, setBookingMessage] = useState<{text: string, success: boolean} | null>(null)
-  const [showSidebars, setShowSidebars] = useState(false)
+  const [showSidebars, setShowSidebars] = useState(() => {
+    const sidebarState = localStorage.getItem("sidebarShow")
+    return sidebarState === null ? true : sidebarState === "true"
+  })
 
   const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize } = useAppointmentStore()
 
@@ -396,7 +399,11 @@ export function AppointmentsPage() {
 
   return (
     <div className="relative bg-[#f9fafb] min-h-screen">
-      <AppLeftSidebar show={showSidebars} onToggle={() => setShowSidebars(!showSidebars)} />
+      <AppLeftSidebar onToggle={() => {
+        const newShow = !showSidebars
+        setShowSidebars(newShow)
+        localStorage.setItem("sidebarShow", String(newShow))
+      }} />
       
       <div className={cn(
         "p-8 h-[calc(100vh-4rem)] transition-all duration-500",
