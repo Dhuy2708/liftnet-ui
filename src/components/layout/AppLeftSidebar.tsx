@@ -97,7 +97,7 @@ export function AppLeftSidebar({
           <div className="mb-6">
             <ul className="space-y-1">
               {mainNavItems.map((item) => {
-                const isActive = location.pathname.startsWith(item.path)
+                const isActive = location.pathname === item.path
                 return (
                   <li key={item.name}>
                     <Link

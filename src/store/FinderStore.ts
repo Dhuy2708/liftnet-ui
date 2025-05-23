@@ -16,43 +16,66 @@ export interface FinderPoster {
 
 export interface FinderPost {
   id: string
-  poster: FinderPoster
+  poster: FinderPoster | null
   title: string
   description: string
   startTime: string
   endTime: string
   startPrice: number
   endPrice: number
-  lat: number
-  lng: number
+  lat: number | null
+  lng: number | null
+  placeName: string | null
+  distanceAway: number
   hideAddress: boolean
   repeatType: number
+  status: number // 0: None, 1: Open, 2: Closed
+  applyingStatus: number // 0: None, 1: Applying, 2: Canceled
+  createdAt: string
+  isAnonymous: boolean
+}
+
+export interface FinderApplicant {
+  id: number
+  postId: string
+  trainer: FinderPoster
+  message: string
+  cancelReason: string | null
   status: number
   createdAt: string
+  modifiedAt: string
 }
 
 interface FinderStoreState {
   posts: FinderPost[]
+  applicants: FinderApplicant[]
   isLoading: boolean
+  isLoadingApplicants: boolean
   error: string | null
   pageNumber: number
   pageSize: number
   totalCount: number
+  hasMore: boolean
   fetchFinders: (params: {
     status?: string
     search?: string
     pageNumber?: number
     pageSize?: number
   }) => Promise<void>
+  fetchApplicants: (postId: string) => Promise<void>
+  fetchExplorePosts: (maxDistance: number, pageNumber?: number) => Promise<void>
 }
 
-export const useFinderStore = create<FinderStoreState>((set) => ({
+export const useFinderStore = create<FinderStoreState>((set, get) => ({
   posts: [],
+  applicants: [],
   isLoading: false,
+  isLoadingApplicants: false,
   error: null,
   pageNumber: 1,
   pageSize: 10,
   totalCount: 0,
+  hasMore: true,
   fetchFinders: async ({ status = "1", search = "", pageNumber = 1, pageSize = 10 }) => {
     set({ isLoading: true, error: null })
     try {
@@ -83,8 +106,69 @@ export const useFinderStore = create<FinderStoreState>((set) => ({
         isLoading: false,
         error: null
       })
-    } catch (err: any) {
-      set({ isLoading: false, error: err?.message || "Failed to fetch finders" })
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch finders"
+      set({ isLoading: false, error: errorMessage })
+    }
+  },
+  fetchApplicants: async (postId: string) => {
+    set({ isLoadingApplicants: true, error: null })
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/Finder/applicants/${postId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      })
+      if (res.data.success) {
+        set({
+          applicants: res.data.datas || [],
+          isLoadingApplicants: false,
+          error: null
+        })
+      } else {
+        set({
+          isLoadingApplicants: false,
+          error: res.data.message || "Failed to fetch applicants"
+        })
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch applicants"
+      set({ 
+        isLoadingApplicants: false, 
+        error: errorMessage
+      })
+    }
+  },
+  fetchExplorePosts: async (maxDistance: number, pageNumber = 1) => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/Finder/explore`, {
+        params: { maxDistance, pageNumber },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      })
+      if (res.data.success) {
+        const newPosts = res.data.datas || []
+        set((state) => ({
+          posts: pageNumber === 1 ? newPosts : [...state.posts, ...newPosts],
+          pageNumber,
+          hasMore: newPosts.length > 0,
+          isLoading: false,
+          error: null
+        }))
+      } else {
+        set({
+          isLoading: false,
+          error: res.data.message || "Failed to fetch posts"
+        })
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch posts"
+      set({ 
+        isLoading: false, 
+        error: errorMessage
+      })
     }
   }
 })) 

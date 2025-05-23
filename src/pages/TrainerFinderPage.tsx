@@ -13,6 +13,7 @@ import {
   Plus,
   FileText,
   EyeOff,
+  UserCog,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +30,7 @@ import { useFinderStore } from "@/store/FinderStore"
 import { GeoStore } from "@/store/GeoStore"
 import axios from "axios"
 import { toast } from "react-toastify"
+import { useNavigate, useParams } from "react-router-dom"
 
 // Types
 interface Poster {
@@ -63,22 +65,30 @@ interface Post {
 }
 
 interface Applicant {
-  id: string
-  userId: string
+  id: number
   postId: string
-  status: "applying" | "canceled"
-  createdAt: string
-  user: {
+  trainer: {
     id: string
     email: string
     username: string
     firstName: string
     lastName: string
+    role: number
     avatar: string
+    isDeleted: boolean
+    isSuspended: boolean
+    isFollowing: boolean
   }
+  message: string
+  cancelReason: string | null
+  status: number
+  createdAt: string
+  modifiedAt: string
 }
 
 export default function TrainerFinderPage() {
+  const navigate = useNavigate()
+  const { postId } = useParams()
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([])
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -91,7 +101,7 @@ export default function TrainerFinderPage() {
   const [sidebarShow, setSidebarShow] = useState(true)
   const [pageNumber] = useState(1)
   const [pageSize] = useState(10)
-  const { posts: finderPosts, isLoading, fetchFinders } = useFinderStore()
+  const { posts: finderPosts, isLoading, fetchFinders, applicants, isLoadingApplicants, fetchApplicants } = useFinderStore()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
   const [form, setForm] = useState({
@@ -105,6 +115,7 @@ export default function TrainerFinderPage() {
     locationSearch: "",
     locationId: "",
     hideAddress: false,
+    isAnonymous: false,
   })
   type LocationResult = { description: string; placeId: string }
   const [locationResults, setLocationResults] = useState<LocationResult[]>([])
@@ -113,7 +124,7 @@ export default function TrainerFinderPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [confirmAction, setConfirmAction] = useState<() => void>(() => {})
   const [confirmMessage, setConfirmMessage] = useState("")
-  const [showDetailsExpanded, setShowDetailsExpanded] = useState(false)
+  const [locationSearchTimeout, setLocationSearchTimeout] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const updateSidebarShow = () => {
@@ -194,12 +205,42 @@ export default function TrainerFinderPage() {
       setLocationResults([])
       return
     }
-    setLocationLoading(true)
-    geoStore.searchLocations(form.locationSearch).then((res) => {
-      setLocationResults(res)
-      setLocationLoading(false)
-    })
-  }, [form.locationSearch])
+
+    // Clear any existing timeout
+    if (locationSearchTimeout) {
+      clearTimeout(locationSearchTimeout)
+    }
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      setLocationLoading(true)
+      geoStore.searchLocations(form.locationSearch).then((res) => {
+        setLocationResults(res)
+        setLocationLoading(false)
+      })
+    }, 500) // 500ms debounce
+
+    setLocationSearchTimeout(timeout)
+
+    // Cleanup
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout)
+      }
+    }
+  }, [form.locationSearch, geoStore])
+
+  useEffect(() => {
+    if (postId && finderPosts.length > 0) {
+      const post = finderPosts.find(p => p.id === postId)
+      if (post) {
+        setSelectedPost(post)
+        if (isMobile) {
+          setShowMobileDetail(true)
+        }
+      }
+    }
+  }, [postId, finderPosts, isMobile])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -222,7 +263,7 @@ export default function TrainerFinderPage() {
         return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-md font-normal">Draft</Badge>
       case 1:
         return (
-          <Badge className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md font-normal">Active</Badge>
+          <Badge className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md font-normal">Open</Badge>
         )
       case 2:
         return (
@@ -250,6 +291,8 @@ export default function TrainerFinderPage() {
 
   const handlePostSelect = (post: Post) => {
     setSelectedPost(post)
+    navigate(`/trainer-finder/${post.id}`)
+    fetchApplicants(post.id)
     if (isMobile) {
       setShowMobileDetail(true)
     }
@@ -257,6 +300,7 @@ export default function TrainerFinderPage() {
 
   const handleBackToList = () => {
     setShowMobileDetail(false)
+    navigate('/trainer-finder')
   }
 
   const handleCreate = async () => {
@@ -290,6 +334,7 @@ export default function TrainerFinderPage() {
         locationId: form.locationId,
         hideAddress: form.hideAddress,
         repeatType: 0,
+        isAnonymous: form.isAnonymous,
       }
       await axios.post(`${import.meta.env.VITE_API_URL}/api/Finder/postFinder`, payload, {
         headers: {
@@ -310,6 +355,7 @@ export default function TrainerFinderPage() {
         locationSearch: "",
         locationId: "",
         hideAddress: false,
+        isAnonymous: false,
       })
       fetchFinders({ status: statusTab === "open" ? "1" : "2", search: searchQuery, pageNumber, pageSize })
     } catch (e: unknown) {
@@ -353,6 +399,7 @@ export default function TrainerFinderPage() {
           locationSearch: "",
           locationId: "",
           hideAddress: false,
+          isAnonymous: false,
         })
         setShowConfirmDialog(false)
       })
@@ -371,6 +418,7 @@ export default function TrainerFinderPage() {
         setConfirmAction(() => () => {
           setShowCreateForm(false)
           setSelectedPost(post)
+          navigate(`/trainer-finder/${post.id}`)
           if (isMobile) {
             setShowMobileDetail(true)
           }
@@ -380,6 +428,7 @@ export default function TrainerFinderPage() {
       } else {
         setShowCreateForm(false)
         setSelectedPost(post)
+        navigate(`/trainer-finder/${post.id}`)
         if (isMobile) {
           setShowMobileDetail(true)
         }
@@ -728,7 +777,7 @@ export default function TrainerFinderPage() {
                             <div className="w-full">
                               <p className="font-medium text-gray-800 mb-2">Location</p>
                               <div className="space-y-3">
-                                <div>
+                                <div className="relative">
                                   <Input
                                     className="w-full"
                                     placeholder="Search for a location..."
@@ -736,17 +785,17 @@ export default function TrainerFinderPage() {
                                     onChange={(e) => setForm((f) => ({ ...f, locationSearch: e.target.value }))}
                                   />
                                   {locationLoading && (
-                                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-1">
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-xs text-gray-400">
                                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#DE9151]"></div>
-                                      Searching...
+                                      <span>Searching...</span>
                                     </div>
                                   )}
                                   {locationResults.length > 0 && (
-                                    <div className="border rounded-md bg-white/90 shadow-md mt-1 max-h-40 overflow-y-auto z-10 relative">
+                                    <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 max-h-48 overflow-y-auto">
                                       {locationResults.map((loc) => (
                                         <div
                                           key={loc.placeId}
-                                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                                          className="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm text-gray-700"
                                           onClick={() => {
                                             setForm((f) => ({
                                               ...f,
@@ -776,6 +825,34 @@ export default function TrainerFinderPage() {
                                     </span>
                                   </label>
                                 </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-md bg-gradient-to-br from-[#DE9151]/5 to-[#4A6FA5]/10 flex items-center justify-center flex-shrink-0">
+                              <UserCog className="h-5 w-5 text-[#DE9151]" />
+                            </div>
+                            <div className="w-full">
+                              <p className="font-medium text-gray-800 mb-2">Privacy Settings</p>
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                      type="checkbox"
+                                      className="rounded text-[#DE9151] focus:ring-[#4A6FA5]"
+                                      checked={form.isAnonymous}
+                                      onChange={(e) => setForm((f) => ({ ...f, isAnonymous: e.target.checked }))}
+                                    />
+                                    <span className="flex items-center gap-1">
+                                      <UserCog className="w-3 h-3 text-gray-400" />
+                                      Post anonymously
+                                    </span>
+                                  </label>
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                  When posting anonymously, your profile information will be hidden from applicants
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -941,7 +1018,11 @@ export default function TrainerFinderPage() {
                           <div>
                             <h3 className="text-lg font-medium text-gray-800 mb-5">Applicants</h3>
 
-                            {(selectedPost.applicants?.length || 0) === 0 ? (
+                            {isLoadingApplicants ? (
+                              <div className="flex justify-center items-center py-12">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#DE9151]"></div>
+                              </div>
+                            ) : applicants.length === 0 ? (
                               <div className="text-center py-12 bg-gray-50/50 rounded-xl">
                                 <User className="h-10 w-10 text-gray-300 mx-auto mb-3" />
                                 <p className="text-gray-500">No applicants yet</p>
@@ -958,27 +1039,25 @@ export default function TrainerFinderPage() {
                                     value="applying"
                                     className="rounded-md data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm"
                                   >
-                                    Applying (
-                                    {selectedPost.applicants?.filter((a) => a.status === "applying").length || 0})
+                                    Applying ({applicants.filter((a) => a.status === 1).length})
                                   </TabsTrigger>
                                   <TabsTrigger
                                     value="canceled"
                                     className="rounded-md data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm"
                                   >
-                                    Canceled (
-                                    {selectedPost.applicants?.filter((a) => a.status === "canceled").length || 0})
+                                    Canceled ({applicants.filter((a) => a.status === 2).length})
                                   </TabsTrigger>
                                 </TabsList>
 
                                 <TabsContent value="applying" className="mt-0">
-                                  {selectedPost.applicants?.filter((a) => a.status === "applying").length === 0 ? (
+                                  {applicants.filter((a) => a.status === 1).length === 0 ? (
                                     <div className="text-center py-12 bg-gray-50/50 rounded-xl">
                                       <p className="text-gray-500">No active applicants</p>
                                     </div>
                                   ) : (
                                     <div className="space-y-5">
-                                      {selectedPost.applicants
-                                        ?.filter((applicant) => applicant.status === "applying")
+                                      {applicants
+                                        .filter((applicant) => applicant.status === 1)
                                         .map((applicant) => (
                                           <div
                                             key={applicant.id}
@@ -987,12 +1066,12 @@ export default function TrainerFinderPage() {
                                             <div className="flex items-start gap-4">
                                               <Avatar className="h-12 w-12 rounded-full border-2 border-white shadow-sm">
                                                 <AvatarImage
-                                                  src={applicant.user.avatar || "/placeholder.svg"}
-                                                  alt={`${applicant.user.firstName} ${applicant.user.lastName}`}
+                                                  src={applicant.trainer.avatar || "/placeholder.svg"}
+                                                  alt={`${applicant.trainer.firstName} ${applicant.trainer.lastName}`}
                                                 />
                                                 <AvatarFallback className="bg-gradient-to-br from-[#DE9151] to-[#c27a40] text-white">
-                                                  {applicant.user.firstName[0]}
-                                                  {applicant.user.lastName[0]}
+                                                  {applicant.trainer.firstName[0]}
+                                                  {applicant.trainer.lastName[0]}
                                                 </AvatarFallback>
                                               </Avatar>
 
@@ -1000,14 +1079,20 @@ export default function TrainerFinderPage() {
                                                 <div className="flex justify-between items-start">
                                                   <div>
                                                     <h3 className="font-medium text-gray-900">
-                                                      {applicant.user.firstName} {applicant.user.lastName}
+                                                      {applicant.trainer.firstName} {applicant.trainer.lastName}
                                                     </h3>
-                                                    <p className="text-sm text-gray-400">@{applicant.user.username}</p>
+                                                    <p className="text-sm text-gray-400">@{applicant.trainer.username}</p>
                                                   </div>
                                                   <Badge className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md font-normal">
                                                     Applying
                                                   </Badge>
                                                 </div>
+
+                                                {applicant.message && (
+                                                  <p className="text-sm mt-2 text-gray-600 bg-gray-50 p-3 rounded-md">
+                                                    {applicant.message}
+                                                  </p>
+                                                )}
 
                                                 <p className="text-sm mt-2 text-gray-500">
                                                   Applied on {formatDate(applicant.createdAt)}
@@ -1039,14 +1124,14 @@ export default function TrainerFinderPage() {
                                 </TabsContent>
 
                                 <TabsContent value="canceled" className="mt-0">
-                                  {selectedPost.applicants?.filter((a) => a.status === "canceled").length === 0 ? (
+                                  {applicants.filter((a) => a.status === 2).length === 0 ? (
                                     <div className="text-center py-12 bg-gray-50/50 rounded-xl">
                                       <p className="text-gray-500">No canceled applicants</p>
                                     </div>
                                   ) : (
                                     <div className="space-y-5">
-                                      {selectedPost.applicants
-                                        ?.filter((applicant) => applicant.status === "canceled")
+                                      {applicants
+                                        .filter((applicant) => applicant.status === 2)
                                         .map((applicant) => (
                                           <div
                                             key={applicant.id}
@@ -1055,12 +1140,12 @@ export default function TrainerFinderPage() {
                                             <div className="flex items-start gap-4">
                                               <Avatar className="h-12 w-12 rounded-full border-2 border-white shadow-sm">
                                                 <AvatarImage
-                                                  src={applicant.user.avatar || "/placeholder.svg"}
-                                                  alt={`${applicant.user.firstName} ${applicant.user.lastName}`}
+                                                  src={applicant.trainer.avatar || "/placeholder.svg"}
+                                                  alt={`${applicant.trainer.firstName} ${applicant.trainer.lastName}`}
                                                 />
                                                 <AvatarFallback className="bg-gray-200 text-gray-600">
-                                                  {applicant.user.firstName[0]}
-                                                  {applicant.user.lastName[0]}
+                                                  {applicant.trainer.firstName[0]}
+                                                  {applicant.trainer.lastName[0]}
                                                 </AvatarFallback>
                                               </Avatar>
 
@@ -1068,14 +1153,20 @@ export default function TrainerFinderPage() {
                                                 <div className="flex justify-between items-start">
                                                   <div>
                                                     <h3 className="font-medium text-gray-900">
-                                                      {applicant.user.firstName} {applicant.user.lastName}
+                                                      {applicant.trainer.firstName} {applicant.trainer.lastName}
                                                     </h3>
-                                                    <p className="text-sm text-gray-400">@{applicant.user.username}</p>
+                                                    <p className="text-sm text-gray-400">@{applicant.trainer.username}</p>
                                                   </div>
                                                   <Badge className="bg-gray-100 text-gray-500 hover:bg-gray-200 rounded-md font-normal">
                                                     Canceled
                                                   </Badge>
                                                 </div>
+
+                                                {applicant.cancelReason && (
+                                                  <p className="text-sm mt-2 text-gray-600 bg-gray-50 p-3 rounded-md">
+                                                    Reason: {applicant.cancelReason}
+                                                  </p>
+                                                )}
 
                                                 <p className="text-sm mt-2 text-gray-500">
                                                   Applied on {formatDate(applicant.createdAt)}
