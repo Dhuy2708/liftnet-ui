@@ -20,7 +20,7 @@ import { TopBarOnlyLayout } from "./components/layout/topbar-only"
 import { StatisticsPage } from "./pages/StatisticsPage"
 import AiChatPage from "./pages/AiChatPage"
 import TrainerFinderPage  from "./pages/TrainerFinderPage"
-import { ExploreFindersPage } from "./pages/ExploreFindersPage"
+import ExploreFindersPage  from "./pages/ExploreFindersPage"
 
 function AppContent() {
   const location = useLocation();
@@ -150,6 +150,17 @@ function AppContent() {
 
         <Route
           path="/trainer-finder"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <TrainerFinderPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/trainer-finder/:postId"
           element={
             <ProtectedRoute>
               <LargeAppLayout>
