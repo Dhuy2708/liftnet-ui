@@ -88,6 +88,7 @@ type ConversationActions = {
   clearMessages: () => void
   createConversation: (targetId: string) => Promise<string | null>
   getConversationByUserId: (targetId: string) => Promise<Conversation | null>
+  getConversationIdByUserId: (targetId: string) => Promise<string | null>
 }
 
 // Combine state and actions
@@ -238,6 +239,28 @@ export const useConversationStore = create<ConversationStore>((set, get) => ({
       return null
     } catch (error) {
       set({ error: error instanceof Error ? error.message : "Failed to create conversation" })
+      return null
+    }
+  },
+
+  getConversationIdByUserId: async (targetId: string) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/Conversation/id`,
+        {
+          params: { targetId },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      if (response.data.success && response.data.datas) {
+        return response.data.datas
+      }
+      return null
+    } catch (error) {
+      console.error("Failed to get conversation id by user id:", error)
       return null
     }
   }
