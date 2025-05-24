@@ -31,6 +31,7 @@ import { GeoStore } from "@/store/GeoStore"
 import axios from "axios"
 import { toast } from "react-toastify"
 import { useNavigate, useParams } from "react-router-dom"
+import { useConversationStore } from "@/store/ConversationStore"
 
 // Types
 interface Poster {
@@ -48,42 +49,23 @@ interface Poster {
 
 interface Post {
   id: string
-  poster: Poster
+  poster: Poster | null
   title: string
   description: string
   startTime: string
   endTime: string
   startPrice: number
   endPrice: number
-  lat: number
-  lng: number
+  lat: number | null
+  lng: number | null
+  placeName: string | null
+  distanceAway: number
   hideAddress: boolean
   repeatType: number
   status: number
+  applyingStatus: number
   createdAt: string
-  applicants?: Applicant[]
-}
-
-interface Applicant {
-  id: number
-  postId: string
-  trainer: {
-    id: string
-    email: string
-    username: string
-    firstName: string
-    lastName: string
-    role: number
-    avatar: string
-    isDeleted: boolean
-    isSuspended: boolean
-    isFollowing: boolean
-  }
-  message: string
-  cancelReason: string | null
-  status: number
-  createdAt: string
-  modifiedAt: string
+  isAnonymous: boolean
 }
 
 export default function TrainerFinderPage() {
@@ -101,7 +83,7 @@ export default function TrainerFinderPage() {
   const [sidebarShow, setSidebarShow] = useState(true)
   const [pageNumber] = useState(1)
   const [pageSize] = useState(10)
-  const { posts: finderPosts, isLoading, fetchFinders, applicants, isLoadingApplicants, fetchApplicants } = useFinderStore()
+  const { posts: finderPosts, isLoading, fetchFinders, applicants, isLoadingApplicants, fetchApplicants, respondToApplicant } = useFinderStore()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
   const [form, setForm] = useState({
@@ -125,6 +107,8 @@ export default function TrainerFinderPage() {
   const [confirmAction, setConfirmAction] = useState<() => void>(() => {})
   const [confirmMessage, setConfirmMessage] = useState("")
   const [locationSearchTimeout, setLocationSearchTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [respondingId, setRespondingId] = useState<number | null>(null)
+  const { getConversationIdByUserId } = useConversationStore()
 
   useEffect(() => {
     const updateSidebarShow = () => {
@@ -307,7 +291,6 @@ export default function TrainerFinderPage() {
     // Validate form
     const errors = []
     if (!form.title.trim()) errors.push("Title is required")
-    if (!form.description.trim()) errors.push("Description is required")
     if (!form.startTime) errors.push("Start time is required")
     if (!form.endTime) errors.push("End time is required")
     if (!form.locationId) errors.push("Location is required")
@@ -435,6 +418,23 @@ export default function TrainerFinderPage() {
       }
     } else {
       handlePostSelect(post)
+    }
+  }
+
+  const handleViewProfile = (userId: string) => {
+    window.open(`/profile/${userId}`, '_blank')
+  }
+
+  const handleMessage = async (userId: string) => {
+    try {
+      const conversationId = await getConversationIdByUserId(userId)
+      if (conversationId) {
+        window.open(`/chat/${conversationId}`, '_blank')
+      } else {
+        toast.error("Failed to start conversation")
+      }
+    } catch {
+      toast.error("Failed to start conversation")
     }
   }
 
@@ -591,7 +591,7 @@ export default function TrainerFinderPage() {
                               <div className="flex items-center gap-1">
                                 <User className="h-3 w-3" />
                                 <span>
-                                  {post.applicants?.length || 0} applicant{post.applicants?.length !== 1 ? "s" : ""}
+                                  {applicants.filter(a => a.postId === post.id).length} applicant{applicants.filter(a => a.postId === post.id).length !== 1 ? "s" : ""}
                                 </span>
                               </div>
                             </div>
@@ -1029,17 +1029,25 @@ export default function TrainerFinderPage() {
                               </div>
                             ) : (
                               <Tabs
-                                defaultValue="applying"
+                                defaultValue={selectedPost.status === 2 || selectedPost.status === 3 ? "accepted" : "applying"}
                                 value={applicantTab}
                                 onValueChange={setApplicantTab}
                                 className="w-full"
                               >
                                 <TabsList className="w-full bg-gray-50/70 p-1 rounded-md mb-6">
+                                  {!(selectedPost.status === 2 || selectedPost.status === 3) && (
+                                    <TabsTrigger
+                                      value="applying"
+                                      className="rounded-md data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm"
+                                    >
+                                      Applying ({applicants.filter((a) => a.status === 1).length})
+                                    </TabsTrigger>
+                                  )}
                                   <TabsTrigger
-                                    value="applying"
+                                    value="accepted"
                                     className="rounded-md data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm"
                                   >
-                                    Applying ({applicants.filter((a) => a.status === 1).length})
+                                    Accepted ({applicants.filter((a) => a.status === 4).length})
                                   </TabsTrigger>
                                   <TabsTrigger
                                     value="canceled"
@@ -1049,15 +1057,117 @@ export default function TrainerFinderPage() {
                                   </TabsTrigger>
                                 </TabsList>
 
-                                <TabsContent value="applying" className="mt-0">
-                                  {applicants.filter((a) => a.status === 1).length === 0 ? (
+                                {!(selectedPost.status === 2 || selectedPost.status === 3) && (
+                                  <TabsContent value="applying" className="mt-0">
+                                    {applicants.filter((a) => a.status === 1).length === 0 ? (
+                                      <div className="text-center py-12 bg-gray-50/50 rounded-xl">
+                                        <p className="text-gray-500">No active applicants</p>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-5">
+                                        {applicants
+                                          .filter((applicant) => applicant.status === 1)
+                                          .map((applicant) => (
+                                            <div
+                                              key={applicant.id}
+                                              className="p-5 rounded-xl bg-white/90 border border-gray-100 hover:border-gray-200 transition-all"
+                                            >
+                                              <div className="flex items-start gap-4">
+                                                <Avatar className="h-12 w-12 rounded-full border-2 border-white shadow-sm">
+                                                  <AvatarImage
+                                                    src={applicant.trainer.avatar || "/placeholder.svg"}
+                                                    alt={`${applicant.trainer.firstName} ${applicant.trainer.lastName}`}
+                                                  />
+                                                  <AvatarFallback className="bg-gradient-to-br from-[#DE9151] to-[#c27a40] text-white">
+                                                    {applicant.trainer.firstName[0]}
+                                                    {applicant.trainer.lastName[0]}
+                                                  </AvatarFallback>
+                                                </Avatar>
+
+                                                <div className="flex-1">
+                                                  <div className="flex justify-between items-start">
+                                                    <div>
+                                                      <h3 className="font-medium text-gray-900">
+                                                        {applicant.trainer.firstName} {applicant.trainer.lastName}
+                                                      </h3>
+                                                      <p className="text-sm text-gray-400">@{applicant.trainer.username}</p>
+                                                    </div>
+                                                    <Badge className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md font-normal">
+                                                      Applying
+                                                    </Badge>
+                                                  </div>
+
+                                                  {applicant.message && (
+                                                    <p className="text-sm mt-2 text-gray-600 bg-gray-50 p-3 rounded-md">
+                                                      {applicant.message}
+                                                    </p>
+                                                  )}
+
+                                                  <p className="text-sm mt-2 text-gray-500">
+                                                    Applied on {formatDate(applicant.createdAt)}
+                                                  </p>
+
+                                                  <div className="flex gap-2 mt-4">
+                                                    <Button
+                                                      className="bg-gradient-to-r from-[#DE9151] to-[#c27a40] hover:from-[#c27a40] hover:to-[#a56835] text-white rounded-full shadow-sm"
+                                                      disabled={respondingId === applicant.id}
+                                                      onClick={async () => {
+                                                        setRespondingId(applicant.id)
+                                                        const ok = await respondToApplicant(applicant.id, 1, selectedPost.id)
+                                                        setRespondingId(null)
+                                                        if (ok) toast.success("Applicant accepted")
+                                                        else toast.error("Failed to accept applicant")
+                                                      }}
+                                                    >
+                                                      {respondingId === applicant.id ? "Accepting..." : "Accept"}
+                                                    </Button>
+                                                    <Button
+                                                      variant="outline"
+                                                      className="rounded-md border-gray-200 text-gray-700 hover:bg-gray-50"
+                                                      disabled={respondingId === applicant.id}
+                                                      onClick={async () => {
+                                                        setRespondingId(applicant.id)
+                                                        const ok = await respondToApplicant(applicant.id, 2, selectedPost.id)
+                                                        setRespondingId(null)
+                                                        if (ok) toast.success("Applicant declined")
+                                                        else toast.error("Failed to decline applicant")
+                                                      }}
+                                                    >
+                                                      {respondingId === applicant.id ? "Declining..." : "Decline"}
+                                                    </Button>
+                                                    <Button
+                                                      variant="outline"
+                                                      className="rounded-md border-gray-200 text-gray-700 hover:bg-gray-50"
+                                                      onClick={() => handleViewProfile(applicant.trainer.id)}
+                                                    >
+                                                      View Profile
+                                                    </Button>
+                                                    <Button
+                                                      variant="outline"
+                                                      className="rounded-md border-gray-200 text-gray-700 hover:bg-gray-50"
+                                                      onClick={() => handleMessage(applicant.trainer.id)}
+                                                    >
+                                                      Message
+                                                    </Button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                      </div>
+                                    )}
+                                  </TabsContent>
+                                )}
+
+                                <TabsContent value="accepted" className="mt-0">
+                                  {applicants.filter((a) => a.status === 4).length === 0 ? (
                                     <div className="text-center py-12 bg-gray-50/50 rounded-xl">
-                                      <p className="text-gray-500">No active applicants</p>
+                                      <p className="text-gray-500">No accepted applicants</p>
                                     </div>
                                   ) : (
                                     <div className="space-y-5">
                                       {applicants
-                                        .filter((applicant) => applicant.status === 1)
+                                        .filter((applicant) => applicant.status === 4)
                                         .map((applicant) => (
                                           <div
                                             key={applicant.id}
@@ -1083,8 +1193,8 @@ export default function TrainerFinderPage() {
                                                     </h3>
                                                     <p className="text-sm text-gray-400">@{applicant.trainer.username}</p>
                                                   </div>
-                                                  <Badge className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-md font-normal">
-                                                    Applying
+                                                  <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md font-normal">
+                                                    Accepted
                                                   </Badge>
                                                 </div>
 
@@ -1099,20 +1209,19 @@ export default function TrainerFinderPage() {
                                                 </p>
 
                                                 <div className="flex gap-2 mt-4">
-                                                  <Button className="bg-gradient-to-r from-[#DE9151] to-[#c27a40] hover:from-[#c27a40] hover:to-[#a56835] text-white rounded-full shadow-sm">
-                                                    Accept
-                                                  </Button>
                                                   <Button
                                                     variant="outline"
                                                     className="rounded-md border-gray-200 text-gray-700 hover:bg-gray-50"
+                                                    onClick={() => handleMessage(applicant.trainer.id)}
                                                   >
                                                     Message
                                                   </Button>
                                                   <Button
                                                     variant="outline"
-                                                    className="ml-auto rounded-md text-red-500 border-red-100 hover:bg-red-50"
+                                                    className="rounded-md border-gray-200 text-gray-700 hover:bg-gray-50"
+                                                    onClick={() => handleViewProfile(applicant.trainer.id)}
                                                   >
-                                                    Decline
+                                                    View Profile
                                                   </Button>
                                                 </div>
                                               </div>
@@ -1176,6 +1285,7 @@ export default function TrainerFinderPage() {
                                                   <Button
                                                     variant="outline"
                                                     className="rounded-md border-gray-200 text-gray-700 hover:bg-gray-50"
+                                                    onClick={() => handleViewProfile(applicant.trainer.id)}
                                                   >
                                                     View Profile
                                                   </Button>

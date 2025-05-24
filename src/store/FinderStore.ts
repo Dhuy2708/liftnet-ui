@@ -64,6 +64,9 @@ interface FinderStoreState {
   }) => Promise<void>
   fetchApplicants: (postId: string) => Promise<void>
   fetchExplorePosts: (maxDistance: number, pageNumber?: number) => Promise<void>
+  fetchAppliedPosts: (pageNumber?: number) => Promise<void>
+  applyToPost: (postId: string, message: string) => Promise<boolean>
+  respondToApplicant: (applicantId: number, status: number, postId: string) => Promise<boolean>
 }
 
 export const useFinderStore = create<FinderStoreState>((set, get) => ({
@@ -169,6 +172,72 @@ export const useFinderStore = create<FinderStoreState>((set, get) => ({
         isLoading: false, 
         error: errorMessage
       })
+    }
+  },
+  fetchAppliedPosts: async (pageNumber = 1) => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/Finder/applieds`, {
+        params: { pageNumber },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      })
+      if (res.data.success) {
+        const newPosts = res.data.datas || []
+        set((state) => ({
+          posts: pageNumber === 1 ? newPosts : [...state.posts, ...newPosts],
+          pageNumber,
+          hasMore: newPosts.length >= 10,
+          isLoading: false,
+          error: null
+        }))
+      } else {
+        set({
+          isLoading: false,
+          error: res.data.message || "Failed to fetch applied posts"
+        })
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch applied posts"
+      set({ 
+        isLoading: false, 
+        error: errorMessage
+      })
+    }
+  },
+  applyToPost: async (postId: string, message: string) => {
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/Finder/apply`, {
+        postId,
+        message
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      return true
+    } catch {
+      return false
+    }
+  },
+  respondToApplicant: async (applicantId: number, status: number, postId: string) => {
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/Finder/applicant/response`, {
+        applicantId,
+        status
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      // Refresh applicants
+      await get().fetchApplicants(postId)
+      return true
+    } catch {
+      return false
     }
   }
 })) 
