@@ -94,7 +94,51 @@ function AppContent() {
         />
 
         <Route
-          path="/ai"
+          path="/ai-assistant"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <AiChatPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/ai-assistant/statistic"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <AiChatPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/ai-assistant/planning"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <AiChatPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/ai-assistant/physical-stats"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <AiChatPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/ai-assistant/ai-coach"
           element={
             <ProtectedRoute>
               <LargeAppLayout>

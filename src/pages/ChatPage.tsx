@@ -636,7 +636,7 @@ export function ChatPage() {
                               ) : message.type === 3 ? (
                                 <video controls src={message.body} className="w-full block rounded-b-2xl" />
                               ) : (
-                                <span className="text-base">{message.body}</span>
+                                <span className="text-base whitespace-pre-wrap">{message.body}</span>
                               )}
                               {isMe && (
                                 <span className="ml-1 inline-flex items-center">
