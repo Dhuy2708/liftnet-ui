@@ -18,11 +18,14 @@ import {
   Plus,
   Search,
   Trash2,
+  Menu,
+  List,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useLocation } from "react-router-dom"
 import { AppLeftSidebar } from "@/components/layout/AppLeftSidebar"
 import { useChatbotStore } from "@/store/ChatbotStore"
+import { FaStar } from "react-icons/fa"
 
 const AnatomyViewer = () => {
   const location = useLocation()
@@ -34,6 +37,7 @@ const AnatomyViewer = () => {
     const sidebarState = localStorage.getItem("sidebarShow")
     return sidebarState === null ? true : sidebarState === "true"
   })
+  const [showConversationList, setShowConversationList] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [newConversationTitle, setNewConversationTitle] = useState("")
   const [isCreatingNew, setIsCreatingNew] = useState(false)
@@ -89,12 +93,15 @@ const AnatomyViewer = () => {
       isHuman: true
     }
     // Optimistically add user message
-    const convIdx = conversations.findIndex(c => c.id === activeConversation)
+    const currentConversations = useChatbotStore.getState().conversations
+    const convIdx = currentConversations.findIndex(c => c.id === activeConversation)
     if (convIdx !== -1) {
-      const updatedConvs = [...conversations]
+      const updatedConvs = [...currentConversations]
+      const msgs = [...(updatedConvs[convIdx].messages || [])]
+      msgs.push(userMsg)
       updatedConvs[convIdx] = {
         ...updatedConvs[convIdx],
-        messages: [...(updatedConvs[convIdx].messages || []), userMsg]
+        messages: msgs
       }
       useChatbotStore.setState({ conversations: updatedConvs })
     }
@@ -104,7 +111,7 @@ const AnatomyViewer = () => {
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/ChatBot/chat`,
-    {
+        {
           method: "POST",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -124,15 +131,13 @@ const AnatomyViewer = () => {
       let done = false
       while (!done) {
         const { value, done: streamDone } = await reader.read()
-        if (streamDone) break
-        const chunk = new TextDecoder().decode(value)
-        if (chunk === "DONE") {
+        if (streamDone) {
           done = true
           setIsBotThinking(false)
           setStreamReader(null)
-          useChatbotStore.getState().fetchMessages(activeConversation)
           break
         }
+        const chunk = new TextDecoder().decode(value)
         // Remove 'data: ' prefix from every line and preserve line breaks
         const cleanChunk = chunk
           .split('\n')
@@ -145,17 +150,16 @@ const AnatomyViewer = () => {
           .replace(/\\'/g, "'")
         botMsg += formattedChunk
         // Update UI with streaming bot message
-        const convIdx = conversations.findIndex(c => c.id === activeConversation)
+        const currentConvs = useChatbotStore.getState().conversations
+        const convIdx = currentConvs.findIndex(c => c.id === activeConversation)
         if (convIdx !== -1) {
-          const updatedConvs = [...conversations]
+          const updatedConvs = [...currentConvs]
           const msgs = [...(updatedConvs[convIdx].messages || [])]
-          if (
-            msgs.length &&
-            !msgs[msgs.length - 1].isHuman &&
-            msgs[msgs.length - 1].id === botMessageId
-          ) {
-            msgs[msgs.length - 1] = {
-              ...msgs[msgs.length - 1],
+          // Find the bot message or create a new one
+          const botMsgIndex = msgs.findIndex(m => m.id === botMessageId)
+          if (botMsgIndex !== -1) {
+            msgs[botMsgIndex] = {
+              ...msgs[botMsgIndex],
               message: botMsg
             }
           } else {
@@ -226,6 +230,45 @@ const AnatomyViewer = () => {
     createNewConversation(newConversationTitle)
     setNewConversationTitle("")
     setIsCreatingNew(false)
+  }
+
+  const parseMessage = (text: string) => {
+    // Split text into lines
+    const lines = text.split('\n')
+    
+    // Process each line
+    return lines.map((line, idx) => {
+      const trimmed = line.trim()
+      
+      // Handle numbered lists (e.g. "1. First item")
+      const numberedMatch = trimmed.match(/^(\d+)\.\s+(.*)/)
+      if (numberedMatch) {
+        const number = numberedMatch[1]
+        const content = numberedMatch[2]
+        return (
+          <p key={idx} className="flex items-start gap-2">
+            <span className="inline-block min-w-[1.5rem] text-center font-bold text-blue-600">
+              {number}.
+            </span>
+            <span dangerouslySetInnerHTML={{ __html: content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+          </p>
+        )
+      }
+      
+      // Handle bullet points (e.g. "* First item")
+      if (trimmed.startsWith('* ')) {
+        return (
+          <p key={idx} className="flex items-start gap-2">
+            <FaStar className="text-yellow-500 mt-1" />
+            <span dangerouslySetInnerHTML={{ __html: trimmed.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+          </p>
+        )
+      }
+      
+      // Handle bold text
+      const boldText = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      return <p key={idx} dangerouslySetInnerHTML={{ __html: boldText }} />
+    })
   }
 
   const getPageContent = () => {
@@ -341,9 +384,12 @@ const AnatomyViewer = () => {
 
       case "ai-coach":
         return (
-          <div className="h-full flex">
+          <div className="h-full flex relative">
             {/* Conversations Sidebar */}
-            <div className="w-80 border-r border-gray-100 flex flex-col bg-white">
+            <div className={cn(
+              "w-80 border-r border-gray-100 flex flex-col bg-white transition-all duration-300 absolute left-0 top-0 bottom-0 z-10",
+              showConversationList ? "translate-x-0" : "-translate-x-full"
+            )}>
               {/* Search and New Chat */}
               <div className="p-4 border-b border-gray-100">
                 {isCreatingNew ? (
@@ -401,7 +447,7 @@ const AnatomyViewer = () => {
                     </div>
 
               {/* Conversations List */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto scrollbar-hide">
                 {isLoading ? (
                   <div className="p-4 text-center text-gray-500">Loading conversations...</div>
                 ) : error ? (
@@ -423,8 +469,10 @@ const AnatomyViewer = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-gray-900 truncate">{conversation.title}</h3>
-                          <p className="text-sm text-gray-500 truncate mt-0.5">{conversation.lastMessage}</p>
-                    </div>
+                          <p className="text-sm text-gray-500 truncate mt-0.5 whitespace-pre-wrap">
+                            {conversation.lastMessage?.replace(/\\n/g, '\n')}
+                          </p>
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -447,10 +495,21 @@ const AnatomyViewer = () => {
             </div>
 
             {/* Chat Area */}
-            <div className="flex-1 flex flex-col bg-white">
+            <div className={cn(
+              "flex-1 flex flex-col bg-white transition-all duration-300",
+              showConversationList ? "ml-80" : "ml-0"
+            )}>
               {/* Chat Header */}
               <div className="bg-white border-b border-gray-100 p-6 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowConversationList(!showConversationList)}
+                    className="rounded-full p-2 hover:bg-gray-100 transition-all duration-300"
+                  >
+                    <Menu className="h-5 w-5 text-gray-600" />
+                  </Button>
                   <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center">
                     <Bot className="w-5 h-5 text-white" />
                   </div>
@@ -462,7 +521,7 @@ const AnatomyViewer = () => {
               </div>
 
               {/* Chat Messages */}
-              <div ref={chatMessagesRef} className="flex-1 p-6 space-y-4 overflow-y-auto">
+              <div ref={chatMessagesRef} className="flex-1 p-6 space-y-4 overflow-y-auto scrollbar-hide">
                 {activeConversation ? (
                   conversations.find(c => c.id === activeConversation)?.messages?.map((message) => (
                     <div key={message.id} className={cn("flex", message.isHuman ? "justify-end" : "justify-start")}>
@@ -474,7 +533,9 @@ const AnatomyViewer = () => {
                             : "bg-gray-50 text-gray-900"
                         )}
                       >
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.message}</p>
+                        <div className="text-sm leading-relaxed space-y-2">
+                          {parseMessage(message.message.replace(/\\n/g, '\n'))}
+                        </div>
                         <div className="mt-1 text-xs opacity-60">
                           {message.time ? new Date(message.time).toLocaleTimeString() : ""}
                         </div>
@@ -567,7 +628,7 @@ const AnatomyViewer = () => {
   }
 
   return (
-    <div className="relative bg-white min-h-screen">
+    <div className="relative bg-white h-[calc(100vh-3.5rem)]">
       <AppLeftSidebar onToggle={() => {
         const newShow = !showSidebars
         setShowSidebars(newShow)
@@ -575,7 +636,7 @@ const AnatomyViewer = () => {
       }} />
       
       <div className={cn(
-        "h-[calc(100vh-4rem)] transition-all duration-500 overflow-hidden",
+        "h-full transition-all duration-500 overflow-hidden",
         showSidebars ? "lg:pl-72" : "lg:pl-24",
         location.pathname === "/ai-assistant/ai-coach" ? "p-0" : "p-8"
       )}>
@@ -617,7 +678,7 @@ const AnatomyViewer = () => {
             </div>
 
             {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
               {filteredConversations.map((conversation) => (
                 <div
                   key={conversation.id}
@@ -632,7 +693,9 @@ const AnatomyViewer = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-900 truncate">{conversation.title}</h3>
-                      <p className="text-sm text-gray-500 truncate mt-0.5">{conversation.lastMessage}</p>
+                      <p className="text-sm text-gray-500 truncate mt-0.5 whitespace-pre-wrap">
+                        {conversation.lastMessage?.replace(/\\n/g, '\n')}
+                      </p>
                     </div>
                     <Button
                       variant="ghost"
@@ -687,7 +750,7 @@ const AnatomyViewer = () => {
           </div>
 
           {/* Chat Messages */}
-          <div className="flex-1 p-6 space-y-4 overflow-y-auto">
+          <div className="flex-1 p-6 space-y-4 overflow-y-auto scrollbar-hide">
               {activeConversation && conversations.find(c => c.id === activeConversation)?.messages?.map((message) => (
                 <div key={message.id} className={cn("flex", message.isHuman ? "justify-end" : "justify-start")}>
                 <div
@@ -698,7 +761,9 @@ const AnatomyViewer = () => {
                         : "bg-gray-100 text-gray-900 rounded-bl-md",
                   )}
                 >
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.message}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {message.message.replace(/\\n/g, '\n')}
+                    </p>
                     <div className="mt-1 text-xs opacity-60">
                       {message.time ? new Date(message.time).toLocaleTimeString() : ""}
                     </div>
