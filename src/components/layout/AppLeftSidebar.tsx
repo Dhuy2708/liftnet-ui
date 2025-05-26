@@ -1,7 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Home, Clock, BarChart2, Calendar, Dumbbell, Users, Search, Menu } from "lucide-react"
+import {
+  Home,
+  Clock,
+  BarChart2,
+  Calendar,
+  Dumbbell,
+  Users,
+  Search,
+  Menu,
+  Sparkles,
+  ChevronDown,
+  BarChart3,
+  User,
+} from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 
@@ -13,6 +26,7 @@ export function AppLeftSidebar({
   const location = useLocation()
   const [role, setRole] = useState<number | null>(null)
   const [show, setShow] = useState(true)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   useEffect(() => {
     const updateRole = () => {
@@ -29,13 +43,19 @@ export function AppLeftSidebar({
     updateRole()
     const sidebarState = localStorage.getItem("sidebarShow")
     setShow(sidebarState === null ? true : sidebarState === "true")
-    window.addEventListener('basicInfoChanged', updateRole)
-    window.addEventListener('storage', updateRole)
+    window.addEventListener("basicInfoChanged", updateRole)
+    window.addEventListener("storage", updateRole)
     return () => {
-      window.removeEventListener('basicInfoChanged', updateRole)
-      window.removeEventListener('storage', updateRole)
+      window.removeEventListener("basicInfoChanged", updateRole)
+      window.removeEventListener("storage", updateRole)
     }
   }, [])
+
+  useEffect(() => {
+    if (location.pathname.startsWith("/ai-assistant")) {
+      setOpenDropdown("ai")
+    }
+  }, [location.pathname])
 
   const handleToggle = () => {
     const newShow = !show
@@ -51,30 +71,39 @@ export function AppLeftSidebar({
     { name: "Statistics", icon: BarChart2, path: "/statistics" },
   ]
 
+  const aiSubItems = [
+    { name: "Analytics", icon: BarChart3, path: "/ai-assistant/statistic" },
+    { name: "Planning", icon: Calendar, path: "/ai-assistant/planning" },
+    { name: "Physical Stats", icon: User, path: "/ai-assistant/physical-stats" },
+    { name: "AI Coach", icon: Sparkles, path: "/ai-assistant/ai-coach" },
+  ]
+
   const quickAccessItems = [
     { name: "Appointments", icon: Calendar, path: "/appointments" },
     ...(role === 1
       ? [{ name: "Trainer Finder", icon: Dumbbell, path: "/trainer-finder" }]
       : role === 2
-      ? [{ name: "Explore Finders", icon: Search, path: "/explore-finders" }]
-      : []),
+        ? [{ name: "Explore Finders", icon: Search, path: "/explore-finders" }]
+        : []),
     { name: "Community", icon: Users, path: "/community" },
   ]
+
+  const handleDropdownToggle = (name: string) => {
+    setOpenDropdown(openDropdown === name ? null : name)
+  }
 
   return (
     <aside
       className={cn(
         "fixed left-0 top-0 h-full z-30",
         "lg:block transition-all duration-300 ease-in-out",
-        "transform",
-        show ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-16",
-        show ? "w-64" : "w-0",
+        show ? "w-64" : "w-0 lg:w-20",
       )}
     >
       <div
         className={cn(
           "h-full w-full pt-14 pb-6 flex flex-col",
-          "bg-white border-r border-gray-200",
+          "bg-gradient-to-b from-white to-gray-50/30 border-r border-gray-200",
           "transition-all duration-300",
         )}
       >
@@ -83,19 +112,19 @@ export function AppLeftSidebar({
           onClick={handleToggle}
           className={cn(
             "absolute right-0 top-20 z-50",
-            "w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-md",
-            "translate-x-1/2",
-            "transition-all duration-300 group hidden lg:flex"
+            "w-8 h-8 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow-lg hover:shadow-xl",
+            "translate-x-1/2 hover:border-[#DE9151]/30",
+            "transition-all duration-300 group hidden lg:flex",
           )}
           aria-label={show ? "Hide sidebar" : "Show sidebar"}
         >
-          <Menu className="w-4 h-4 text-gray-500" />
+          <Menu className="w-4 h-4 text-gray-500 group-hover:text-[#DE9151] transition-colors duration-200" />
         </button>
 
-        <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+        <nav className="flex-1 px-4 py-6 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300/50 scrollbar-track-transparent">
           {/* Main Navigation */}
-          <div className="mb-6">
-            <ul className="space-y-1">
+          <div className="mb-8">
+            <ul className="space-y-0.5">
               {mainNavItems.map((item) => {
                 const isActive = location.pathname === item.path
                 return (
@@ -103,16 +132,33 @@ export function AppLeftSidebar({
                     <Link
                       to={item.path}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-md transition-colors duration-200",
+                        "flex items-center rounded-xl transition-all duration-200 group",
+                        "hover:shadow-md hover:scale-[1.02]",
+                        !show ? "justify-center px-2 py-2 lg:mx-2" : "gap-3 px-4 py-2",
                         isActive
-                          ? "bg-[#DE9151]/10 text-[#DE9151]"
-                          : "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+                          ? "bg-gradient-to-r from-[#DE9151]/15 to-[#DE9151]/5 text-[#DE9151] shadow-md border border-[#DE9151]/20"
+                          : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-100/80 hover:to-gray-50 hover:text-gray-900",
                       )}
                     >
-                      <item.icon className={cn("w-5 h-5 shrink-0", isActive ? "text-[#DE9151]" : "text-gray-500")} />
+                      <div
+                        className={cn(
+                          "p-2 rounded-lg transition-all duration-200",
+                          isActive
+                            ? "bg-[#DE9151]/10 shadow-sm"
+                            : "bg-gray-100/50 group-hover:bg-white group-hover:shadow-sm",
+                          !show && "lg:mx-auto",
+                        )}
+                      >
+                        <item.icon
+                          className={cn(
+                            "w-5 h-5 shrink-0",
+                            isActive ? "text-[#DE9151]" : "text-gray-600 group-hover:text-[#DE9151]",
+                          )}
+                        />
+                      </div>
                       <span
                         className={cn(
-                          "font-medium",
+                          "font-semibold text-sm",
                           !show && "opacity-0 w-0 overflow-hidden lg:hidden",
                           isActive && "text-[#DE9151]",
                         )}
@@ -123,23 +169,119 @@ export function AppLeftSidebar({
                   </li>
                 )
               })}
+
+              {/* AI Assistant Dropdown */}
+              <li>
+                <button
+                  onClick={() => handleDropdownToggle("ai")}
+                  className={cn(
+                    "w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-sm",
+                    location.pathname.startsWith("/ai-assistant")
+                      ? "bg-gradient-to-r from-purple-100/80 to-purple-50/80 text-purple-700 shadow-sm border border-purple-200/50"
+                      : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/50 hover:text-gray-900",
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "p-2 rounded-lg transition-all duration-200",
+                        location.pathname.startsWith("/ai-assistant")
+                          ? "bg-gradient-to-r from-purple-100 to-purple-50 shadow-sm"
+                          : "bg-gray-100/50 group-hover:bg-gradient-to-r group-hover:from-purple-50 group-hover:to-white group-hover:shadow-sm",
+                        !show && "lg:mx-auto",
+                      )}
+                    >
+                      <Sparkles
+                        className={cn(
+                          "w-5 h-5 shrink-0",
+                          location.pathname.startsWith("/ai-assistant") ? "text-purple-600" : "text-gray-500 group-hover:text-purple-600",
+                        )}
+                      />
+                    </div>
+                    <span
+                      className={cn(
+                        "font-semibold text-sm",
+                        !show && "opacity-0 w-0 overflow-hidden lg:hidden",
+                        location.pathname.startsWith("/ai-assistant") && "text-purple-700",
+                      )}
+                    >
+                      AI Assistant
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "w-4 h-4 transition-transform duration-200",
+                      openDropdown === "ai" && "transform rotate-180",
+                      !show && "hidden",
+                      location.pathname.startsWith("/ai-assistant") ? "text-purple-600" : "text-gray-500",
+                    )}
+                  />
+                </button>
+                {show && openDropdown === "ai" && (
+                  <ul className="mt-2 ml-6 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                    {aiSubItems.map((item) => {
+                      const isActive = location.pathname === item.path
+                      return (
+                        <li key={item.name}>
+                          <Link
+                            to={item.path}
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-sm",
+                              isActive
+                                ? "bg-gradient-to-r from-purple-100/80 to-purple-50/80 text-purple-700 shadow-sm border border-purple-200/50"
+                                : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/50 hover:text-gray-900",
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "p-1.5 rounded-md transition-all duration-200",
+                                isActive ? "bg-purple-100/80 shadow-sm" : "bg-gray-100/30 group-hover:bg-purple-50/50",
+                              )}
+                            >
+                              <item.icon
+                                className={cn(
+                                  "w-4 h-4 shrink-0",
+                                  isActive ? "text-purple-600" : "text-gray-500 group-hover:text-purple-600",
+                                )}
+                              />
+                            </div>
+                            <span className={cn("text-sm font-medium", isActive && "text-purple-700")}>
+                              {item.name}
+                            </span>
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </li>
             </ul>
           </div>
 
-          {/* Divider */}
-          <div className={cn("h-px bg-gray-200 my-4", !show && "mx-auto w-4")} />
+          {/* Elegant Divider */}
+          <div className={cn("relative my-6", !show && "mx-auto w-4")}>
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gradient-to-r from-transparent via-gray-300/50 to-transparent"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <div className="bg-gradient-to-r from-white to-gray-50 px-3">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#DE9151]/30 to-purple-300/30"></div>
+              </div>
+            </div>
+          </div>
 
           {/* Quick Access */}
-          <div className={cn("mb-6", !show && "opacity-0 h-0 overflow-hidden lg:opacity-100 lg:h-auto")}>
+          <div className={cn("mb-8", !show && "opacity-0 h-0 overflow-hidden lg:opacity-100 lg:h-auto")}>
             <h3
               className={cn(
-                "text-xs font-medium uppercase tracking-wider text-gray-500 mb-3 px-3",
+                "text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 px-4",
+                "bg-gradient-to-r from-gray-600 to-gray-500 bg-clip-text text-transparent",
                 !show && "opacity-0 h-0 overflow-hidden lg:hidden",
               )}
             >
               Quick Access
             </h3>
-            <ul className="space-y-1">
+            <ul className="space-y-0.5">
               {quickAccessItems.map((item) => {
                 const isActive = location.pathname.startsWith(item.path)
                 return (
@@ -147,16 +289,31 @@ export function AppLeftSidebar({
                     <Link
                       to={item.path}
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-md transition-colors duration-200",
+                        "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-sm",
                         isActive
-                          ? "bg-[#DE9151]/10 text-[#DE9151]"
-                          : "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+                          ? "bg-gradient-to-r from-[#DE9151]/15 to-[#DE9151]/5 text-[#DE9151] shadow-sm border border-[#DE9151]/20"
+                          : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/50 hover:text-gray-900",
                       )}
                     >
-                      <item.icon className={cn("w-5 h-5 shrink-0", isActive ? "text-[#DE9151]" : "text-gray-500")} />
+                      <div
+                        className={cn(
+                          "p-2 rounded-lg transition-all duration-200",
+                          isActive
+                            ? "bg-[#DE9151]/10 shadow-sm"
+                            : "bg-gray-100/50 group-hover:bg-white group-hover:shadow-sm",
+                          !show && "lg:mx-auto",
+                        )}
+                      >
+                        <item.icon
+                          className={cn(
+                            "w-5 h-5 shrink-0",
+                            isActive ? "text-[#DE9151]" : "text-gray-600 group-hover:text-[#DE9151]",
+                          )}
+                        />
+                      </div>
                       <span
                         className={cn(
-                          "font-medium",
+                          "font-semibold text-sm",
                           !show && "opacity-0 w-0 overflow-hidden lg:hidden",
                           isActive && "text-[#DE9151]",
                         )}
@@ -170,20 +327,31 @@ export function AppLeftSidebar({
             </ul>
           </div>
 
-          {/* Divider */}
-          <div
+          {/* Elegant Divider */}
+          {/* <div
             className={cn(
-              "h-px bg-gray-200 my-4",
+              "relative my-6",
               !show && "mx-auto w-4",
               !show && "opacity-0 h-0 overflow-hidden lg:opacity-100 lg:h-auto",
             )}
-          />
+          >
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gradient-to-r from-transparent via-gray-300/50 to-transparent"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <div className="bg-gradient-to-r from-white to-gray-50 px-3">
+                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#DE9151]/30 to-purple-300/30"></div>
+              </div>
+            </div>
+          </div> */}
 
-          {/* Leaderboard Section */}
-          <div className={cn("relative", !show && "opacity-0 h-0 overflow-hidden lg:hidden")}>
-            <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 mb-3 px-3">Leaderboard</h3>
+          {/* Enhanced Leaderboard Section */}
+          {/* <div className={cn("relative", !show && "opacity-0 h-0 overflow-hidden lg:hidden")}>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 px-4 bg-gradient-to-r from-gray-600 to-gray-500 bg-clip-text text-transparent">
+              Leaderboard
+            </h3>
 
-            <div className="rounded-lg p-3 bg-gray-50 border border-gray-200">
+            <div className="rounded-xl p-4 bg-gradient-to-br from-gray-50 to-white border border-gray-200 shadow-sm">
               <ul className="space-y-2">
                 {[
                   { name: "Alice", score: 120 },
@@ -192,30 +360,34 @@ export function AppLeftSidebar({
                 ].map((user, i) => (
                   <li
                     key={i}
-                    className="flex items-center gap-2 p-2 rounded-md hover:bg-white transition-all duration-200 group"
+                    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white hover:shadow-sm transition-all duration-200 group border border-transparent hover:border-gray-200/50"
                   >
                     <div
                       className={cn(
-                        "flex items-center justify-center w-6 h-6 rounded-full text-white font-medium text-xs",
-                        i === 0 ? "bg-[#DE9151]" : i === 1 ? "bg-gray-400" : "bg-gray-500",
+                        "flex items-center justify-center w-7 h-7 rounded-full text-white font-semibold text-xs shadow-md",
+                        i === 0
+                          ? "bg-gradient-to-r from-[#DE9151] to-[#DE9151]/80"
+                          : i === 1
+                            ? "bg-gradient-to-r from-gray-400 to-gray-500"
+                            : "bg-gradient-to-r from-gray-500 to-gray-600",
                       )}
                     >
                       {i + 1}
                     </div>
-                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-white shadow-sm border border-gray-200">
-                      <Users className="w-4 h-4 text-gray-400" />
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-sm border border-gray-200 group-hover:shadow-md transition-all duration-200">
+                      <Users className="w-4 h-4 text-gray-400 group-hover:text-[#DE9151] transition-colors duration-200" />
                     </div>
-                    <span className="truncate flex-1 text-gray-700 group-hover:text-gray-900 transition-colors duration-200">
+                    <span className="truncate flex-1 text-gray-700 group-hover:text-gray-900 transition-colors duration-200 font-medium">
                       {user.name}
                     </span>
-                    <span className="text-xs bg-white text-gray-700 font-medium px-2 py-1 rounded-full shadow-sm border border-gray-200">
+                    <span className="text-xs bg-white text-gray-700 font-semibold px-2.5 py-1 rounded-full shadow-sm border border-gray-200 group-hover:shadow-md transition-all duration-200">
                       {user.score}
                     </span>
                   </li>
                 ))}
               </ul>
             </div>
-          </div>
+          </div> */}
         </nav>
       </div>
     </aside>
