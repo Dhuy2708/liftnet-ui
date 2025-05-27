@@ -303,10 +303,19 @@ export function AuthPage() {
       </div>
       
       <div className="w-full max-w-md relative z-10">
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-white backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden">
           <div className="p-5">
+            <div className="flex justify-center mb-4">
+              <div className="relative">
+                <img
+                  src="/logo.png"
+                  alt="LiftNet Logo"
+                  className="h-16 w-24 full"
+                />
+              </div>
+            </div>
             <h1 className="text-2xl font-bold text-center text-gray-800">
-              Welcome to LiftNet
+              Lift The Internet
             </h1>
             <p className="text-center text-gray-600 mt-1">
               Connect with friends and the world around you
