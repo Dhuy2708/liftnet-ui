@@ -134,7 +134,7 @@ export function AppLeftSidebar({
                       className={cn(
                         "flex items-center rounded-xl transition-all duration-200 group",
                         "hover:shadow-md hover:scale-[1.02]",
-                        !show ? "justify-center px-2 py-2 lg:mx-2" : "gap-3 px-4 py-2",
+                        !show ? "justify-center p-2" : "gap-3 px-4 py-2",
                         isActive
                           ? "bg-gradient-to-r from-[#DE9151]/15 to-[#DE9151]/5 text-[#DE9151] shadow-md border border-[#DE9151]/20"
                           : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-100/80 hover:to-gray-50 hover:text-gray-900",
@@ -142,11 +142,10 @@ export function AppLeftSidebar({
                     >
                       <div
                         className={cn(
-                          "p-2 rounded-lg transition-all duration-200",
+                          "p-2 rounded-lg transition-all duration-200 flex justify-center items-center",
                           isActive
                             ? "bg-[#DE9151]/10 shadow-sm"
-                            : "bg-gray-100/50 group-hover:bg-white group-hover:shadow-sm",
-                          !show && "lg:mx-auto",
+                            : "bg-gray-100/50 group-hover:bg-white group-hover:shadow-sm"
                         )}
                       >
                         <item.icon
@@ -172,50 +171,60 @@ export function AppLeftSidebar({
 
               {/* AI Assistant Dropdown */}
               <li>
-                <button
+              <button
                   onClick={() => handleDropdownToggle("ai")}
                   className={cn(
-                    "w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-sm",
+                    "w-full flex items-center rounded-xl transition-all duration-200 group",
+                    "hover:shadow-md hover:scale-[1.02]",
+                    show ? "gap-3 px-4 py-2" : "justify-center p-2",
                     location.pathname.startsWith("/ai-assistant")
                       ? "bg-gradient-to-r from-purple-100/80 to-purple-50/80 text-purple-700 shadow-sm border border-purple-200/50"
-                      : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/50 hover:text-gray-900",
+                      : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/50 hover:text-gray-900"
                   )}
                 >
-                  <div className="flex items-center gap-3">
-                    <div
+                  {/* Icon container */}
+                  <div
+                    className={cn(
+                      "p-2 rounded-lg transition-all duration-200 flex justify-center items-center",
+                      location.pathname.startsWith("/ai-assistant")
+                        ? "bg-purple-100 shadow-sm"
+                        : "bg-gray-100/50 group-hover:bg-white group-hover:shadow-sm"
+                    )}
+                  >
+                    <Sparkles
                       className={cn(
-                        "p-2 rounded-lg transition-all duration-200",
+                        "w-5 h-5 shrink-0",
                         location.pathname.startsWith("/ai-assistant")
-                          ? "bg-gradient-to-r from-purple-100 to-purple-50 shadow-sm"
-                          : "bg-gray-100/50 group-hover:bg-gradient-to-r group-hover:from-purple-50 group-hover:to-white group-hover:shadow-sm",
-                        !show && "lg:mx-auto",
+                          ? "text-purple-600"
+                          : "text-gray-500 group-hover:text-purple-600"
                       )}
-                    >
-                      <Sparkles
-                        className={cn(
-                          "w-5 h-5 shrink-0",
-                          location.pathname.startsWith("/ai-assistant") ? "text-purple-600" : "text-gray-500 group-hover:text-purple-600",
-                        )}
-                      />
-                    </div>
+                    />
+                  </div>
+
+                  {/* Text label */}
+                  {show && (
                     <span
                       className={cn(
                         "font-semibold text-sm",
-                        !show && "opacity-0 w-0 overflow-hidden lg:hidden",
-                        location.pathname.startsWith("/ai-assistant") && "text-purple-700",
+                        location.pathname.startsWith("/ai-assistant") && "text-purple-700"
                       )}
                     >
                       AI Assistant
                     </span>
-                  </div>
-                  <ChevronDown
-                    className={cn(
-                      "w-4 h-4 transition-transform duration-200",
-                      openDropdown === "ai" && "transform rotate-180",
-                      !show && "hidden",
-                      location.pathname.startsWith("/ai-assistant") ? "text-purple-600" : "text-gray-500",
-                    )}
-                  />
+                  )}
+
+                  {/* Dropdown chevron */}
+                  {show && (
+                    <ChevronDown
+                      className={cn(
+                        "w-4 h-4 transition-transform duration-200",
+                        openDropdown === "ai" && "transform rotate-180",
+                        location.pathname.startsWith("/ai-assistant")
+                          ? "text-purple-600"
+                          : "text-gray-500"
+                      )}
+                    />
+                  )}
                 </button>
                 {show && openDropdown === "ai" && (
                   <ul className="mt-2 ml-6 space-y-1 animate-in slide-in-from-top-2 duration-200">
@@ -225,6 +234,7 @@ export function AppLeftSidebar({
                         <li key={item.name}>
                           <Link
                             to={item.path}
+                            onClick={() => setOpenDropdown('ai')}
                             className={cn(
                               "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-sm",
                               isActive
