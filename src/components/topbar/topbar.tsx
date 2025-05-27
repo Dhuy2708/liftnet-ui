@@ -117,7 +117,7 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
       <header className="sticky top-0 z-40 w-full border-b bg-white shadow-sm transition-all duration-300">
         <div className="flex h-14 items-center px-4">
           {/* Left section with logo and mobile menu */}
-          <div className="flex items-center mr-4">
+          <div className="flex items-center w-[200px]">
             <Button
               variant="ghost"
               size="icon"
@@ -130,84 +130,84 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
 
             <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
               <div className="relative">
-                <div className="absolute inset-0 bg-[#DE9151]/20 rounded-full blur-md transform scale-110"></div>
                 <img
-                  src="https://ui-avatars.com/api/?name=Lift+Net&background=de9151&color=fff&bold=true"
+                  src="/logo.png"
                   alt="LiftNet Logo"
-                  className="h-8 w-8 rounded-full relative z-10"
+                  className="h-12 w-15 rounded-full"
                 />
               </div>
-              <span className="ml-2 font-semibold text-gray-900 hidden sm:inline-block">LiftNet</span>
             </Link>
           </div>
 
           {/* Search bar */}
-          <div className="flex-1 max-w-xl mx-auto">
-            <form onSubmit={handleSearch} className="relative w-full">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search LiftNet"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value)
-                    setShowSearchResults(true)
-                  }}
-                  className="pl-10 w-full bg-gray-100 border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] rounded-full h-9"
-                />
-                {isSearching && (
-                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
-                )}
-              </div>
-
-              {showSearchResults && searchResults.length > 0 && (
-                <div
-                  ref={searchResultsRef}
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-md shadow-lg border max-h-96 overflow-y-auto z-50"
-                  onScroll={handleScroll}
-                >
-                  {searchResults.map((user) => (
-                    <Link
-                      key={user.id}
-                      to={`/profile/${user.id}`}
-                      className="flex items-center p-3 hover:bg-gray-50 transition-colors"
-                      onClick={() => setShowSearchResults(false)}
-                    >
-                      <div className="relative">
-                        <img
-                          src={user.avatar || "https://randomuser.me/api/portraits/men/32.jpg"}
-                          alt={`${user.firstName} ${user.lastName}`}
-                          className="h-10 w-10 rounded-full object-cover mr-3"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium truncate">
-                            {user.firstName} {user.lastName}
-                          </span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                            {user.role === 1 ? "User" : "PT"}
-                          </span>
-                          {user.isFollowing && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-[#de9151]/10 text-[#de9151]">
-                              Following
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-gray-500 truncate">{user.email}</div>
-                      </div>
-                    </Link>
-                  ))}
+          <div className="flex-1 flex justify-center">
+            <div className="w-full max-w-xl">
+              <form onSubmit={handleSearch} className="relative w-full">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search LiftNet"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      setShowSearchResults(true)
+                    }}
+                    className="pl-10 w-full bg-gray-100 border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] rounded-full h-9"
+                  />
                   {isSearching && (
-                    <div className="flex items-center justify-center p-4 border-t">
-                      <Loader2 className="h-5 w-5 text-[#de9151] animate-spin mr-2" />
-                      <span className="text-sm text-gray-500">Loading more results...</span>
-                    </div>
+                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
                   )}
                 </div>
-              )}
-            </form>
+
+                {showSearchResults && searchResults.length > 0 && (
+                  <div
+                    ref={searchResultsRef}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-md shadow-lg border max-h-96 overflow-y-auto z-50"
+                    onScroll={handleScroll}
+                  >
+                    {searchResults.map((user) => (
+                      <Link
+                        key={user.id}
+                        to={`/profile/${user.id}`}
+                        className="flex items-center p-3 hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowSearchResults(false)}
+                      >
+                        <div className="relative">
+                          <img
+                            src={user.avatar || "https://randomuser.me/api/portraits/men/32.jpg"}
+                            alt={`${user.firstName} ${user.lastName}`}
+                            className="h-10 w-10 rounded-full object-cover mr-3"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium truncate">
+                              {user.firstName} {user.lastName}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                              {user.role === 1 ? "User" : "PT"}
+                            </span>
+                            {user.isFollowing && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-[#de9151]/10 text-[#de9151]">
+                                Following
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-500 truncate">{user.email}</div>
+                        </div>
+                      </Link>
+                    ))}
+                    {isSearching && (
+                      <div className="flex items-center justify-center p-4 border-t">
+                        <Loader2 className="h-5 w-5 text-[#de9151] animate-spin mr-2" />
+                        <span className="text-sm text-gray-500">Loading more results...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </form>
+            </div>
           </div>
 
           {/* Right section with actions */}
