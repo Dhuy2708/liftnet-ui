@@ -132,17 +132,19 @@ export default function TrainerExplorerPage() {
       )
     }
 
-    // Apply price filter
-    if (filters.priceMin) {
-      result = result.filter((post) => post.startPrice >= Number(filters.priceMin))
-    }
-    if (filters.priceMax) {
-      result = result.filter((post) => post.endPrice <= Number(filters.priceMax))
-    }
+    // Apply price filter only in explore tab
+    if (activeTab === "explore") {
+      if (filters.priceMin) {
+        result = result.filter((post) => post.startPrice >= Number(filters.priceMin))
+      }
+      if (filters.priceMax) {
+        result = result.filter((post) => post.endPrice <= Number(filters.priceMax))
+      }
 
-    // Apply status filter
-    if (filters.showOnlyOpen) {
-      result = result.filter((post) => post.status === 1)
+      // Apply status filter only in explore tab
+      if (filters.showOnlyOpen) {
+        result = result.filter((post) => post.status === 1)
+      }
     }
 
     // Apply sorting
@@ -163,7 +165,7 @@ export default function TrainerExplorerPage() {
     } else if (result.length === 0) {
       setSelectedPost(null)
     }
-  }, [posts, searchQuery, sortBy, filters, selectedPost])
+  }, [posts, searchQuery, sortBy, filters, selectedPost, activeTab])
 
   useEffect(() => {
     fetchAddress()
@@ -212,13 +214,25 @@ export default function TrainerExplorerPage() {
   const getApplyingStatusBadge = (status: number) => {
     switch (status) {
       case 0:
-        return null
+        return null // None
       case 1:
         return <Badge className="bg-[#de9151]/15 text-[#de9151] border-[#de9151]/30 font-medium">Applied</Badge>
       case 2:
         return (
           <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200 font-medium">
             Canceled
+          </Badge>
+        )
+      case 3:
+        return (
+          <Badge className="bg-red-100 text-red-800 border-red-200 font-medium">
+            Rejected
+          </Badge>
+        )
+      case 4:
+        return (
+          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200 font-medium">
+            Accepted
           </Badge>
         )
       default:
@@ -290,7 +304,7 @@ export default function TrainerExplorerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#de9151]/5">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#de9151]/5 h-[calc(100vh-3.8rem)] overflow-hidden">
       <AppLeftSidebar
         onToggle={() => {
           const newShow = !showSidebars
@@ -300,7 +314,7 @@ export default function TrainerExplorerPage() {
       />
 
       <div className={cn("transition-all duration-300 ease-in-out", showSidebars ? "lg:pl-72" : "lg:pl-24")}>
-        <div className="container mx-auto px-2 py-4">
+        <div className="container mx-auto px-0 py-4 pr-4">
           {isLoadingAddress ? (
             <div className="flex items-center justify-center h-[calc(100vh-8rem)]">
               <div className="flex flex-col items-center gap-4">

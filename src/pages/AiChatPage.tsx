@@ -231,35 +231,49 @@ const AICoachContent = () => {
     const lines = text.split('\n')
     return lines.map((line, idx) => {
       const trimmed = line.trim()
-      
-      const numberedMatch = trimmed.match(/^(\d+)\.\s+(.*)/)
+  
+      // Match cases like **1. Calorie Surplus:** ...
+      const numberedMatch = trimmed.match(/^\*\*(\d+)\.\s*(.*?)\*\*(.*)/)
       if (numberedMatch) {
         const number = numberedMatch[1]
-        const content = numberedMatch[2]
+        const boldTitle = numberedMatch[2]
+        const rest = numberedMatch[3]
+  
         return (
           <p key={idx} className="flex items-start gap-2">
             <span className="inline-block min-w-[1.5rem] text-center font-bold text-blue-600">
               {number}.
             </span>
-            <span dangerouslySetInnerHTML={{ __html: content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+            <span>
+              <strong>{boldTitle}</strong>{rest}
+            </span>
           </p>
         )
       }
-      
+  
+      // Handle * bullet point
       if (trimmed.startsWith('* ')) {
         return (
-          <p key={idx} className="flex items-start gap-2">
-            <FaStar className="text-yellow-500 mt-1" />
-            <span dangerouslySetInnerHTML={{ __html: trimmed.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+          <p key={idx} className="flex items-start gap-2 pl-4">
+            <FaStar className="text-yellow-500 mt-1 w-3 h-3 shrink-0" />
+            <span
+              dangerouslySetInnerHTML={{
+                __html: trimmed
+                  .substring(2)
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              }}
+            />
           </p>
         )
       }
-      
+  
+      // Default bold text
       const boldText = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       return <p key={idx} dangerouslySetInnerHTML={{ __html: boldText }} />
     })
   }
-
+  
+  
   // Remove the smooth scroll effect
   useEffect(() => {
     if (!loadingConversation && chatMessagesRef.current) {
@@ -271,7 +285,7 @@ const AICoachContent = () => {
     <div className="h-full flex relative">
       {/* Conversations Sidebar */}
       <div className={cn(
-        "w-80 border-r border-gray-100 flex flex-col bg-white transition-all duration-300 absolute left-0 top-0 bottom-0 z-10",
+        "w-80 border-r-1 border-gray-300 flex flex-col bg-white transition-all duration-300 absolute left-0 top-0 bottom-0 z-10",
         showConversationList ? "translate-x-0" : "-translate-x-full"
       )}>
         {/* Search and New Chat */}
@@ -712,7 +726,7 @@ const AnatomyViewer = () => {
       const trimmed = line.trim()
       
       // Handle numbered lists (e.g. "1. First item")
-      const numberedMatch = trimmed.match(/^(\d+)\.\s+(.*)/)
+      const numberedMatch = trimmed.match(/^(\d+)\..*?(\S.*)/)
       if (numberedMatch) {
         const number = numberedMatch[1]
         const content = numberedMatch[2]
@@ -730,7 +744,7 @@ const AnatomyViewer = () => {
       if (trimmed.startsWith('* ')) {
         return (
           <p key={idx} className="flex items-start gap-2">
-            <FaStar className="text-yellow-500 mt-1" />
+            <FaStar className="text-yellow-500 mt-1 w-4 h-4 shrink-0" />
             <span dangerouslySetInnerHTML={{ __html: trimmed.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
           </p>
         )
@@ -889,7 +903,7 @@ const AnatomyViewer = () => {
   }
 
   return (
-    <div className="relative bg-white h-[calc(100vh-3.5rem)]">
+    <div className="relative bg-white h-[calc(100vh-3.8rem)]">
       <AppLeftSidebar onToggle={() => {
         const newShow = !showSidebars
         setShowSidebars(newShow)

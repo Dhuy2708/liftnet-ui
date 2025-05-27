@@ -32,6 +32,20 @@ import axios from "axios"
 import { toast } from "react-toastify"
 import { useNavigate, useParams } from "react-router-dom"
 import { useConversationStore } from "@/store/ConversationStore"
+import { time } from "console"
+
+// Helper function to get local datetime string for datetime-local input, 1 hour from now
+const getDateTimeLocalStringOneHourFromNow = () => {
+  const now = new Date();
+  now.setHours(now.getHours() + 1);
+  // Format to YYYY-MM-DDTHH:mm for datetime-local input
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 // Types
 interface Poster {
@@ -175,14 +189,26 @@ export default function TrainerFinderPage() {
 
   useEffect(() => {
     if (showCreateForm) {
-      const now = new Date()
-      now.setMinutes(0, 0, 0)
-      now.setHours(now.getHours() + 1)
-      const start = now.toISOString().slice(0, 16)
-      const end = new Date(now.getTime() + 60 * 60 * 1000).toISOString().slice(0, 16)
-      setForm((f) => ({ ...f, startTime: start, endTime: end }))
+      const start = getDateTimeLocalStringOneHourFromNow();  // VD: "2025-05-27T15:30"
+      const startDateObj = new Date(start);
+  
+      // Tạo end 1 giờ sau start, giữ định dạng local "YYYY-MM-DDTHH:mm"
+      const endDateObj = new Date(startDateObj.getTime() + 60 * 60 * 1000);
+  
+      // Format endDateObj thành "YYYY-MM-DDTHH:mm"
+      const pad = (n) => (n < 10 ? '0' + n : n);
+  
+      const year = endDateObj.getFullYear();
+      const month = pad(endDateObj.getMonth() + 1); // Tháng từ 0-11
+      const day = pad(endDateObj.getDate());
+      const hours = pad(endDateObj.getHours());
+      const minutes = pad(endDateObj.getMinutes());
+  
+      const end = `${year}-${month}-${day}T${hours}:${minutes}`;
+  
+      setForm((f) => ({ ...f, startTime: start, endTime: end }));
     }
-  }, [showCreateForm])
+  }, [showCreateForm]);
 
   useEffect(() => {
     if (!form.locationSearch) {
@@ -227,18 +253,22 @@ export default function TrainerFinderPage() {
   }, [postId, finderPosts, isMobile])
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    })
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
   }
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
-    })
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
   }
 
   const getStatusBadge = (status: number) => {
@@ -439,7 +469,7 @@ export default function TrainerFinderPage() {
   }
 
   return (
-    <div className="relative bg-[#f9fafb] h-screen overflow-hidden">
+    <div className="relative bg-[#f9fafb] h-[calc(100vh-3.8rem)] overflow-hidden">
       <div className="relative h-full">
         <AppLeftSidebar />
         <div
@@ -573,7 +603,17 @@ export default function TrainerFinderPage() {
                             <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
                               <Clock className="h-3 w-3 mr-1 text-[#DE9151]" />
                               <span>
-                                {formatTime(post.startTime)} - {formatTime(post.endTime)}
+                                {(() => {
+                                  const startDate = new Date(post.startTime);
+                                  const endDate = new Date(post.endTime);
+                                  const isSameDay = startDate.toDateString() === endDate.toDateString();
+                                  
+                                  if (isSameDay) {
+                                    return `${formatTime(post.startTime)} - ${formatTime(post.endTime)}`;
+                                  } else {
+                                    return `${formatDate(post.startTime)} ${formatTime(post.startTime)} - ${formatDate(post.endTime)} ${formatTime(post.endTime)}`;
+                                  }
+                                })()}
                               </span>
                               <span className="mx-2">|</span>
                               <DollarSign className="h-3 w-3 mr-1 text-[#DE9151]" />
@@ -586,7 +626,7 @@ export default function TrainerFinderPage() {
                             <div className="flex justify-between items-center text-xs text-gray-400">
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                <span>{formatDate(post.createdAt)}</span>
+                                <span>{formatDate(post.startTime)}</span>
                               </div>
                               <div className="flex items-center gap-1">
                                 <User className="h-3 w-3" />
@@ -681,7 +721,7 @@ export default function TrainerFinderPage() {
                                     type="datetime-local"
                                     className="w-full"
                                     value={form.startTime}
-                                    min={new Date().toISOString().slice(0, 16)}
+                                    min={getDateTimeLocalStringOneHourFromNow()}
                                     onChange={(e) => {
                                       setForm((f) => ({
                                         ...f,
@@ -952,9 +992,17 @@ export default function TrainerFinderPage() {
                               <div>
                                 <p className="font-medium text-gray-800">Session Time</p>
                                 <p className="text-gray-500 mt-1">
-                                  {formatDate(selectedPost.startTime)}
-                                  <br />
-                                  {formatTime(selectedPost.startTime)} - {formatTime(selectedPost.endTime)}
+                                  {(() => {
+                                    const startDate = new Date(selectedPost.startTime);
+                                    const endDate = new Date(selectedPost.endTime);
+                                    const isSameDay = startDate.toDateString() === endDate.toDateString();
+                                    
+                                    if (isSameDay) {
+                                      return `${formatTime(selectedPost.startTime)} - ${formatTime(selectedPost.endTime)}`;
+                                    } else {
+                                      return `${formatDate(selectedPost.startTime)} ${formatTime(selectedPost.startTime)} - ${formatDate(selectedPost.endTime)} ${formatTime(selectedPost.endTime)}`;
+                                    }
+                                  })()}
                                 </p>
                               </div>
                             </div>

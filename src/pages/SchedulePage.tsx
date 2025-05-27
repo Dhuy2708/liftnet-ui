@@ -214,7 +214,7 @@ export function SchedulePage() {
   }, [handleEventClick])
 
   return (
-    <div className="relative bg-[#f9fafb] min-h-screen">
+    <div className="relative bg-[#f9fafb] h-[calc(100vh-3.8rem)]">
       <AppLeftSidebar onToggle={() => {
         const newShow = !showSidebars
         setShowSidebars(newShow)

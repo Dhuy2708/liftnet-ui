@@ -133,7 +133,7 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
                 <img
                   src="/logo.png"
                   alt="LiftNet Logo"
-                  className="h-12 w-15 rounded-full"
+                  className="h-8 w-16 full"
                 />
               </div>
             </Link>
