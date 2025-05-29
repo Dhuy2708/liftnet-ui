@@ -21,6 +21,10 @@ import { StatisticsPage } from "./pages/StatisticsPage"
 import AiChatPage from "./pages/AiChatPage"
 import TrainerFinderPage  from "./pages/TrainerFinderPage"
 import ExploreFindersPage  from "./pages/ExploreFindersPage"
+import { WalletPage } from "./pages/WalletPage"
+import { TopUpPage } from "./pages/TopUpPage"
+import { WithdrawPage } from "./pages/WithdrawPage"
+import { PaymentCallbackPage } from "./pages/PaymentCallbackPage"
 
 function AppContent() {
   const location = useLocation();
@@ -220,6 +224,50 @@ function AppContent() {
             <ProtectedRoute>
               <LargeAppLayout>
                 <ExploreFindersPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/wallet"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <WalletPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/topup"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <TopUpPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/withdraw"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <WithdrawPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/payment-callback"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <PaymentCallbackPage />
               </LargeAppLayout>
             </ProtectedRoute>
           }
