@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   Plus,
+  Wallet,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CreatePostModal } from "@/components/ui/create-post-modal"
@@ -220,6 +221,16 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
             >
               <Plus className="h-5 w-5 text-gray-700" />
             </Button>
+
+            <Link to="/wallet">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full p-2 hover:bg-gray-100 transition-all duration-300 relative"
+              >
+                <Wallet className="h-5 w-5 text-gray-700" />
+              </Button>
+            </Link>
 
             <Button
               variant="ghost"
