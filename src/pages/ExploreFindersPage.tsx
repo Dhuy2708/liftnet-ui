@@ -297,11 +297,21 @@ export default function TrainerExplorerPage() {
   }
 
   const handleApply = async () => {
-    if (!selectedPost || !applicationMessage.trim()) return
+    if (!selectedPost) return
 
     setIsApplying(true)
     try {
       await applyToPost(selectedPost.id, applicationMessage)
+      // Update selected post's applyingStatus
+      setSelectedPost(prev => prev ? { ...prev, applyingStatus: 1 } : null)
+      // Update the post in filteredPosts
+      setFilteredPosts(prev => 
+        prev.map(post => 
+          post.id === selectedPost.id 
+            ? { ...post, applyingStatus: 1 }
+            : post
+        )
+      )
       setShowApplyForm(false)
       toast.success("Application submitted successfully!")
     } catch {
@@ -1327,7 +1337,7 @@ export default function TrainerExplorerPage() {
                                           <Button
                                             className="w-full bg-gradient-to-r from-[#de9151] to-[#de9151]/90 hover:from-[#de9151]/90 hover:to-[#de9151]/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl h-11 font-semibold text-sm"
                                             onClick={handleApply}
-                                            disabled={isApplying || !applicationMessage.trim()}
+                                            disabled={isApplying}
                                           >
                                             {isApplying ? (
                                               <div className="flex items-center gap-2">
