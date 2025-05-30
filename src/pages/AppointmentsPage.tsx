@@ -17,8 +17,10 @@ import { useSocialStore } from "@/store/SocialStore"
 import { GeoStore } from "@/store/GeoStore"
 import { AppLeftSidebar } from "@/components/layout/AppLeftSidebar"
 import axios from "axios"
-import { toast } from "react-toastify"
+import { toast, ToastContainer } from "react-toastify"
 import { cn } from "@/lib/utils"
+import { useWalletStore } from "@/store/WalletStore"
+import "react-toastify/dist/ReactToastify.css"
 
 interface Location {
   placeName: string
@@ -100,6 +102,7 @@ export function AppointmentsPage() {
   const [viewedNotifications, setViewedNotifications] = useState<Set<string>>(new Set())
 
   const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize } = useAppointmentStore()
+  const { getBalance } = useWalletStore()
 
   useEffect(() => {
     setPageSize(10)
@@ -448,6 +451,8 @@ export function AppointmentsPage() {
         toast.success(response.data.message || 'Action successful', { position: 'top-right' })
         if (selectedAppointment) {
           setSelectedAppointment({...selectedAppointment, status: newStatus})
+          // Update wallet balance for all status changes
+          getBalance()
         }
         fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
       } else {
@@ -460,6 +465,19 @@ export function AppointmentsPage() {
 
   return (
     <div className="relative bg-[#f9fafb] h-[calc(100vh-3.8rem)]">
+      <ToastContainer
+        position="top-center"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+        style={{ top: "3.5rem" }}
+      />
       <AppLeftSidebar onToggle={() => {
         const newShow = !showSidebars
         setShowSidebars(newShow)
@@ -737,8 +755,8 @@ export function AppointmentsPage() {
                               </div>
                             )}
                             <div className="flex items-center text-gray-600 text-sm col-span-2">
-                              <Coins className="h-4 w-4 mr-1.5" />
-                              <span>{appointment.price === 0 ? 'No cost' : `$${appointment.price}`}</span>
+                              <Coins className="h-4 w-4 mr-1.5 text-[#de9151]" />
+                              <span className="text-[#de9151] font-medium">{appointment.price === 0 ? 'No cost' : `$${appointment.price}`}</span>
                             </div>
                           </div>
                           {(appointmentStatus === 2 || appointmentStatus === 3) && (
@@ -822,58 +840,70 @@ export function AppointmentsPage() {
                         </div>
                       </div>
                       <div className="flex gap-2 items-center">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                        {appointmentStatus === 1 && (
+                          selectedAppointment.status === 4 ? (
                             <Button 
                               variant="ghost" 
-                              className={`px-3 py-1 rounded-full text-sm font-medium hover:opacity-80 transition-all ${getStatusColor(selectedAppointment.status)} flex items-center gap-1.5`}
+                              className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedAppointment.status)}`}
+                              disabled
                             >
                               {getStatusText(selectedAppointment.status)}
-                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                              </svg>
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="w-32 p-1">
-                            {selectedAppointment.status === 1 && (
-                              <>
-                                <DropdownMenuItem 
-                                  onClick={() => handleStatusChange(2)}
-                                  className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
+                          ) : (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  className={`px-3 py-1 rounded-full text-sm font-medium hover:opacity-80 transition-all ${getStatusColor(selectedAppointment.status)} flex items-center gap-1.5`}
                                 >
-                                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                  Accept
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => handleStatusChange(3)}
-                                  className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
-                                >
-                                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                  Decline
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                            {selectedAppointment.status === 2 && (
-                              <DropdownMenuItem 
-                                onClick={() => handleStatusChange(4)}
-                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
-                              >
-                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                Cancel
-                              </DropdownMenuItem>
-                            )}
-                            {(selectedAppointment.status === 3 || selectedAppointment.status === 4) && (
-                              <DropdownMenuItem 
-                                onClick={() => handleStatusChange(2)}
-                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
-                              >
-                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                Accept
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        {selectedAppointment.editable && (
+                                  {getStatusText(selectedAppointment.status)}
+                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  </svg>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="w-32 p-1">
+                                {selectedAppointment.status === 1 && (
+                                  <>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleStatusChange(2)}
+                                      className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
+                                    >
+                                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                      Accept
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleStatusChange(3)}
+                                      className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
+                                    >
+                                      <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                      Decline
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {selectedAppointment.status === 2 && (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleStatusChange(4)}
+                                    className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
+                                  >
+                                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                    Cancel
+                                  </DropdownMenuItem>
+                                )}
+                                {selectedAppointment.status === 3 && (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleStatusChange(2)}
+                                    className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
+                                  >
+                                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                    Accept
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )
+                        )}
+                        {appointmentStatus === 1 && selectedAppointment.editable && (
                           <>
                             <Button variant="outline" size="icon">
                               <Edit className="h-4 w-4" />
