@@ -55,7 +55,7 @@ interface AppointmentStore {
   pageNumber: number;
   pageSize: number;
   totalCount: number;
-  fetchAppointments: (searchQuery?: string, sortBy?: "starttime" | "endtime", sortOrder?: "asc" | "desc", statusFilter?: number | null) => Promise<void>;
+  fetchAppointments: (searchQuery?: string, sortBy?: "starttime" | "endtime", sortOrder?: "asc" | "desc", statusFilter?: number | null, appointmentStatus?: number) => Promise<void>;
   fetchAppointmentById: (id: string) => Promise<Appointment | null>;
   setPageNumber: (page: number) => void;
   setPageSize: (size: number) => void;
@@ -72,7 +72,7 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
   setPageNumber: (page: number) => set({ pageNumber: page }),
   setPageSize: (size: number) => set({ pageSize: size }),
 
-  fetchAppointments: async (searchQuery?: string, sortBy: "starttime" | "endtime" = "endtime", sortOrder: "asc" | "desc" = "desc", statusFilter?: number | null) => {
+  fetchAppointments: async (searchQuery?: string, sortBy?: "starttime" | "endtime", sortOrder?: "asc" | "desc", statusFilter?: number | null, appointmentStatus?: number) => {
     set({ isLoading: true, error: null });
     try {
       const token = localStorage.getItem("token");
@@ -100,15 +100,28 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
         });
       }
 
-      const requestBody = {
+      if (appointmentStatus !== undefined) {
+        conditionItems.push({
+          property: "appointmentStatus",
+          operator: 0,
+          values: [appointmentStatus.toString()],
+          type: 1,
+          logic: 1
+        });
+      }
+
+      const requestBody: any = {
         conditionItems,
         pageNumber,
-        pageSize,
-        sort: {
+        pageSize
+      };
+
+      if (sortBy && sortOrder) {
+        requestBody.sort = {
           name: sortBy,
           type: sortOrder === "asc" ? 1 : 2
-        }
-      };
+        };
+      }
 
       const response = await axios.post<AppointmentResponse>(
         `${import.meta.env.VITE_API_URL}/api/Appointment/list`,

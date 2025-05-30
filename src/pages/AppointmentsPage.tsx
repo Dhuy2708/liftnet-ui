@@ -1,4 +1,4 @@
-import { MapPin, Users, Calendar, Clock, Search, Filter, ArrowUpDown, Edit, Trash2, Plus, X } from "lucide-react"
+import { MapPin, Users, Calendar, Clock, Search, Filter, ArrowUpDown, Edit, Trash2, Plus, X, CalendarClock, Clock4, History, Coins } from "lucide-react"
 import { formatInTimeZone } from "date-fns-tz"
 import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
@@ -56,13 +56,15 @@ interface Appointment {
   created: string
   modified: string
   participantCount: number
+  notiCount: number
+  price: number
 }
 
 export function AppointmentsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<number | null>(null)
-  const [sortBy, setSortBy] = useState<"starttime" | "endtime">("endtime")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [sortBy, setSortBy] = useState<"starttime" | "endtime" | undefined>(undefined)
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | undefined>(undefined)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
   const [showBookingForm, setShowBookingForm] = useState(false)
@@ -94,13 +96,15 @@ export function AppointmentsPage() {
     const sidebarState = localStorage.getItem("sidebarShow")
     return sidebarState === null ? true : sidebarState === "true"
   })
+  const [appointmentStatus, setAppointmentStatus] = useState<number>(1) // 1: upcoming, 2: in progress, 3: expired
+  const [viewedNotifications, setViewedNotifications] = useState<Set<string>>(new Set())
 
   const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize } = useAppointmentStore()
 
   useEffect(() => {
     setPageSize(10)
     const loadData = async () => {
-      await fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+      await fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
       
       if (appointmentId && (!selectedAppointment || selectedAppointment.id !== appointmentId)) {
         setIsLoadingDetails(true)
@@ -112,19 +116,71 @@ export function AppointmentsPage() {
       }
     }
     loadData()
-  }, [appointmentId])
+  }, [appointmentId, appointmentStatus])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.toString()) {
+      setShowBookingForm(true)
+      const name = params.get('name')
+      const description = params.get('description')
+      const posterId = params.get('posterId')
+      const startTime = params.get('startTime')
+      const endTime = params.get('endTime')
+      const location = params.get('location')
+      const placeId = params.get('placeId')
+      const lat = params.get('lat')
+      const lng = params.get('lng')
+      const formattedAddress = params.get('formattedAddress')
+
+      if (name) {
+        const nameInput = document.getElementById('appointment-name') as HTMLInputElement
+        if (nameInput) nameInput.value = name
+      }
+      if (description) {
+        const descInput = document.getElementById('appointment-description') as HTMLTextAreaElement
+        if (descInput) descInput.value = description
+      }
+      if (startTime) {
+        const date = new Date(startTime)
+        setBookingStart(date.toISOString().slice(0, 16))
+      }
+      if (endTime) {
+        const date = new Date(endTime)
+        setBookingEnd(date.toISOString().slice(0, 16))
+      }
+      if (location && placeId) {
+        setSelectedLocation({ description: location, placeId })
+        setLocationSearch(location)
+      }
+      if (posterId) {
+        searchFollowedUsers(posterId).then(results => {
+          if (results.length > 0) {
+            setSelectedParticipants([results[0]])
+          }
+        })
+      }
+    }
+  }, [])
 
   const handleSearch = () => {
     setPageNumber(1)
     setSelectedAppointment(null)
-    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
   }
 
   const handleStatusFilter = (status: number | null) => {
     setStatusFilter(status)
     setPageNumber(1)
     setSelectedAppointment(null)
-    fetchAppointments(searchQuery, sortBy, sortOrder, status)
+    fetchAppointments(searchQuery, sortBy, sortOrder, status, appointmentStatus)
+  }
+
+  const handleAppointmentStatusChange = (status: number) => {
+    setAppointmentStatus(status)
+    setPageNumber(1)
+    setSelectedAppointment(null)
+    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, status)
   }
 
   const getStatusColor = (status: number) => {
@@ -204,6 +260,9 @@ export function AppointmentsPage() {
     const freshAppointment = await fetchAppointmentById(appointment.id)
     if (freshAppointment) {
       setSelectedAppointment(freshAppointment)
+      if (appointment.notiCount > 0) {
+        setViewedNotifications(prev => new Set([...prev, appointment.id]))
+      }
     }
     setIsLoadingDetails(false)
     navigate(`/appointments/${appointment.id}`)
@@ -274,6 +333,7 @@ export function AppointmentsPage() {
       const date = new Date(local + ':00');
       return date.toISOString();
     };
+    const price = (document.getElementById('appointment-price') as HTMLInputElement)?.value || "0"
     const body = {
       participantIds: selectedParticipants.map(u => u.id),
       name,
@@ -281,7 +341,8 @@ export function AppointmentsPage() {
       placeId: selectedLocation?.placeId,
       startTime: toUTCISOString(bookingStart),
       endTime: toUTCISOString(bookingEnd),
-      repeatingType: repeatingType
+      repeatingType: repeatingType,
+      price: Number(price)
     };
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/api/Appointment/book`, body, {
@@ -292,7 +353,7 @@ export function AppointmentsPage() {
       });
       setTimeout(() => {
         setShowBookingForm(false)
-        fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+        fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
       }, 1200)
     } catch (err: any) {
       setBookingMessage({text: err?.response?.data?.message || 'Error', success: false})
@@ -326,7 +387,7 @@ export function AppointmentsPage() {
 
   const handlePageChange = (newPage: number) => {
     setPageNumber(newPage)
-    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
   }
 
   const totalPages = Math.ceil(totalCount / 10)
@@ -388,7 +449,7 @@ export function AppointmentsPage() {
         if (selectedAppointment) {
           setSelectedAppointment({...selectedAppointment, status: newStatus})
         }
-        fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter)
+        fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
       } else {
         toast.error(response.data.message || 'Action failed', { position: 'top-right' })
       }
@@ -468,24 +529,28 @@ export function AppointmentsPage() {
                   <DropdownMenuItem onClick={() => {
                     setSortBy("starttime")
                     setSortOrder("asc")
+                    fetchAppointments(searchQuery, "starttime", "asc", statusFilter, appointmentStatus)
                   }}>
                     Start Time (Oldest First)
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => {
                     setSortBy("starttime")
                     setSortOrder("desc")
+                    fetchAppointments(searchQuery, "starttime", "desc", statusFilter, appointmentStatus)
                   }}>
                     Start Time (Newest First)
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => {
                     setSortBy("endtime")
                     setSortOrder("asc")
+                    fetchAppointments(searchQuery, "endtime", "asc", statusFilter, appointmentStatus)
                   }}>
                     End Time (Oldest First)
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => {
                     setSortBy("endtime")
                     setSortOrder("desc")
+                    fetchAppointments(searchQuery, "endtime", "desc", statusFilter, appointmentStatus)
                   }}>
                     End Time (Newest First)
                   </DropdownMenuItem>
@@ -508,6 +573,49 @@ export function AppointmentsPage() {
               "flex flex-col h-full transition-all duration-500",
               showSidebars ? "w-[30%]" : "w-[35%]"
             )}>
+              {/* Appointment Status Tabs */}
+              <div className="flex gap-2 mb-4">
+                <Button
+                  variant={appointmentStatus === 1 ? "default" : "outline"}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2",
+                    appointmentStatus === 1 
+                      ? "bg-green-500 hover:bg-green-600 text-white" 
+                      : "hover:bg-green-50 text-green-600 border-green-200"
+                  )}
+                  onClick={() => handleAppointmentStatusChange(1)}
+                >
+                  <CalendarClock className="h-4 w-4" />
+                  Upcoming
+                </Button>
+                <Button
+                  variant={appointmentStatus === 2 ? "default" : "outline"}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2",
+                    appointmentStatus === 2 
+                      ? "bg-blue-500 hover:bg-blue-600 text-white" 
+                      : "hover:bg-blue-50 text-blue-600 border-blue-200"
+                  )}
+                  onClick={() => handleAppointmentStatusChange(2)}
+                >
+                  <Clock4 className="h-4 w-4" />
+                  In Progress
+                </Button>
+                <Button
+                  variant={appointmentStatus === 3 ? "default" : "outline"}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2",
+                    appointmentStatus === 3 
+                      ? "bg-red-500 hover:bg-red-600 text-white" 
+                      : "hover:bg-red-50 text-red-600 border-red-200"
+                  )}
+                  onClick={() => handleAppointmentStatusChange(3)}
+                >
+                  <History className="h-4 w-4" />
+                  Expired
+                </Button>
+              </div>
+
               <div className="flex-1 overflow-y-auto pr-2">
                 <div className="text-sm text-gray-500 mb-2">Total count: {totalCount}</div>
                 {filteredAppointments.length === 0 ? (
@@ -520,16 +628,21 @@ export function AppointmentsPage() {
                       {filteredAppointments.map((appointment) => (
                         <div
                           key={appointment.id}
-                          className={`bg-white rounded-lg shadow-md p-4 cursor-pointer transition-all ${
+                          className={`bg-white rounded-lg shadow-md p-4 cursor-pointer transition-all relative ${
                             selectedAppointment?.id === appointment.id
                               ? "border-2 border-[#de9151]"
                               : "hover:shadow-lg"
-                          }`}
+                          } ${appointment.notiCount === 0 ? "opacity-75" : ""}`}
                           onClick={() => handleAppointmentClick(appointment)}
                         >
                           <div className="flex justify-between items-center mb-1 gap-2">
                             <div className="flex items-center gap-2 min-w-0">
                               <h2 className="text-lg font-semibold truncate">{appointment.name}</h2>
+                              {appointment.notiCount > 0 && !viewedNotifications.has(appointment.id) && (
+                                <span className="flex items-center justify-center w-5 h-5 text-xs font-medium text-white bg-red-500 rounded-full">
+                                  {appointment.notiCount}
+                                </span>
+                              )}
                               <div
                                 id={`booker-${appointment.id}`}
                                 className="relative flex items-center group"
@@ -590,12 +703,6 @@ export function AppointmentsPage() {
                               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
                                 {getStatusText(appointment.status)}
                               </span>
-                              {appointment.status === 2 && (
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getAppointmentTimeStatus(appointment.startTime, appointment.endTime).color}`}>
-                                  {getAppointmentTimeStatus(appointment.startTime, appointment.endTime).status === 'in-progress' ? 'In Progress' : 
-                                   getAppointmentTimeStatus(appointment.startTime, appointment.endTime).status === 'expired' ? 'Expired' : 'Upcoming'}
-                                </span>
-                              )}
                             </div>
                           </div>
 
@@ -629,7 +736,27 @@ export function AppointmentsPage() {
                                 </span>
                               </div>
                             )}
+                            <div className="flex items-center text-gray-600 text-sm col-span-2">
+                              <Coins className="h-4 w-4 mr-1.5" />
+                              <span>{appointment.price === 0 ? 'No cost' : `$${appointment.price}`}</span>
+                            </div>
                           </div>
+                          {(appointmentStatus === 2 || appointmentStatus === 3) && (
+                            <div className="absolute bottom-2 right-2">
+                              <span className={cn(
+                                "text-xs font-medium inline-flex items-center gap-1.5",
+                                appointmentStatus === 2 
+                                  ? "text-blue-600"
+                                  : "text-red-600"
+                              )}>
+                                <span className={cn(
+                                  "w-1.5 h-1.5 rounded-full",
+                                  appointmentStatus === 2 ? "bg-blue-500" : "bg-red-500"
+                                )}></span>
+                                {appointmentStatus === 2 ? "In Progress" : "Expired"}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -689,6 +816,10 @@ export function AppointmentsPage() {
                             {getRepeatingTypeLabel(selectedAppointment.repeatingType)}
                           </span>
                         )}
+                        <div className="flex items-center gap-1.5 text-[#de9151] font-medium">
+                          <Coins className="h-4 w-4" />
+                          {selectedAppointment.price === 0 ? 'No cost' : `$${selectedAppointment.price}`}
+                        </div>
                       </div>
                       <div className="flex gap-2 items-center">
                         <DropdownMenu>
@@ -846,15 +977,6 @@ export function AppointmentsPage() {
                             {formatLocalTime(selectedAppointment.endTime)}
                           </p>
                         </div>
-                        {selectedAppointment.status === 2 && (
-                          <div className="col-span-2">
-                            <p className="text-sm text-gray-500">Current Status</p>
-                            <p className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).color}`}>
-                              {getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).status === 'in-progress' ? 'In Progress' : 
-                               getAppointmentTimeStatus(selectedAppointment.startTime, selectedAppointment.endTime).status === 'expired' ? 'Expired' : 'Upcoming'}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -896,6 +1018,18 @@ export function AppointmentsPage() {
               <div>
                 <Label className="mb-2 block">Description</Label>
                 <Textarea id="appointment-description" placeholder="Enter appointment description" disabled={isBooking} />
+              </div>
+              <div>
+                <Label className="mb-2 block">Price ($)</Label>
+                <Input 
+                  id="appointment-price" 
+                  type="number" 
+                  min="0" 
+                  step="0.01" 
+                  placeholder="Enter price (0 for no cost)" 
+                  disabled={isBooking}
+                  defaultValue="0"
+                />
               </div>
               <div>
                 <Label className="mb-2 block">Participants</Label>
