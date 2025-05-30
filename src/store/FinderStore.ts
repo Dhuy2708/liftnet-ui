@@ -33,6 +33,7 @@ export interface FinderPost {
   applyingStatus: number // 0: None, 1: Applying, 2: Canceled
   createdAt: string
   isAnonymous: boolean
+  notiCount: number
 }
 
 export interface FinderApplicant {

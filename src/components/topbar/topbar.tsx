@@ -6,23 +6,24 @@ import { useState, useRef, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { useAuthStore } from "@/store/AuthStore"
 import { useSocialStore } from "@/store/SocialStore"
+import { useWalletStore } from "@/store/WalletStore"
 import {
-  BellRing,
-  MessageCircle,
+  Bell,
+  MessageSquare,
   User,
-  Edit,
-  Award,
+  Edit3,
+  Trophy,
   Moon,
   LogOut,
   Settings,
-  CreditCard,
   Search,
   Loader2,
-  Bot,
+  Sparkles,
   Menu,
   X,
   Plus,
-  Wallet,
+  Coins,
+  Crown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CreatePostModal } from "@/components/ui/create-post-modal"
@@ -38,6 +39,7 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
   const location = useLocation()
   const { basicInfo, logout } = useAuthStore()
   const { searchPrioritizedUsers, searchResults, hasMore, currentPage, clearSearchResults } = useSocialStore()
+  const { balance, getBalance } = useWalletStore()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
@@ -81,6 +83,10 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
     }
   }, [])
 
+  useEffect(() => {
+    getBalance()
+  }, [])
+
   const handleLogout = async () => {
     await logout()
     setShowProfileMenu(false)
@@ -115,7 +121,7 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b bg-white shadow-sm transition-all duration-300">
+      <header className="sticky top-0 z-40 w-full border-b border-gray-100 bg-white/95 backdrop-blur-md shadow-sm">
         <div className="flex h-14 items-center px-4">
           {/* Left section with logo and mobile menu */}
           <div className="flex items-center w-[200px]">
@@ -123,19 +129,19 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
               variant="ghost"
               size="icon"
               onClick={toggleLeftSidebar}
-              className="lg:hidden rounded-full p-2 hover:bg-gray-100 transition-all duration-300 mr-2"
+              className="lg:hidden rounded-xl p-2 hover:bg-gray-50 transition-all duration-200 mr-2 group"
               aria-label={showLeftSidebar ? "Close sidebar" : "Open sidebar"}
             >
-              {showLeftSidebar ? <X className="h-5 w-5 text-gray-600" /> : <Menu className="h-5 w-5 text-gray-600" />}
+              {showLeftSidebar ? (
+                <X className="h-5 w-5 text-gray-600 group-hover:text-gray-900 transition-colors" />
+              ) : (
+                <Menu className="h-5 w-5 text-gray-600 group-hover:text-gray-900 transition-colors" />
+              )}
             </Button>
 
-            <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+            <Link to="/" className="flex items-center hover:opacity-80 transition-all duration-200">
               <div className="relative">
-                <img
-                  src="/logo.png"
-                  alt="LiftNet Logo"
-                  className="h-8 w-16 full"
-                />
+                <img src="/logo.png" alt="LiftNet Logo" className="h-8 w-16 full" />
               </div>
             </Link>
           </div>
@@ -144,8 +150,8 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
           <div className="flex-1 flex justify-center">
             <div className="w-full max-w-xl">
               <form onSubmit={handleSearch} className="relative w-full">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <div className="relative group">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-[#de9151] transition-colors" />
                   <Input
                     type="text"
                     placeholder="Search LiftNet"
@@ -154,43 +160,45 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
                       setSearchQuery(e.target.value)
                       setShowSearchResults(true)
                     }}
-                    className="pl-10 w-full bg-gray-100 border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] rounded-full h-9"
+                    className="pl-10 w-full bg-gray-50 border-0 focus:bg-white focus:ring-2 focus:ring-[#de9151]/20 focus:border-[#de9151] rounded-full h-9 transition-all duration-200 shadow-sm hover:shadow-md"
                   />
                   {isSearching && (
-                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#de9151] animate-spin" />
                   )}
                 </div>
 
                 {showSearchResults && searchResults.length > 0 && (
                   <div
                     ref={searchResultsRef}
-                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-md shadow-lg border max-h-96 overflow-y-auto z-50"
+                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 max-h-96 overflow-y-auto z-50 backdrop-blur-sm"
                     onScroll={handleScroll}
                   >
-                    {searchResults.map((user) => (
+                    {searchResults.map((user, index) => (
                       <Link
                         key={user.id}
                         to={`/profile/${user.id}`}
-                        className="flex items-center p-3 hover:bg-gray-50 transition-colors"
+                        className={`flex items-center p-4 hover:bg-gray-50 transition-all duration-200 group ${
+                          index === 0 ? "rounded-t-2xl" : ""
+                        } ${index === searchResults.length - 1 ? "rounded-b-2xl" : ""}`}
                         onClick={() => setShowSearchResults(false)}
                       >
                         <div className="relative">
                           <img
                             src={user.avatar || "https://randomuser.me/api/portraits/men/32.jpg"}
                             alt={`${user.firstName} ${user.lastName}`}
-                            className="h-10 w-10 rounded-full object-cover mr-3"
+                            className="h-10 w-10 rounded-full object-cover mr-3 ring-2 ring-gray-100 group-hover:ring-[#de9151]/20 transition-all"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium truncate">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold truncate text-gray-900 group-hover:text-[#de9151] transition-colors">
                               {user.firstName} {user.lastName}
                             </span>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                            <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">
                               {user.role === 1 ? "User" : "PT"}
                             </span>
                             {user.isFollowing && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-[#de9151]/10 text-[#de9151]">
+                              <span className="text-xs px-2 py-1 rounded-full bg-[#de9151]/10 text-[#de9151] font-medium">
                                 Following
                               </span>
                             )}
@@ -200,9 +208,9 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
                       </Link>
                     ))}
                     {isSearching && (
-                      <div className="flex items-center justify-center p-4 border-t">
-                        <Loader2 className="h-5 w-5 text-[#de9151] animate-spin mr-2" />
-                        <span className="text-sm text-gray-500">Loading more results...</span>
+                      <div className="flex items-center justify-center p-4 border-t border-gray-100">
+                        <Loader2 className="h-4 w-4 text-[#de9151] animate-spin mr-2" />
+                        <span className="text-sm text-gray-500 font-medium">Loading more results...</span>
                       </div>
                     )}
                   </div>
@@ -212,34 +220,36 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
           </div>
 
           {/* Right section with actions */}
-          <div className="flex items-center ml-4 space-x-2">
+          <div className="flex items-center ml-4 space-x-1">
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full p-2 hover:bg-gray-100 transition-all duration-300 relative"
+              className="rounded-xl p-2 hover:bg-gray-50 hover:scale-105 transition-all duration-200 group"
               onClick={() => setShowCreateModal(true)}
             >
-              <Plus className="h-5 w-5 text-gray-700" />
+              <Plus className="h-5 w-5 text-gray-600 group-hover:text-[#de9151] transition-colors" />
             </Button>
 
             <Link to="/wallet">
               <Button
                 variant="ghost"
-                size="icon"
-                className="rounded-full p-2 hover:bg-gray-100 transition-all duration-300 relative"
+                className="rounded-xl px-3 py-2 hover:bg-gray-50 hover:scale-105 transition-all duration-200 group flex items-center gap-2"
               >
-                <Wallet className="h-5 w-5 text-gray-700" />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-[#de9151] transition-colors">
+                  {balance.toLocaleString()}
+                </span>
+                <Coins className="h-4 w-4 text-[#de9151]" />
               </Button>
             </Link>
 
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full p-2 hover:bg-gray-100 transition-all duration-300 relative"
+              className="rounded-xl p-2 hover:bg-gray-50 hover:scale-105 transition-all duration-200 group relative"
             >
               <div className="relative">
-                <BellRing className="h-5 w-5 text-gray-700" />
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                <Bell className="h-5 w-5 text-gray-600 group-hover:text-[#de9151] transition-colors" />
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-red-600 text-xs font-bold text-white shadow-lg animate-pulse">
                   2
                 </span>
               </div>
@@ -249,9 +259,9 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full p-2 hover:bg-gray-100 transition-all duration-300"
+                className="rounded-xl p-2 hover:bg-gray-50 hover:scale-105 transition-all duration-200 group"
               >
-                <MessageCircle className="h-5 w-5 text-gray-700" />
+                <MessageSquare className="h-5 w-5 text-gray-600 group-hover:text-[#de9151] transition-colors" />
               </Button>
             </Link>
 
@@ -259,92 +269,99 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
               <button
                 ref={profileButtonRef}
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center hover:opacity-80 transition-opacity"
+                className="flex items-center hover:scale-105 transition-all duration-200 group"
               >
                 <div className="relative">
                   <img
                     src={basicInfo?.avatar || "https://randomuser.me/api/portraits/men/32.jpg"}
                     alt="User Avatar"
-                    className="h-8 w-8 rounded-full border border-gray-200 object-cover"
+                    className="h-8 w-8 rounded-full border-2 border-gray-200 group-hover:border-[#de9151] object-cover transition-all duration-200"
                   />
+                  <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white"></div>
                 </div>
               </button>
 
               {showProfileMenu && (
                 <div
                   ref={profileMenuRef}
-                  className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg border overflow-hidden z-50 animate-in fade-in zoom-in duration-200"
+                  className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in duration-200"
                 >
-                  <div className="p-3 border-b">
+                  <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-100">
                     <div className="flex items-center">
                       <div className="relative mr-3">
                         <img
                           src={basicInfo?.avatar || "https://randomuser.me/api/portraits/men/32.jpg"}
                           alt="User Avatar"
-                          className="h-10 w-10 rounded-full object-cover"
+                          className="h-12 w-12 rounded-full object-cover ring-2 ring-white shadow-md"
                         />
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white"></div>
                       </div>
                       <div>
-                        <div className="font-medium text-sm">
+                        <div className="font-semibold text-gray-900">
                           {basicInfo?.firstName} {basicInfo?.lastName}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-sm text-gray-600 font-medium">
                           {basicInfo?.role === 1 ? "Fitness Seeker" : "Personal Trainer"}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="py-1">
+                  <div className="py-2">
                     <Link
                       to={`/profile/${basicInfo?.id}`}
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+                      className="flex items-center px-4 py-3 text-sm hover:bg-gray-50 transition-all duration-200 group"
                       onClick={() => setShowProfileMenu(false)}
                     >
-                      <User className="h-4 w-4 mr-3 text-gray-500" />
-                      View Profile
+                      <User className="h-4 w-4 mr-3 text-gray-500 group-hover:text-[#de9151] transition-colors" />
+                      <span className="font-medium">View Profile</span>
                     </Link>
                     <Link
                       to="/profile/edit"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+                      className="flex items-center px-4 py-3 text-sm hover:bg-gray-50 transition-all duration-200 group"
                       onClick={() => setShowProfileMenu(false)}
                     >
-                      <Edit className="h-4 w-4 mr-3 text-gray-500" />
-                      Edit Profile
+                      <Edit3 className="h-4 w-4 mr-3 text-gray-500 group-hover:text-[#de9151] transition-colors" />
+                      <span className="font-medium">Edit Profile</span>
                     </Link>
                     <Link
                       to="/achievements"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+                      className="flex items-center px-4 py-3 text-sm hover:bg-gray-50 transition-all duration-200 group"
                       onClick={() => setShowProfileMenu(false)}
                     >
-                      <Award className="h-4 w-4 mr-3 text-gray-500" />
-                      <span>Achievements</span>
-                      <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-[#de9151]/10 text-[#de9151]">3</span>
+                      <Trophy className="h-4 w-4 mr-3 text-gray-500 group-hover:text-[#de9151] transition-colors" />
+                      <span className="font-medium">Achievements</span>
+                      <span className="ml-auto text-xs px-2 py-1 rounded-full bg-[#de9151]/10 text-[#de9151] font-semibold">
+                        3
+                      </span>
                     </Link>
                     <Link
                       to="/ai-chat"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+                      className="flex items-center px-4 py-3 text-sm hover:bg-gray-50 transition-all duration-200 group"
                       onClick={() => setShowProfileMenu(false)}
                     >
-                      <Bot className="h-4 w-4 mr-3 text-gray-500" />
-                      <span>AI Assistant</span>
+                      <Sparkles className="h-4 w-4 mr-3 text-gray-500 group-hover:text-[#de9151] transition-colors" />
+                      <span className="font-medium">AI Assistant</span>
+                      <span className="ml-auto text-xs px-2 py-1 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 font-semibold">
+                        NEW
+                      </span>
                     </Link>
 
                     <button
-                      className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+                      className="flex items-center w-full px-4 py-3 text-sm hover:bg-gray-50 transition-all duration-200 group"
                       onClick={toggleDarkMode}
                     >
-                      <Moon className="h-4 w-4 mr-3 text-gray-500" />
-                      Dark Mode
+                      <Moon className="h-4 w-4 mr-3 text-gray-500 group-hover:text-[#de9151] transition-colors" />
+                      <span className="font-medium">Dark Mode</span>
                       <div className="ml-auto">
                         <div
-                          className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors duration-300 ${
-                            darkMode ? "bg-[#de9151]" : "bg-gray-200"
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-all duration-300 ${
+                            darkMode ? "bg-[#de9151] shadow-lg" : "bg-gray-200"
                           }`}
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-300 ${
-                              darkMode ? "translate-x-5" : "translate-x-1"
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+                              darkMode ? "translate-x-4" : "translate-x-0.5"
                             }`}
                           />
                         </div>
@@ -352,37 +369,37 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
                     </button>
                   </div>
 
-                  <div className="border-t py-1">
+                  <div className="border-t border-gray-100 py-2">
                     <Link
                       to="/settings"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+                      className="flex items-center px-4 py-3 text-sm hover:bg-gray-50 transition-all duration-200 group"
                       onClick={() => setShowProfileMenu(false)}
                     >
-                      <Settings className="h-4 w-4 mr-3 text-gray-500" />
-                      Settings
+                      <Settings className="h-4 w-4 mr-3 text-gray-500 group-hover:text-[#de9151] transition-colors" />
+                      <span className="font-medium">Settings</span>
                     </Link>
                     <Link
                       to="/premium"
-                      className="flex items-center px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+                      className="flex items-center px-4 py-3 text-sm hover:bg-gray-50 transition-all duration-200 group"
                       onClick={() => setShowProfileMenu(false)}
                     >
-                      <CreditCard className="h-4 w-4 mr-3 text-gray-500" />
-                      <span>Premium</span>
+                      <Crown className="h-4 w-4 mr-3 text-gray-500 group-hover:text-[#de9151] transition-colors" />
+                      <span className="font-medium">Premium</span>
                       <span className="ml-auto">
-                        <div className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-200 to-yellow-400 text-xs font-medium text-amber-900">
+                        <div className="px-2 py-1 rounded-full bg-gradient-to-r from-[#de9151] to-amber-500 text-xs font-bold text-white shadow-md">
                           PRO
                         </div>
                       </span>
                     </Link>
                   </div>
 
-                  <div className="border-t py-1">
+                  <div className="border-t border-gray-100 py-2">
                     <button
-                      className="flex items-center w-full px-4 py-2 text-sm text-red-500 hover:bg-gray-50 transition-colors"
+                      className="flex items-center w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-all duration-200 group"
                       onClick={handleLogout}
                     >
-                      <LogOut className="h-4 w-4 mr-3" />
-                      Log Out
+                      <LogOut className="h-4 w-4 mr-3 group-hover:text-red-600 transition-colors" />
+                      <span className="font-medium">Log Out</span>
                     </button>
                   </div>
                 </div>

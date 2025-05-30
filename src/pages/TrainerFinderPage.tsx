@@ -32,7 +32,6 @@ import axios from "axios"
 import { toast } from "react-toastify"
 import { useNavigate, useParams } from "react-router-dom"
 import { useConversationStore } from "@/store/ConversationStore"
-import { time } from "console"
 
 // Helper function to get local datetime string for datetime-local input, 1 hour from now
 const getDateTimeLocalStringOneHourFromNow = () => {
@@ -80,6 +79,7 @@ interface Post {
   applyingStatus: number
   createdAt: string
   isAnonymous: boolean
+  notiCount: number
 }
 
 export default function TrainerFinderPage() {
@@ -89,15 +89,15 @@ export default function TrainerFinderPage() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchInput, setSearchInput] = useState("")
-  const [statusTab, setStatusTab] = useState<"open" | "closed">("open")
+  const [statusTab, setStatusTab] = useState<"open" | "matched" | "closed">("open")
   const [sortBy, setSortBy] = useState<string>("newest")
   const [applicantTab, setApplicantTab] = useState<string>("applying")
   const isMobile = useMediaQuery("(max-width: 1023px)")
   const [showMobileDetail, setShowMobileDetail] = useState(false)
   const [sidebarShow, setSidebarShow] = useState(true)
-  const [pageNumber] = useState(1)
+  const [pageNumber, setPageNumber] = useState(1)
   const [pageSize] = useState(10)
-  const { posts: finderPosts, isLoading, fetchFinders, applicants, isLoadingApplicants, fetchApplicants, respondToApplicant } = useFinderStore()
+  const { posts: finderPosts, isLoading, fetchFinders, applicants, isLoadingApplicants, fetchApplicants, respondToApplicant, totalCount } = useFinderStore()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
   const [form, setForm] = useState({
@@ -140,7 +140,7 @@ export default function TrainerFinderPage() {
 
   useEffect(() => {
     fetchFinders({
-      status: statusTab === "open" ? "1" : "2",
+      status: statusTab === "open" ? "1" : statusTab === "matched" ? "3" : "2",
       search: searchQuery,
       pageNumber,
       pageSize,
@@ -162,8 +162,10 @@ export default function TrainerFinderPage() {
     // Apply status tab filter
     if (statusTab === "open") {
       result = result.filter((post) => post.status === 0 || post.status === 1)
+    } else if (statusTab === "matched") {
+      result = result.filter((post) => post.status === 3)
     } else {
-      result = result.filter((post) => post.status === 2 || post.status === 3)
+      result = result.filter((post) => post.status === 2)
     }
 
     // Apply sorting
@@ -189,23 +191,20 @@ export default function TrainerFinderPage() {
 
   useEffect(() => {
     if (showCreateForm) {
-      const start = getDateTimeLocalStringOneHourFromNow();  // VD: "2025-05-27T15:30"
+      const start = getDateTimeLocalStringOneHourFromNow();
       const startDateObj = new Date(start);
-  
-      // Tạo end 1 giờ sau start, giữ định dạng local "YYYY-MM-DDTHH:mm"
       const endDateObj = new Date(startDateObj.getTime() + 60 * 60 * 1000);
-  
-      // Format endDateObj thành "YYYY-MM-DDTHH:mm"
-      const pad = (n) => (n < 10 ? '0' + n : n);
-  
+      
+      const pad = (n: number): string => n.toString().padStart(2, '0');
+      
       const year = endDateObj.getFullYear();
-      const month = pad(endDateObj.getMonth() + 1); // Tháng từ 0-11
+      const month = pad(endDateObj.getMonth() + 1);
       const day = pad(endDateObj.getDate());
       const hours = pad(endDateObj.getHours());
       const minutes = pad(endDateObj.getMinutes());
-  
+      
       const end = `${year}-${month}-${day}T${hours}:${minutes}`;
-  
+      
       setForm((f) => ({ ...f, startTime: start, endTime: end }));
     }
   }, [showCreateForm]);
@@ -258,6 +257,8 @@ export default function TrainerFinderPage() {
       year: "numeric",
       month: "short",
       day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     });
   }
@@ -284,7 +285,7 @@ export default function TrainerFinderPage() {
           <Badge className="bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-md font-normal">Completed</Badge>
         )
       case 3:
-        return <Badge className="bg-red-50 text-red-600 hover:bg-red-100 rounded-md font-normal">Canceled</Badge>
+        return <Badge className="bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md font-normal">Matched</Badge>
       default:
         return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-md font-normal">Unknown</Badge>
     }
@@ -310,6 +311,10 @@ export default function TrainerFinderPage() {
     if (isMobile) {
       setShowMobileDetail(true)
     }
+    // Clear notification count for this post
+    setFilteredPosts(prev => prev.map(p => 
+      p.id === post.id ? { ...p, notiCount: 0 } : p
+    ))
   }
 
   const handleBackToList = () => {
@@ -370,7 +375,7 @@ export default function TrainerFinderPage() {
         hideAddress: false,
         isAnonymous: false,
       })
-      fetchFinders({ status: statusTab === "open" ? "1" : "2", search: searchQuery, pageNumber, pageSize })
+      fetchFinders({ status: statusTab === "open" ? "1" : statusTab === "matched" ? "3" : "2", search: searchQuery, pageNumber, pageSize })
     } catch (e: unknown) {
       if (
         e &&
@@ -468,6 +473,33 @@ export default function TrainerFinderPage() {
     }
   }
 
+  const handleAcceptApplicant = async (applicantId: number, postId: string) => {
+    setRespondingId(applicantId)
+    const ok = await respondToApplicant(applicantId, 1, postId)
+    setRespondingId(null)
+    if (ok) {
+      toast.success("Applicant accepted")
+      // Update local state to move post from open to matched
+      setFilteredPosts(prev => prev.map(post => 
+        post.id === postId ? { ...post, status: 3 } : post
+      ))
+      // If we're in open tab, remove the post
+      if (statusTab === "open") {
+        setFilteredPosts(prev => prev.filter(post => post.id !== postId))
+      }
+    } else {
+      toast.error("Failed to accept applicant")
+    }
+  }
+
+  const totalPages = Math.ceil(totalCount / pageSize)
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPageNumber(newPage)
+    }
+  }
+
   return (
     <div className="relative bg-[#f9fafb] h-[calc(100vh-3.8rem)] overflow-hidden">
       <div className="relative h-full">
@@ -518,7 +550,7 @@ export default function TrainerFinderPage() {
                   </div>
 
                   <div className="flex items-center w-full mb-2">
-                    <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as "open" | "closed")} className="">
+                    <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as "open" | "matched" | "closed")} className="">
                       <TabsList className="bg-gray-50/70 p-1 rounded-full flex">
                         <TabsTrigger
                           value="open"
@@ -529,6 +561,16 @@ export default function TrainerFinderPage() {
                           )}
                         >
                           Open
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="matched"
+                          className={cn(
+                            "rounded-full w-20 data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm",
+                            statusTab === "matched" &&
+                              "data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700",
+                          )}
+                        >
+                          Matched
                         </TabsTrigger>
                         <TabsTrigger
                           value="closed"
@@ -583,62 +625,134 @@ export default function TrainerFinderPage() {
                       )}
                     </div>
                   ) : (
-                    <ScrollArea className="flex-1 -mx-4 px-4">
-                      <div className="space-y-4 pr-2">
-                        {filteredPosts.map((post) => (
-                          <div
-                            key={post.id}
-                            className={`p-5 rounded-xl cursor-pointer transition-all ${
-                              selectedPost?.id === post.id
-                                ? "bg-gradient-to-r from-[#DE9151]/5 to-[#DE9151]/10 border-l-2 border-[#DE9151]"
-                                : "bg-white hover:bg-gray-50 border border-transparent hover:border-gray-100"
-                            }`}
-                            onClick={() => handlePostSelectWithCheck(post)}
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <h3 className="font-medium text-gray-900 line-clamp-1">{post.title}</h3>
-                              {getStatusBadge(post.status)}
+                    <>
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm text-gray-500">
+                          {filteredPosts.length} of {totalCount} posts
+                        </p>
+                        {totalPages > 1 && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePageChange(pageNumber - 1)}
+                              disabled={pageNumber === 1}
+                              className="h-8 px-3"
+                            >
+                              Previous
+                            </Button>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                let pageIndex
+                                if (totalPages <= 5) {
+                                  pageIndex = i + 1
+                                } else if (pageNumber <= 3) {
+                                  pageIndex = i + 1
+                                } else if (pageNumber >= totalPages - 2) {
+                                  pageIndex = totalPages - 4 + i
+                                } else {
+                                  pageIndex = pageNumber - 2 + i
+                                }
+
+                                return (
+                                  <Button
+                                    key={pageIndex}
+                                    variant={pageNumber === pageIndex ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => handlePageChange(pageIndex)}
+                                    className={`h-8 w-8 p-0 ${
+                                      pageNumber === pageIndex
+                                        ? "bg-[#DE9151] text-white hover:bg-[#DE9151]/90"
+                                        : "hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    {pageIndex}
+                                  </Button>
+                                )
+                              })}
                             </div>
-                            <p className="text-sm text-gray-500 line-clamp-2 mb-3">{post.description}</p>
-                            <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
-                              <Clock className="h-3 w-3 mr-1 text-[#DE9151]" />
-                              <span>
-                                {(() => {
-                                  const startDate = new Date(post.startTime);
-                                  const endDate = new Date(post.endTime);
-                                  const isSameDay = startDate.toDateString() === endDate.toDateString();
-                                  
-                                  if (isSameDay) {
-                                    return `${formatTime(post.startTime)} - ${formatTime(post.endTime)}`;
-                                  } else {
-                                    return `${formatDate(post.startTime)} ${formatTime(post.startTime)} - ${formatDate(post.endTime)} ${formatTime(post.endTime)}`;
-                                  }
-                                })()}
-                              </span>
-                              <span className="mx-2">|</span>
-                              <DollarSign className="h-3 w-3 mr-1 text-[#DE9151]" />
-                              <span>
-                                {post.startPrice === post.endPrice
-                                  ? `${post.startPrice}`
-                                  : `${post.startPrice} - ${post.endPrice}`}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center text-xs text-gray-400">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                <span>{formatDate(post.startTime)}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handlePageChange(pageNumber + 1)}
+                              disabled={pageNumber === totalPages}
+                              className="h-8 px-3"
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <ScrollArea className="flex-1 -mx-4 px-4">
+                        <div className="space-y-4 pr-2">
+                          {filteredPosts.map((post) => (
+                            <div
+                              key={post.id}
+                              className={`p-5 rounded-xl cursor-pointer transition-all ${
+                                selectedPost?.id === post.id
+                                  ? "bg-gradient-to-r from-[#DE9151]/5 to-[#DE9151]/10 border-l-2 border-[#DE9151]"
+                                  : post.notiCount === 0
+                                  ? "bg-gray-50/80 hover:bg-gray-100/80 border border-gray-100/80"
+                                  : "bg-white hover:bg-gray-50 border border-transparent hover:border-gray-100"
+                              }`}
+                              onClick={() => handlePostSelectWithCheck(post)}
+                            >
+                              <div className="flex justify-between items-start mb-2">
+                                <h3 className={`font-medium line-clamp-1 ${
+                                  post.notiCount === 0 ? "text-gray-600" : "text-gray-900"
+                                }`}>{post.title}</h3>
+                                <div className="flex items-center gap-2">
+                                  {post.notiCount > 0 && (
+                                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                                      {post.notiCount}
+                                    </span>
+                                  )}
+                                  {getStatusBadge(post.status)}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <User className="h-3 w-3" />
-                                <span>
-                                  {applicants.filter(a => a.postId === post.id).length} applicant{applicants.filter(a => a.postId === post.id).length !== 1 ? "s" : ""}
+                              <p className={`text-sm line-clamp-2 mb-3 ${
+                                post.notiCount === 0 ? "text-gray-400" : "text-gray-500"
+                              }`}>{post.description}</p>
+                              <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                                <Clock className={`h-3 w-3 mr-1 ${post.notiCount === 0 ? "text-gray-400" : "text-[#DE9151]"}`} />
+                                <span className={post.notiCount === 0 ? "text-gray-400" : ""}>
+                                  {(() => {
+                                    const startDate = new Date(post.startTime);
+                                    const endDate = new Date(post.endTime);
+                                    const isSameDay = startDate.toDateString() === endDate.toDateString();
+                                    
+                                    if (isSameDay) {
+                                      return `${formatTime(post.startTime)} - ${formatTime(post.endTime)}`;
+                                    } else {
+                                      return `${formatDate(post.startTime)} ${formatTime(post.startTime)} - ${formatDate(post.endTime)} ${formatTime(post.endTime)}`;
+                                    }
+                                  })()}
+                                </span>
+                                <span className="mx-2">|</span>
+                                <DollarSign className={`h-3 w-3 mr-1 ${post.notiCount === 0 ? "text-gray-400" : "text-[#DE9151]"}`} />
+                                <span className={post.notiCount === 0 ? "text-gray-400" : ""}>
+                                  {post.startPrice === post.endPrice
+                                    ? `${post.startPrice}`
+                                    : `${post.startPrice} - ${post.endPrice}`}
                                 </span>
                               </div>
+                              <div className="flex justify-between items-center text-xs text-gray-400">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className={`h-3 w-3 ${post.notiCount === 0 ? "text-gray-300" : ""}`} />
+                                  <span className={post.notiCount === 0 ? "text-gray-300" : ""}>{formatDate(post.startTime)}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <User className={`h-3 w-3 ${post.notiCount === 0 ? "text-gray-300" : ""}`} />
+                                  <span className={post.notiCount === 0 ? "text-gray-300" : ""}>
+                                    {applicants.filter(a => a.postId === post.id).length} applicant{applicants.filter(a => a.postId === post.id).length !== 1 ? "s" : ""}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </>
                   )}
                 </div>
               </div>
@@ -1159,13 +1273,7 @@ export default function TrainerFinderPage() {
                                                     <Button
                                                       className="bg-gradient-to-r from-[#DE9151] to-[#c27a40] hover:from-[#c27a40] hover:to-[#a56835] text-white rounded-full shadow-sm"
                                                       disabled={respondingId === applicant.id}
-                                                      onClick={async () => {
-                                                        setRespondingId(applicant.id)
-                                                        const ok = await respondToApplicant(applicant.id, 1, selectedPost.id)
-                                                        setRespondingId(null)
-                                                        if (ok) toast.success("Applicant accepted")
-                                                        else toast.error("Failed to accept applicant")
-                                                      }}
+                                                      onClick={() => handleAcceptApplicant(applicant.id, selectedPost.id)}
                                                     >
                                                       {respondingId === applicant.id ? "Accepting..." : "Accept"}
                                                     </Button>

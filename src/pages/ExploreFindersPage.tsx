@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Filter,
   ArrowUpDown,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,12 +25,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/trainer-fin
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/trainer-finder/seperator"
 import { ScrollArea } from "@/components/ui/trainer-finder/scroll-area"
 import { Card, CardContent, CardHeader } from "@/components/ui/trainer-finder/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/trainer-finder/sheet"
-import { useMediaQuery } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { AppLeftSidebar } from "@/components/layout/AppLeftSidebar"
 import { useFinderStore } from "@/store/FinderStore"
@@ -37,6 +36,16 @@ import { Panel, PanelGroup, PanelResizeHandle } from "@/components/ui/resizable"
 import { toast } from "react-toastify"
 import { useProfileStore } from "@/store/ProfileStore"
 import { useNavigate } from "react-router-dom"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { useConversationStore } from "@/store/ConversationStore"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import axios from "axios"
 
 // Types
 interface Poster {
@@ -75,6 +84,7 @@ interface Post {
 
 export default function TrainerExplorerPage() {
   const [activeTab, setActiveTab] = useState<"explore" | "applied">("explore")
+  const [applicantTab, setApplicantTab] = useState<"applying" | "accepted" | "canceled">("applying")
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([])
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
   const [searchInput, setSearchInput] = useState("")
@@ -82,7 +92,9 @@ export default function TrainerExplorerPage() {
   const [sortBy, setSortBy] = useState<string>("nearest")
   const [isApplying, setIsApplying] = useState(false)
   const [applicationMessage, setApplicationMessage] = useState("")
-  const isMobile = useMediaQuery("(max-width: 1023px)")
+  const [showApplyForm, setShowApplyForm] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 10
   const [filters, setFilters] = useState({
     priceMin: "",
     priceMax: "",
@@ -98,10 +110,15 @@ export default function TrainerExplorerPage() {
     return sidebarState === null ? true : sidebarState === "true"
   })
   const [allOpportunitiesDiscovered, setAllOpportunitiesDiscovered] = useState(false)
+  const [showBookingForm, setShowBookingForm] = useState(false)
+  const [isBooking, setIsBooking] = useState(false)
+  const [bookingMessage, setBookingMessage] = useState<{text: string, success: boolean} | null>(null)
+  const [appointmentName, setAppointmentName] = useState("")
 
   const { posts, isLoading, hasMore, fetchExplorePosts, fetchAppliedPosts, pageNumber, applyToPost } = useFinderStore()
   const navigate = useNavigate()
   const { address, isLoading: isLoadingAddress, fetchAddress } = useProfileStore()
+  const { getConversationIdByUserId } = useConversationStore()
 
   const handleExplore = () => {
     setSearchQuery(searchInput)
@@ -176,6 +193,8 @@ export default function TrainerExplorerPage() {
       year: "numeric",
       month: "short",
       day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     })
   }
 
@@ -185,6 +204,18 @@ export default function TrainerExplorerPage() {
       minute: "2-digit",
     })
   }
+
+  const formatLocalTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
+    });
+  };
 
   const getStatusBadge = (status: number) => {
     switch (status) {
@@ -204,6 +235,12 @@ export default function TrainerExplorerPage() {
         return (
           <Badge className="bg-violet-100 text-violet-800 border-violet-200 hover:bg-violet-200 font-medium">
             Closed
+          </Badge>
+        )
+      case 3:
+        return (
+          <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 font-medium">
+            Matched
           </Badge>
         )
       default:
@@ -255,34 +292,20 @@ export default function TrainerExplorerPage() {
 
   const handlePostSelect = (post: Post) => {
     setSelectedPost(post)
-    if (isMobile) {
-      setDetailPanelOpen(true)
-    }
+    setApplicationMessage("")
+    setShowApplyForm(false)
   }
 
   const handleApply = async () => {
-    if (!selectedPost) return
+    if (!selectedPost || !applicationMessage.trim()) return
+
     setIsApplying(true)
     try {
-      const success = await applyToPost(selectedPost.id, applicationMessage)
-      if (success) {
-        setSelectedPost(prev => prev ? { ...prev, applyingStatus: 1 } : null)
-        
-        setFilteredPosts(prev => 
-          prev.map(post => 
-            post.id === selectedPost.id 
-              ? { ...post, applyingStatus: 1 }
-              : post
-          )
-        )
-        
-        toast.success("Application submitted successfully!")
-        setApplicationMessage("")
-      } else {
-        toast.error("Failed to submit application. Please try again.")
-      }
+      await applyToPost(selectedPost.id, applicationMessage)
+      setShowApplyForm(false)
+      toast.success("Application submitted successfully!")
     } catch {
-      toast.error("Failed to submit application. Please try again.")
+      toast.error("Failed to submit application")
     } finally {
       setIsApplying(false)
     }
@@ -303,8 +326,59 @@ export default function TrainerExplorerPage() {
     setSortBy("nearest")
   }
 
+  const handleMessage = async (userId: string) => {
+    try {
+      const conversationId = await getConversationIdByUserId(userId)
+      if (conversationId) {
+        window.open(`/chat/${conversationId}`, '_blank')
+      } else {
+        toast.error("Failed to start conversation")
+      }
+    } catch {
+      toast.error("Failed to start conversation")
+    }
+  }
+
+  const handleViewProfile = (userId: string) => {
+    window.open(`/profile/${userId}`, '_blank')
+  }
+
+  const handleCreateAppointment = async () => {
+    if (!selectedPost) return
+    setIsBooking(true)
+    setBookingMessage(null)
+    const body = {
+      participantIds: [selectedPost.poster?.id],
+      name: appointmentName || `Appointment with ${selectedPost.poster?.firstName} ${selectedPost.poster?.lastName}`,
+      description: "",
+      placeId: selectedPost.placeName,
+      startTime: selectedPost.startTime,
+      endTime: selectedPost.endTime,
+      repeatingType: 0,
+      price: selectedPost.startPrice
+    }
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/Appointment/book`, body, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json"
+        }
+      })
+      setBookingMessage({text: "Appointment created successfully", success: true})
+      setTimeout(() => {
+        setShowBookingForm(false)
+        navigate('/appointments')
+      }, 1200)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } }
+      setBookingMessage({text: error?.response?.data?.message || 'Error', success: false})
+    } finally {
+      setIsBooking(false)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#de9151]/5 h-[calc(100vh-3.8rem)] overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#de9151]/5 h-[calc(100vh-3.8rem)] overflow-auto">
       <AppLeftSidebar
         onToggle={() => {
           const newShow = !showSidebars
@@ -377,7 +451,7 @@ export default function TrainerExplorerPage() {
               </div>
 
               <div className="bg-white rounded-xl p-4 shadow-sm">
-                <PanelGroup direction="horizontal" className="h-[calc(100vh-14rem)]">
+                <PanelGroup direction="horizontal" className="min-h-[calc(100vh-14rem)]">
                   <Panel defaultSize={70} minSize={30}>
                     <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm overflow-hidden h-full mr-4">
                       <CardHeader className="bg-gradient-to-r from-white to-slate-50/50 border-b border-slate-100 pb-4">
@@ -613,23 +687,36 @@ export default function TrainerExplorerPage() {
                                             <h3 className="font-bold text-black text-base line-clamp-1 group-hover:text-[#de9151] transition-colors duration-200 mb-2">
                                               {post.title}
                                             </h3>
-                                            {post.poster && (
                                               <div className="flex items-center gap-2">
                                                 <Avatar className="h-6 w-6 ring-1 ring-white shadow-sm">
                                                   <AvatarImage
-                                                    src={post.poster.avatar || "/placeholder.svg"}
-                                                    alt={post.poster.firstName}
+                                                  src={post.poster?.avatar || "/placeholder.svg"}
+                                                  alt={post.poster?.firstName}
                                                   />
                                                   <AvatarFallback className="bg-gradient-to-br from-[#de9151] to-[#de9151]/80 text-white text-xs font-semibold">
-                                                    {post.poster.firstName[0]}
-                                                    {post.poster.lastName[0]}
+                                                  {post.poster?.firstName?.[0]}
+                                                  {post.poster?.lastName?.[0]}
                                                   </AvatarFallback>
                                                 </Avatar>
-                                                <span className="text-xs font-medium text-slate-600">
-                                                  {post.poster.firstName} {post.poster.lastName}
+                                              {post.isAnonymous ? (
+                                                <Badge className="bg-slate-100 text-slate-700 border-slate-200 font-medium text-xs">
+                                                  Anonymous
+                                                </Badge>
+                                              ) : (
+                                                <TooltipProvider>
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <span className="text-xs font-medium text-slate-600 truncate max-w-[150px]">
+                                                        {post.poster?.email}
                                                 </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                      <p>{post.poster?.email}</p>
+                                                    </TooltipContent>
+                                                  </Tooltip>
+                                                </TooltipProvider>
+                                              )}
                                               </div>
-                                            )}
                                           </div>
                                           <div className="flex flex-col gap-1 items-end">
                                             {getStatusBadge(post.status)}
@@ -725,7 +812,6 @@ export default function TrainerExplorerPage() {
                           </TabsContent>
 
                           <TabsContent value="applied" className="mt-0 space-y-4">
-                            {/* Search and Sort */}
                             <div className="space-y-4">
                               <div className="flex flex-col sm:flex-row gap-3">
                                 <div className="relative flex-1">
@@ -755,178 +841,351 @@ export default function TrainerExplorerPage() {
                                     <ArrowUpDown className="h-4 w-4 mr-2" />
                                     <SelectValue placeholder="Sort by" />
                                   </SelectTrigger>
-                                  <SelectContent className="rounded-lg border-slate-200">
-                                    <SelectItem value="nearest">Nearest First</SelectItem>
+                                  <SelectContent>
                                     <SelectItem value="newest">Newest First</SelectItem>
-                                    <SelectItem value="price-high">Price: High to Low</SelectItem>
-                                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                                    <SelectItem value="oldest">Oldest First</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
-                            </div>
 
-                            {isLoading ? (
-                              <div className="flex items-center justify-center py-16">
-                                <div className="flex flex-col items-center gap-4">
-                                  <div className="relative">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-3 border-[#de9151]/20 border-t-[#de9151]" />
-                                    <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#de9151]/10 to-transparent animate-pulse" />
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="text-base font-medium text-slate-700">Loading your applications...</p>
-                                    <p className="text-sm text-slate-500 mt-1">Please wait a moment</p>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : filteredPosts.length === 0 ? (
-                              <div className="flex items-center justify-center py-16">
-                                <div className="text-center max-w-md">
-                                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center mx-auto mb-4">
-                                    <Briefcase className="h-8 w-8 text-slate-400" />
-                                  </div>
-                                  <h3 className="text-lg font-semibold text-black mb-2">No applications yet</h3>
-                                  <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                                    Start exploring and apply to training opportunities that match your interests and goals.
-                                  </p>
-                                  <Button
-                                    onClick={() => setActiveTab("explore")}
-                                    className="bg-[#de9151] hover:bg-[#de9151]/90 text-white rounded-xl px-6 h-12"
+                              <Tabs value={applicantTab} onValueChange={(v) => {
+                                setApplicantTab(v as "applying" | "accepted" | "canceled")
+                                setCurrentPage(1)
+                              }}>
+                                <TabsList className="w-full bg-slate-100 p-1 rounded-lg">
+                                  <TabsTrigger
+                                    value="applying"
+                                    className="flex-1 rounded-md py-2 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-black transition-all duration-200"
                                   >
-                                    Explore Opportunities
-                                  </Button>
+                                    <div className="flex items-center gap-2">
+                                      <Send className="h-4 w-4" />
+                                      <span className="font-medium text-sm">Applying</span>
+                            </div>
+                                  </TabsTrigger>
+                                  <TabsTrigger
+                                    value="accepted"
+                                    className="flex-1 rounded-md py-2 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-black transition-all duration-200"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle className="h-4 w-4" />
+                                      <span className="font-medium text-sm">Accepted</span>
+                                    </div>
+                                  </TabsTrigger>
+                                  <TabsTrigger
+                                    value="canceled"
+                                    className="flex-1 rounded-md py-2 px-4 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-black transition-all duration-200"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <XCircle className="h-4 w-4" />
+                                      <span className="font-medium text-sm">Closed</span>
+                                    </div>
+                                  </TabsTrigger>
+                                </TabsList>
+
+                                <TabsContent value="applying" className="mt-4">
+                                  {filteredPosts.filter(post => post.applyingStatus === 1 && post.status === 1).length === 0 ? (
+                                    <div className="text-center py-12 bg-slate-50/50 rounded-xl">
+                                      <Send className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                                      <p className="text-slate-500">No active applications</p>
+                                  </div>
+                                  ) : (
+                                    <>
+                                      <div className="grid gap-4 p-4 pb-8" style={{
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'
+                                      }}>
+                                        {filteredPosts
+                                          .filter(post => post.applyingStatus === 1 && post.status === 1)
+                                          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                                          .map((post) => (
+                                            <Card
+                                              key={post.id}
+                                              className={cn(
+                                                "cursor-pointer transition-all duration-200 hover:shadow-md",
+                                                selectedPost?.id === post.id && "ring-2 ring-[#de9151]"
+                                              )}
+                                              onClick={() => handlePostSelect(post)}
+                                            >
+                                              <CardContent className="p-4">
+                                                <div className="flex items-start justify-between mb-3">
+                                                  <div className="flex items-center gap-3">
+                                                    <Avatar className="h-10 w-10">
+                                                      <AvatarImage src={post.poster?.avatar} />
+                                                      <AvatarFallback>
+                                                        {post.poster?.firstName?.[0]}
+                                                        {post.poster?.lastName?.[0]}
+                                                      </AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                      <h3 className="font-medium text-black">
+                                                        {post.poster?.firstName} {post.poster?.lastName}
+                                                      </h3>
+                                                      <p className="text-sm text-slate-500">@{post.poster?.username}</p>
+                                  </div>
                                 </div>
+                                                  <div className="flex flex-col gap-1 items-end">
+                                                    {getStatusBadge(post.status)}
+                                                    {getApplyingStatusBadge(post.applyingStatus)}
                               </div>
-                            ) : (
-                              <ScrollArea className="h-[calc(100vh-24rem)]">
-                                <div className="grid gap-4 p-4" style={{
-                                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'
-                                }}>
-                                  {filteredPosts.map((post) => (
-                                    <Card
-                                      key={post.id}
-                                      className={cn(
-                                        "cursor-pointer transition-all duration-300 hover:shadow-xl border-0 group overflow-hidden",
-                                        selectedPost?.id === post.id
-                                          ? "bg-gradient-to-br from-[#de9151]/8 to-[#de9151]/12 shadow-lg ring-2 ring-[#de9151]/40 scale-[1.02]"
-                                          : "bg-white hover:bg-slate-50/80 shadow-md hover:scale-[1.01] border border-slate-100",
+                                  </div>
+                                                <h4 className="font-semibold text-black mb-2">{post.title}</h4>
+                                                <p className="text-sm text-slate-600 line-clamp-2 mb-3">{post.description}</p>
+                                                <div className="flex items-center gap-4 text-sm text-slate-500">
+                                                  <div className="flex items-center gap-1">
+                                                    <Calendar className="h-4 w-4" />
+                                                    <span>{formatDate(post.startTime)}</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <Clock className="h-4 w-4" />
+                                                    <span>{formatTime(post.startTime)}</span>
+                                                  </div>
+                                                </div>
+                                              </CardContent>
+                                            </Card>
+                                          ))}
+                                      </div>
+                                      {Math.ceil(filteredPosts.filter(post => post.applyingStatus === 1 && post.status === 1).length / pageSize) > 1 && (
+                                        <div className="flex justify-center gap-2 mt-4">
+                                  <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                            disabled={currentPage === 1}
+                                  >
+                                            Previous
+                                  </Button>
+                                          <div className="flex items-center gap-1">
+                                            {Array.from({ length: Math.ceil(filteredPosts.filter(post => post.applyingStatus === 1 && post.status === 1).length / pageSize) }, (_, i) => (
+                                              <Button
+                                                key={i + 1}
+                                                variant={currentPage === i + 1 ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => setCurrentPage(i + 1)}
+                                                className={cn(
+                                                  "w-8 h-8 p-0",
+                                                  currentPage === i + 1 && "bg-[#de9151] text-white hover:bg-[#de9151]/90"
+                                                )}
+                                              >
+                                                {i + 1}
+                                              </Button>
+                                            ))}
+                                </div>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredPosts.filter(post => post.applyingStatus === 1 && post.status === 1).length / pageSize), prev + 1))}
+                                            disabled={currentPage === Math.ceil(filteredPosts.filter(post => post.applyingStatus === 1 && post.status === 1).length / pageSize)}
+                                          >
+                                            Next
+                                          </Button>
+                                        </div>
                                       )}
-                                      onClick={() => handlePostSelect(post)}
-                                    >
-                                      <CardContent className="p-4">
-                                        <div className="flex justify-between items-start mb-3">
-                                          <div className="flex-1 min-w-0">
-                                            <h3 className="font-bold text-black text-base line-clamp-1 group-hover:text-[#de9151] transition-colors duration-200 mb-2">
-                                              {post.title}
-                                            </h3>
-                                            {post.poster && (
-                                              <div className="flex items-center gap-2">
-                                                <Avatar className="h-6 w-6 ring-1 ring-white shadow-sm">
-                                                  <AvatarImage
-                                                    src={post.poster.avatar || "/placeholder.svg"}
-                                                    alt={post.poster.firstName}
-                                                  />
-                                                  <AvatarFallback className="bg-gradient-to-br from-[#de9151] to-[#de9151]/80 text-white text-xs font-semibold">
-                                                    {post.poster.firstName[0]}
-                                                    {post.poster.lastName[0]}
-                                                  </AvatarFallback>
-                                                </Avatar>
-                                                <span className="text-xs font-medium text-slate-600">
-                                                  {post.poster.firstName} {post.poster.lastName}
-                                                </span>
-                                              </div>
-                                            )}
+                                    </>
+                                  )}
+                                </TabsContent>
+
+                                <TabsContent value="accepted" className="mt-4">
+                                  {filteredPosts.filter(post => post.applyingStatus === 4).length === 0 ? (
+                                    <div className="text-center py-12 bg-slate-50/50 rounded-xl">
+                                      <CheckCircle className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                                      <p className="text-slate-500">No accepted applications</p>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="grid gap-4 p-4 pb-8" style={{
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'
+                                      }}>
+                                        {filteredPosts
+                                          .filter(post => post.applyingStatus === 4)
+                                          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                                          .map((post) => (
+                                            <Card
+                                              key={post.id}
+                                              className={cn(
+                                                "cursor-pointer transition-all duration-200 hover:shadow-md",
+                                                selectedPost?.id === post.id && "ring-2 ring-[#de9151]"
+                                              )}
+                                              onClick={() => handlePostSelect(post)}
+                                            >
+                                              <CardContent className="p-4">
+                                                <div className="flex items-start justify-between mb-3">
+                                                  <div className="flex items-center gap-3">
+                                                    <Avatar className="h-10 w-10">
+                                                      <AvatarImage src={post.poster?.avatar} />
+                                                      <AvatarFallback>
+                                                        {post.poster?.firstName?.[0]}
+                                                        {post.poster?.lastName?.[0]}
+                                                      </AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                      <h3 className="font-medium text-black">
+                                                        {post.poster?.firstName} {post.poster?.lastName}
+                                                      </h3>
+                                                      <p className="text-sm text-slate-600">@{post.poster?.username}</p>
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex flex-col gap-1 items-end">
+                                                    {getStatusBadge(post.status)}
+                                                    {getApplyingStatusBadge(post.applyingStatus)}
+                                                  </div>
+                                                </div>
+                                                <h4 className="font-semibold text-black mb-2">{post.title}</h4>
+                                                <p className="text-sm text-slate-600 line-clamp-2 mb-3">{post.description}</p>
+                                                <div className="flex items-center gap-4 text-sm text-slate-500">
+                                                  <div className="flex items-center gap-1">
+                                                    <Calendar className="h-4 w-4" />
+                                                    <span>{formatDate(post.startTime)}</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <Clock className="h-4 w-4" />
+                                                    <span>{formatTime(post.startTime)}</span>
+                                                  </div>
+                                                </div>
+                                              </CardContent>
+                                            </Card>
+                                          ))}
+                                      </div>
+                                      {Math.ceil(filteredPosts.filter(post => post.applyingStatus === 4).length / pageSize) > 1 && (
+                                        <div className="flex justify-center gap-2 mt-4">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                            disabled={currentPage === 1}
+                                          >
+                                            Previous
+                                          </Button>
+                                          <div className="flex items-center gap-1">
+                                            {Array.from({ length: Math.ceil(filteredPosts.filter(post => post.applyingStatus === 4).length / pageSize) }, (_, i) => (
+                                              <Button
+                                                key={i + 1}
+                                                variant={currentPage === i + 1 ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => setCurrentPage(i + 1)}
+                                                className={cn(
+                                                  "w-8 h-8 p-0",
+                                                  currentPage === i + 1 && "bg-[#de9151] text-white hover:bg-[#de9151]/90"
+                                                )}
+                                              >
+                                                {i + 1}
+                                              </Button>
+                                            ))}
                                           </div>
-                                          <div className="flex flex-col gap-1 items-end">
-                                            {getStatusBadge(post.status)}
-                                            {getApplyingStatusBadge(post.applyingStatus)}
-                                          </div>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredPosts.filter(post => post.applyingStatus === 4).length / pageSize), prev + 1))}
+                                            disabled={currentPage === Math.ceil(filteredPosts.filter(post => post.applyingStatus === 4).length / pageSize)}
+                                          >
+                                            Next
+                                          </Button>
                                         </div>
+                                      )}
+                                    </>
+                                  )}
+                                </TabsContent>
 
-                                        <p className="text-slate-600 line-clamp-2 mb-3 leading-relaxed text-sm">{post.description}</p>
-
-                                        <div className="grid grid-cols-2 gap-3 mb-3">
-                                          <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
-                                              <Clock className="h-4 w-4 text-blue-600" />
+                                <TabsContent value="canceled" className="mt-4">
+                                  {filteredPosts.filter(post => (post.applyingStatus === 2 || post.applyingStatus === 3) || post.status === 2).length === 0 ? (
+                                    <div className="text-center py-12 bg-slate-50/50 rounded-xl">
+                                      <XCircle className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                                      <p className="text-slate-500">No canceled applications</p>
                                             </div>
+                                  ) : (
+                                    <>
+                                      <div className="grid gap-4 p-4 pb-8" style={{
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'
+                                      }}>
+                                        {filteredPosts
+                                          .filter(post => (post.applyingStatus === 2 || post.applyingStatus === 3) || post.status === 2)
+                                          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+                                          .map((post) => (
+                                            <Card
+                                              key={post.id}
+                                              className={cn(
+                                                "cursor-pointer transition-all duration-200 hover:shadow-md",
+                                                selectedPost?.id === post.id && "ring-2 ring-[#de9151]"
+                                              )}
+                                              onClick={() => handlePostSelect(post)}
+                                            >
+                                              <CardContent className="p-4">
+                                                <div className="flex items-start justify-between mb-3">
+                                                  <div className="flex items-center gap-3">
+                                                    <Avatar className="h-10 w-10">
+                                                      <AvatarImage src={post.poster?.avatar} />
+                                                      <AvatarFallback>
+                                                        {post.poster?.firstName?.[0]}
+                                                        {post.poster?.lastName?.[0]}
+                                                      </AvatarFallback>
+                                                    </Avatar>
                                             <div>
-                                              <p className="text-xs font-semibold text-black">{formatTime(post.startTime)}</p>
-                                              <p className="text-xs text-slate-500">{formatDate(post.startTime)}</p>
+                                                      <h3 className="font-medium text-black">
+                                                        {post.poster?.firstName} {post.poster?.lastName}
+                                                      </h3>
+                                                      <p className="text-sm text-slate-500">@{post.poster?.username}</p>
                                             </div>
                                           </div>
-
-                                          <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center">
-                                              <DollarSign className="h-4 w-4 text-emerald-600" />
-                                            </div>
-                                            <div>
-                                              <p className="text-xs font-semibold text-black">
-                                                $
-                                                {post.startPrice === post.endPrice
-                                                  ? post.startPrice
-                                                  : `${post.startPrice}-${post.endPrice}`}
-                                              </p>
-                                              <p className="text-xs text-slate-500">per session</p>
-                                            </div>
-                                          </div>
+                                                  <div className="flex flex-col gap-1 items-end">
+                                                    {getStatusBadge(post.status)}
+                                                    {getApplyingStatusBadge(post.applyingStatus)}
                                         </div>
-
-                                        <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                                          <div className="flex items-center gap-1 text-xs text-slate-500">
-                                            <MapPin className="h-3 w-3" />
-                                            <span className="font-medium">{post.distanceAway.toFixed(1)} km away</span>
                                           </div>
-                                          <div className="flex items-center gap-1 text-xs text-slate-500">
-                                            <Calendar className="h-3 w-3" />
-                                            <span className="font-medium">{getRepeatTypeText(post.repeatType)}</span>
+                                                <h4 className="font-semibold text-black mb-2">{post.title}</h4>
+                                                <p className="text-sm text-slate-600 line-clamp-2 mb-3">{post.description}</p>
+                                                <div className="flex items-center gap-4 text-sm text-slate-500">
+                                                  <div className="flex items-center gap-1">
+                                                    <Calendar className="h-4 w-4" />
+                                                    <span>{formatDate(post.startTime)}</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <Clock className="h-4 w-4" />
+                                                    <span>{formatTime(post.startTime)}</span>
                                           </div>
                                         </div>
                                       </CardContent>
                                     </Card>
                                   ))}
                                 </div>
-
-                                {hasMore && (
-                                  <div className="flex justify-center mt-10">
+                                      {Math.ceil(filteredPosts.filter(post => (post.applyingStatus === 2 || post.applyingStatus === 3) || post.status === 2).length / pageSize) > 1 && (
+                                        <div className="flex justify-center gap-2 mt-4">
                                     <Button
                                       variant="outline"
-                                      className="border-slate-200 rounded-xl px-8 h-12 hover:bg-slate-50 transition-colors"
-                                      onClick={() => {
-                                        fetchAppliedPosts(pageNumber + 1)
-                                          .then(() => {
-                                            if (posts.length === 0) {
-                                              setAllOpportunitiesDiscovered(true)
-                                            }
-                                          })
-                                          .catch(() => {
-                                            toast("Failed to load more applications", {
-                                              position: "top-right",
-                                              autoClose: 3000
-                                            })
-                                          })
-                                      }}
-                                      disabled={isLoading}
+                                            size="sm"
+                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                            disabled={currentPage === 1}
                                     >
-                                      {isLoading ? (
-                                        <div className="flex items-center gap-3">
-                                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#de9151] border-t-transparent" />
-                                          <span className="font-medium">Loading...</span>
-                                        </div>
-                                      ) : (
-                                        <span className="font-medium">Load More Applications</span>
-                                      )}
+                                            Previous
+                                          </Button>
+                                          <div className="flex items-center gap-1">
+                                            {Array.from({ length: Math.ceil(filteredPosts.filter(post => (post.applyingStatus === 2 || post.applyingStatus === 3) || post.status === 2).length / pageSize) }, (_, i) => (
+                                              <Button
+                                                key={i + 1}
+                                                variant={currentPage === i + 1 ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => setCurrentPage(i + 1)}
+                                                className={cn(
+                                                  "w-8 h-8 p-0",
+                                                  currentPage === i + 1 && "bg-[#de9151] text-white hover:bg-[#de9151]/90"
+                                                )}
+                                              >
+                                                {i + 1}
                                     </Button>
+                                            ))}
+                                  </div>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredPosts.filter(post => (post.applyingStatus === 2 || post.applyingStatus === 3) || post.status === 2).length / pageSize), prev + 1))}
+                                            disabled={currentPage === Math.ceil(filteredPosts.filter(post => (post.applyingStatus === 2 || post.applyingStatus === 3) || post.status === 2).length / pageSize)}
+                                          >
+                                            Next
+                                          </Button>
                                   </div>
                                 )}
-
-                                {allOpportunitiesDiscovered && (
-                                  <div className="mt-6 flex items-center justify-center gap-2 text-slate-600">
-                                    <CheckCircle className="h-5 w-5 text-emerald-500" />
-                                    <span className="text-sm font-medium">You've discovered all your applications</span>
-                                  </div>
-                                )}
-                              </ScrollArea>
+                                    </>
                             )}
+                                </TabsContent>
+                              </Tabs>
+                            </div>
                           </TabsContent>
                         </Tabs>
                       </CardContent>
@@ -997,13 +1256,24 @@ export default function TrainerExplorerPage() {
                                             <span className="text-xs text-slate-600 ml-1 font-medium">(4.9)</span>
                                           </div>
                                         </div>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="text-slate-500 hover:bg-white/50 rounded-lg"
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                        </Button>
+                                        <div className="flex gap-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-slate-500 hover:bg-white/50 rounded-lg"
+                                            onClick={() => handleMessage(selectedPost.poster?.id || "")}
+                                          >
+                                            <Send className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-slate-500 hover:bg-white/50 rounded-lg"
+                                            onClick={() => handleViewProfile(selectedPost.poster?.id || "")}
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                          </Button>
+                                        </div>
                                       </div>
                                     </CardContent>
                                   </Card>
@@ -1017,149 +1287,99 @@ export default function TrainerExplorerPage() {
                                   </div>
                                 </div>
 
-                                {/* Details Grid */}
-                                <div className="grid grid-cols-1 gap-3">
-                                  <Card className="border-slate-200 bg-gradient-to-br from-blue-50/80 to-indigo-50/60 overflow-hidden">
-                                    <CardContent className="p-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                                          <Clock className="h-5 w-5 text-white" />
-                                        </div>
-                                        <div>
-                                          <h5 className="font-bold text-black text-base">Session Time</h5>
-                                          <p className="text-sm text-slate-600">
-                                            {formatDate(selectedPost.startTime)} at {formatTime(selectedPost.startTime)} -{" "}
-                                            {formatTime(selectedPost.endTime)}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-
-                                  <Card className="border-slate-200 bg-gradient-to-br from-emerald-50/80 to-green-50/60 overflow-hidden">
-                                    <CardContent className="p-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-md">
-                                          <DollarSign className="h-5 w-5 text-white" />
-                                        </div>
-                                        <div>
-                                          <h5 className="font-bold text-black text-base">Price Range</h5>
-                                          <p className="text-sm text-slate-600">
-                                            $
-                                            {selectedPost.startPrice === selectedPost.endPrice
-                                              ? selectedPost.startPrice
-                                              : `${selectedPost.startPrice} - ${selectedPost.endPrice}`}{" "}
-                                            per session
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-
-                                  <Card className="border-slate-200 bg-gradient-to-br from-[#de9151]/8 to-[#de9151]/15 overflow-hidden">
-                                    <CardContent className="p-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#de9151] to-[#de9151]/80 flex items-center justify-center shadow-md">
-                                          <MapPin className="h-5 w-5 text-white" />
-                                        </div>
-                                        <div>
-                                          <h5 className="font-bold text-black text-base">Location</h5>
-                                          <p className="text-sm text-slate-600">
-                                            {selectedPost.isAnonymous ? "Anonymous Location" : 
-                                             selectedPost.hideAddress ? "Location Hidden" :
-                                             selectedPost.placeName || "Location details"} •{" "}
-                                            {selectedPost.distanceAway.toFixed(1)} km away
-                                          </p>
-                                        </div>
-                                      </div>
-                                      {!selectedPost.isAnonymous && !selectedPost.hideAddress && selectedPost.lat && selectedPost.lng && (
-                                        <div className="mt-3 h-32 rounded-lg overflow-hidden border border-slate-200">
-                                          <iframe
-                                            title="Map overview"
-                                            width="100%"
-                                            height="100%"
-                                            style={{ border: 0 }}
-                                            src={`https://maps.google.com/maps?q=${selectedPost.lat},${selectedPost.lng}&z=15&output=embed`}
-                                            allowFullScreen
-                                          />
-                                        </div>
-                                      )}
-                                    </CardContent>
-                                  </Card>
-
-                                  <Card className="border-slate-200 bg-gradient-to-br from-violet-50/80 to-purple-50/60 overflow-hidden">
-                                    <CardContent className="p-4">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md">
-                                          <Calendar className="h-5 w-5 text-white" />
-                                        </div>
-                                        <div>
-                                          <h5 className="font-bold text-black text-base">Frequency</h5>
-                                          <p className="text-sm text-slate-600">
-                                            {getRepeatTypeText(selectedPost.repeatType)} session
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                </div>
-
-                                <Separator className="bg-slate-200" />
-
-                                {/* Application Section */}
+                                {/* Application Details */}
                                 <div className="space-y-4">
                                   <h4 className="font-bold text-black text-base">Apply for this Opportunity</h4>
 
-                                  {selectedPost.applyingStatus === 1 ? (
+                                  {selectedPost.applyingStatus === 4 ? (
                                     <Card className="border-[#de9151]/30 bg-gradient-to-r from-[#de9151]/8 to-[#de9151]/12 overflow-hidden">
                                       <CardContent className="p-4">
                                         <div className="flex items-center gap-3 mb-3">
                                           <CheckCircle className="h-5 w-5 text-[#de9151]" />
                                           <div>
-                                            <p className="font-bold text-black text-base">Application Submitted</p>
-                                            <p className="text-sm text-slate-600">You have already applied to this opportunity</p>
+                                            <p className="font-bold text-black text-base">Application Accepted</p>
+                                            <p className="text-sm text-slate-600">Your application has been accepted. You can now create an appointment with the trainer.</p>
                                           </div>
                                         </div>
-                                        <Button
-                                          variant="outline"
-                                          className="w-full border-red-200 text-red-600 hover:bg-red-50 rounded-xl h-10 text-sm"
+                                        <Button 
+                                          className="w-full bg-[#de9151] hover:bg-[#de9151]/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl h-11 font-semibold text-sm"
+                                          onClick={() => setShowBookingForm(true)}
                                         >
-                                          <XCircle className="h-4 w-4 mr-2" />
-                                          Cancel Application
+                                          Create Appointment
                                         </Button>
                                       </CardContent>
                                     </Card>
-                                  ) : selectedPost.status === 1 ? (
-                                    <div className="space-y-4">
-                                      <div className="space-y-2">
-                                        <label className="block text-sm font-bold text-black">
-                                          Message to the trainer (optional)
-                                        </label>
-                                        <textarea
-                                          className="w-full h-32 border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 focus:ring-2 focus:ring-[#de9151]/20 focus:border-[#de9151] resize-none transition-all duration-200 text-sm"
-                                          value={applicationMessage}
-                                          onChange={(e) => setApplicationMessage(e.target.value)}
-                                          placeholder="Introduce yourself and explain why you're perfect for this opportunity..."
-                                        />
-                                      </div>
-                                      <Button
-                                        className="w-full bg-gradient-to-r from-[#de9151] to-[#de9151]/90 hover:from-[#de9151]/90 hover:to-[#de9151]/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl h-11 font-semibold text-sm"
-                                        onClick={handleApply}
-                                        disabled={isApplying}
-                                      >
-                                        {isApplying ? (
-                                          <div className="flex items-center gap-2">
-                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                                            Submitting Application...
+                                  ) : selectedPost.applyingStatus === 0 ? (
+                                    <Card className="border-slate-200 bg-gradient-to-r from-slate-50/80 to-slate-100/50 overflow-hidden">
+                                      <CardContent className="p-4">
+                                        <div className="space-y-4">
+                                          <div className="space-y-2">
+                                            <label className="block text-sm font-bold text-black">
+                                              Message to the trainer (optional)
+                                            </label>
+                                            <textarea
+                                              className="w-full h-32 border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 focus:ring-2 focus:ring-[#de9151]/20 focus:border-[#de9151] resize-none transition-all duration-200 text-sm"
+                                              value={applicationMessage}
+                                              onChange={(e) => setApplicationMessage(e.target.value)}
+                                              placeholder="Introduce yourself and explain why you're perfect for this opportunity..."
+                                            />
                                           </div>
-                                        ) : (
-                                          <div className="flex items-center gap-2">
-                                            <Send className="h-4 w-4" />
-                                            Apply Now
+                                          <Button
+                                            className="w-full bg-gradient-to-r from-[#de9151] to-[#de9151]/90 hover:from-[#de9151]/90 hover:to-[#de9151]/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl h-11 font-semibold text-sm"
+                                            onClick={handleApply}
+                                            disabled={isApplying || !applicationMessage.trim()}
+                                          >
+                                            {isApplying ? (
+                                              <div className="flex items-center gap-2">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                                                Submitting Application...
+                                              </div>
+                                            ) : (
+                                              <div className="flex items-center gap-2">
+                                                <Send className="h-4 w-4" />
+                                                Apply Now
+                                              </div>
+                                            )}
+                                          </Button>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ) : selectedPost.applyingStatus === 1 ? (
+                                    <Card className="border-slate-200 bg-gradient-to-r from-slate-50/80 to-slate-100/50 overflow-hidden">
+                                      <CardContent className="p-4">
+                                        <div className="flex items-center gap-3">
+                                          <Send className="h-5 w-5 text-[#de9151]" />
+                                          <div>
+                                            <p className="font-bold text-black text-base">Application Submitted</p>
+                                            <p className="text-sm text-slate-600">Your application is being reviewed by the trainer</p>
                                           </div>
-                                        )}
-                                      </Button>
-                                    </div>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ) : selectedPost.applyingStatus === 2 ? (
+                                    <Card className="border-slate-200 bg-gradient-to-r from-slate-50/80 to-slate-100/50 overflow-hidden">
+                                      <CardContent className="p-4">
+                                        <div className="flex items-center gap-3">
+                                          <XCircle className="h-5 w-5 text-red-500" />
+                                          <div>
+                                            <p className="font-bold text-black text-base">Application Canceled</p>
+                                            <p className="text-sm text-slate-600">Your application has been canceled</p>
+                                          </div>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ) : selectedPost.applyingStatus === 3 ? (
+                                    <Card className="border-slate-200 bg-gradient-to-r from-slate-50/80 to-slate-100/50 overflow-hidden">
+                                      <CardContent className="p-4">
+                                        <div className="flex items-center gap-3">
+                                          <XCircle className="h-5 w-5 text-red-500" />
+                                          <div>
+                                            <p className="font-bold text-black text-base">Application Rejected</p>
+                                            <p className="text-sm text-slate-600">Your application has been rejected</p>
+                                          </div>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
                                   ) : (
                                     <Card className="border-slate-200 bg-gradient-to-r from-slate-50/80 to-slate-100/50 overflow-hidden">
                                       <CardContent className="p-4">
@@ -1201,6 +1421,116 @@ export default function TrainerExplorerPage() {
           )}
         </div>
       </div>
+
+      {showBookingForm && selectedPost && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-[60vh] max-h-[98vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Create Appointment</h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowBookingForm(false)}
+                className="h-8 w-8"
+                disabled={isBooking}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {bookingMessage && bookingMessage.text && (
+                <div className={`text-center text-sm font-medium mb-2 ${bookingMessage.success ? 'text-green-600' : 'text-red-600'}`}>
+                  {bookingMessage.text}
+                </div>
+              )}
+              <div>
+                <Label className="mb-2 block">Appointment Name</Label>
+                <Input 
+                  value={appointmentName || `Appointment with ${selectedPost?.poster?.firstName || ''} ${selectedPost?.poster?.lastName || ''}`}
+                  onChange={(e) => setAppointmentName(e.target.value)}
+                  disabled={isBooking}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Description</Label>
+                <Textarea placeholder="Enter appointment description" disabled={isBooking} />
+              </div>
+              <div>
+                <Label className="mb-2 block">Price ($)</Label>
+                <Input 
+                  value={selectedPost?.startPrice || 0}
+                  disabled={true}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">Participant</Label>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <img
+                    src={selectedPost?.poster?.avatar}
+                    alt={`${selectedPost?.poster?.firstName || ''} ${selectedPost?.poster?.lastName || ''}`}
+                    className="w-10 h-10 rounded-full"
+                  />
+                  <div>
+                    <p className="font-medium">{selectedPost?.poster?.firstName || ''} {selectedPost?.poster?.lastName || ''}</p>
+                    <p className="text-sm text-slate-500">@{selectedPost?.poster?.username || ''}</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <Label className="mb-2 block">Location</Label>
+                {selectedPost?.placeName && (
+                  <div className="rounded-lg overflow-hidden border w-full h-[180px]">
+                    <iframe
+                      title="Map overview"
+                      width="100%"
+                      height="180"
+                      style={{ border: 0 }}
+                      src={`https://maps.google.com/maps?q=${selectedPost?.lat},${selectedPost?.lng}&z=15&output=embed`}
+                      allowFullScreen
+                    ></iframe>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Label className="mb-2 block">Start Time</Label>
+                  <Input 
+                    value={formatLocalTime(selectedPost?.startTime || '')}
+                    disabled={true}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label className="mb-2 block">End Time</Label>
+                  <Input 
+                    value={formatLocalTime(selectedPost?.endTime || '')}
+                    disabled={true}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="mb-2 block">Repeating Type</Label>
+                <Input 
+                  value="Once"
+                  disabled={true}
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBookingForm(false)}
+                  disabled={isBooking}
+                >
+                  Cancel
+                </Button>
+                <Button className="bg-[#de9151] hover:bg-[#de9151]/90 flex items-center justify-center min-w-[120px]" onClick={handleCreateAppointment} disabled={isBooking}>
+                  {isBooking && <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>}
+                  Create Appointment
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
