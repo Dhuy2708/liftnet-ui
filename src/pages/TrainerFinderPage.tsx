@@ -113,6 +113,15 @@ export default function TrainerFinderPage() {
     hideAddress: false,
     isAnonymous: false,
   })
+  const [formErrors, setFormErrors] = useState<{
+    title?: string;
+    description?: string;
+    startTime?: string;
+    endTime?: string;
+    startPrice?: string;
+    endPrice?: string;
+    locationId?: string;
+  }>({})
   type LocationResult = { description: string; placeId: string }
   const [locationResults, setLocationResults] = useState<LocationResult[]>([])
   const [locationLoading, setLocationLoading] = useState(false)
@@ -324,21 +333,19 @@ export default function TrainerFinderPage() {
 
   const handleCreate = async () => {
     // Validate form
-    const errors = []
-    if (!form.title.trim()) errors.push("Title is required")
-    if (!form.startTime) errors.push("Start time is required")
-    if (!form.endTime) errors.push("End time is required")
-    if (!form.locationId) errors.push("Location is required")
-    if (!form.startPrice) errors.push("Start price is required")
-    if (form.priceType === "range" && !form.endPrice) errors.push("End price is required")
+    const errors: typeof formErrors = {}
+    if (!form.title.trim()) errors.title = "Title is required"
+    if (!form.startTime) errors.startTime = "Start time is required"
+    if (!form.endTime) errors.endTime = "End time is required"
+    if (!form.locationId) errors.locationId = "Location is required"
+    if (!form.startPrice) errors.startPrice = "Start price is required"
+    if (form.priceType === "range" && !form.endPrice) errors.endPrice = "End price is required"
     if (form.priceType === "range" && Number(form.startPrice) >= Number(form.endPrice)) {
-      errors.push("End price must be greater than start price")
+      errors.endPrice = "End price must be greater than start price"
     }
 
-    if (errors.length > 0) {
-      toast.error(errors[0])
-      return
-    }
+    setFormErrors(errors)
+    if (Object.keys(errors).length > 0) return
 
     setCreateLoading(true)
     try {
@@ -802,21 +809,33 @@ export default function TrainerFinderPage() {
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                               <Input
-                                className="w-full"
+                                className={cn("w-full", formErrors.title && "border-red-500 focus:ring-red-500")}
                                 value={form.title}
-                                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                                onChange={(e) => {
+                                  setForm((f) => ({ ...f, title: e.target.value }))
+                                  if (formErrors.title) {
+                                    setFormErrors(prev => ({ ...prev, title: undefined }))
+                                  }
+                                }}
                                 placeholder="Enter a descriptive title for your post"
                               />
+                              {formErrors.title && <p className="text-red-500 text-xs mt-1">{formErrors.title}</p>}
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                               <textarea
-                                className="w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-[#4A6FA5] focus:border-transparent"
+                                className={cn("w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-[#4A6FA5] focus:border-transparent", formErrors.description && "border-red-500 focus:ring-red-500")}
                                 rows={4}
                                 value={form.description}
-                                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                                onChange={(e) => {
+                                  setForm((f) => ({ ...f, description: e.target.value }))
+                                  if (formErrors.description) {
+                                    setFormErrors(prev => ({ ...prev, description: undefined }))
+                                  }
+                                }}
                                 placeholder="Describe your needs in detail..."
                               />
+                              {formErrors.description && <p className="text-red-500 text-xs mt-1">{formErrors.description}</p>}
                             </div>
                           </div>
                         </div>
@@ -833,7 +852,7 @@ export default function TrainerFinderPage() {
                                   <label className="block text-xs text-gray-500 mb-1">Start Time</label>
                                   <Input
                                     type="datetime-local"
-                                    className="w-full"
+                                    className={cn("w-full", formErrors.startTime && "border-red-500 focus:ring-red-500")}
                                     value={form.startTime}
                                     min={getDateTimeLocalStringOneHourFromNow()}
                                     onChange={(e) => {
@@ -842,18 +861,28 @@ export default function TrainerFinderPage() {
                                         startTime: e.target.value,
                                         endTime: f.endTime < e.target.value ? e.target.value : f.endTime,
                                       }))
+                                      if (formErrors.startTime) {
+                                        setFormErrors(prev => ({ ...prev, startTime: undefined }))
+                                      }
                                     }}
                                   />
+                                  {formErrors.startTime && <p className="text-red-500 text-xs mt-1">{formErrors.startTime}</p>}
                                 </div>
                                 <div>
                                   <label className="block text-xs text-gray-500 mb-1">End Time</label>
                                   <Input
                                     type="datetime-local"
-                                    className="w-full"
+                                    className={cn("w-full", formErrors.endTime && "border-red-500 focus:ring-red-500")}
                                     value={form.endTime}
                                     min={form.startTime}
-                                    onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                                    onChange={(e) => {
+                                      setForm((f) => ({ ...f, endTime: e.target.value }))
+                                      if (formErrors.endTime) {
+                                        setFormErrors(prev => ({ ...prev, endTime: undefined }))
+                                      }
+                                    }}
                                   />
+                                  {formErrors.endTime && <p className="text-red-500 text-xs mt-1">{formErrors.endTime}</p>}
                                 </div>
                               </div>
                             </div>
@@ -893,30 +922,40 @@ export default function TrainerFinderPage() {
                                     <label className="block text-xs text-gray-500 mb-1">Start Price ($)</label>
                                     <Input
                                       type="number"
-                                      className="w-full"
+                                      className={cn("w-full", formErrors.startPrice && "border-red-500 focus:ring-red-500")}
                                       placeholder="0"
                                       value={form.startPrice}
                                       min={0}
-                                      onChange={(e) =>
+                                      onChange={(e) => {
                                         setForm((f) => ({
                                           ...f,
                                           startPrice: e.target.value,
                                           ...(f.priceType === "single" ? { endPrice: e.target.value } : {}),
                                         }))
-                                      }
+                                        if (formErrors.startPrice) {
+                                          setFormErrors(prev => ({ ...prev, startPrice: undefined }))
+                                        }
+                                      }}
                                     />
+                                    {formErrors.startPrice && <p className="text-red-500 text-xs mt-1">{formErrors.startPrice}</p>}
                                   </div>
                                   {form.priceType === "range" && (
                                     <div>
                                       <label className="block text-xs text-gray-500 mb-1">End Price ($)</label>
                                       <Input
                                         type="number"
-                                        className="w-full"
+                                        className={cn("w-full", formErrors.endPrice && "border-red-500 focus:ring-red-500")}
                                         placeholder="0"
                                         value={form.endPrice}
                                         min={Number(form.startPrice) + 1}
-                                        onChange={(e) => setForm((f) => ({ ...f, endPrice: e.target.value }))}
+                                        onChange={(e) => {
+                                          setForm((f) => ({ ...f, endPrice: e.target.value }))
+                                          if (formErrors.endPrice) {
+                                            setFormErrors(prev => ({ ...prev, endPrice: undefined }))
+                                          }
+                                        }}
                                       />
+                                      {formErrors.endPrice && <p className="text-red-500 text-xs mt-1">{formErrors.endPrice}</p>}
                                     </div>
                                   )}
                                 </div>
@@ -933,11 +972,17 @@ export default function TrainerFinderPage() {
                               <div className="space-y-3">
                                 <div className="relative">
                                   <Input
-                                    className="w-full"
+                                    className={cn("w-full", formErrors.locationId && "border-red-500 focus:ring-red-500")}
                                     placeholder="Search for a location..."
                                     value={form.locationSearch}
-                                    onChange={(e) => setForm((f) => ({ ...f, locationSearch: e.target.value }))}
+                                    onChange={(e) => {
+                                      setForm((f) => ({ ...f, locationSearch: e.target.value }))
+                                      if (formErrors.locationId) {
+                                        setFormErrors(prev => ({ ...prev, locationId: undefined }))
+                                      }
+                                    }}
                                   />
+                                  {formErrors.locationId && <p className="text-red-500 text-xs mt-1">{formErrors.locationId}</p>}
                                   {locationLoading && (
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-xs text-gray-400">
                                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#DE9151]"></div>
