@@ -60,6 +60,15 @@ interface Appointment {
   participantCount: number
   notiCount: number
   price: number
+  confirmationRequest: {
+    id: number
+    img: string
+    content: string
+    status: number
+    createdAt: string
+    modifiedAt: string
+    expiresdAt: string
+  } | null
 }
 
 export function AppointmentsPage() {
@@ -117,8 +126,13 @@ export function AppointmentsPage() {
   const [confirmStatus, setConfirmStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [confirmError, setConfirmError] = useState("")
   const [confirmButtonText, setConfirmButtonText] = useState<React.ReactNode>("Confirm")
+  const [showConfirmationForm, setShowConfirmationForm] = useState(false)
+  const [confirmationMessage, setConfirmationMessage] = useState("")
+  const [confirmationImage, setConfirmationImage] = useState<File | null>(null)
+  const [isSendingConfirmation, setIsSendingConfirmation] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize, deleteAppointment } = useAppointmentStore()
+  const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize, deleteAppointment, sendConfirmationRequest } = useAppointmentStore()
   const { getBalance } = useWalletStore()
 
   useEffect(() => {
@@ -559,6 +573,30 @@ export function AppointmentsPage() {
     setShowConfirmDialog(true)
   }
 
+  const handleSendConfirmation = async () => {
+    if (!selectedAppointment) return
+    setIsSendingConfirmation(true)
+    try {
+      const result = await sendConfirmationRequest(selectedAppointment.id, {
+        content: confirmationMessage || undefined,
+        image: confirmationImage || undefined
+      })
+      if (result.success) {
+        setShowConfirmationForm(false)
+        setConfirmationMessage("")
+        setConfirmationImage(null)
+        if (fileInputRef.current) fileInputRef.current.value = ""
+        // Refresh appointment data
+        const freshAppointment = await fetchAppointmentById(selectedAppointment.id)
+        if (freshAppointment) {
+          setSelectedAppointment(freshAppointment)
+        }
+      }
+    } finally {
+      setIsSendingConfirmation(false)
+    }
+  }
+
   return (
     <div className="relative bg-[#f9fafb] h-[calc(100vh-3.8rem)]">
       <ToastContainer
@@ -925,7 +963,7 @@ export function AppointmentsPage() {
 
             {/* Right Side - Details */}
             <div className={cn(
-              "flex-1 bg-white rounded-lg shadow-xl p-6 overflow-y-auto h-full transition-all duration-500",
+              "flex-1 bg-white rounded-lg shadow-xl p-6 overflow-y-auto h-full transition-all duration-500 relative",
               showSidebars ? "w-[70%]" : "w-[65%]"
             )}>
               {isLoadingDetails ? (
@@ -934,13 +972,48 @@ export function AppointmentsPage() {
                 </div>
               ) : selectedAppointment ? (
                 <>
-                  <div className="flex justify-between items-start mb-6">
+{appointmentStatus === 4 && (
+  <div className="absolute top-0 right-0">
+    <div className="relative w-40 h-40 overflow-hidden">
+      {/* Premium gradient ribbon with subtle animation */}
+      <div className="absolute top-0 right-0 w-56 h-56 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 transform rotate-45 translate-x-28 -translate-y-28 shadow-lg animate-gradient"></div>
+      
+      {/* Text container with better positioning */}
+      <div className="absolute top-[22px] right-[-10px] flex items-center justify-center transform -rotate-45">
+        <div className="flex flex-col items-center">
+          <span className="text-white font-bold text-sm tracking-widest drop-shadow-md">FINISHED</span>
+          <div className="w-12 h-0.5 bg-white/70 mt-1"></div>
+        </div>
+      </div>
+      
+      {/* Subtle shine effect */}
+      <div className="absolute top-0 right-0 w-56 h-56 bg-gradient-to-t from-white/0 to-white/20 transform rotate-45 translate-x-28 -translate-y-28 animate-shine"></div>
+    </div>
+  </div>
+)}
+{/* {appointmentStatus === 4 && (
+  <div className="absolute top-3 right-3 group">
+    <div className="bg-white text-gray-800 px-4 py-2 rounded-lg shadow-lg border border-purple-200 flex items-center gap-2 transform transition-all hover:scale-105">
+      <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      </svg>
+      <span className="font-semibold text-sm tracking-wide text-purple-600">FINISHED</span>
+    </div>
+    <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full animate-ping"></div>
+  </div>
+)} */}
+              <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center w-full justify-between gap-2">
                       <div className="flex items-center gap-4">
                         <h2 className="text-2xl font-bold">{selectedAppointment.name}</h2>
                         {getRepeatingTypeLabel(selectedAppointment.repeatingType) && (
                           <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                             {getRepeatingTypeLabel(selectedAppointment.repeatingType)}
+                          </span>
+                        )}
+                        {appointmentStatus === 4 && (
+                          <span className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                            Finished
                           </span>
                         )}
                         <div className="flex items-center gap-1.5 text-[#de9151] font-medium">
@@ -1031,17 +1104,108 @@ export function AppointmentsPage() {
                     </div>
                   </div>
 
+                  
                   <div className="space-y-6">
                     <div className="flex gap-8 text-xs text-gray-500">
                       <div>Created: {formatLocalTime(selectedAppointment.created)}</div>
                       <div>Last modified: {formatLocalTime(selectedAppointment.modified)}</div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Description</h3>
-                      <p className="text-gray-600">{selectedAppointment.description}</p>
-                    </div>
+                  
 
-                    <div>
+              {/* Ultra Premium Progress Bar */}
+              {appointmentStatus === 2 && (() => {
+                const start = new Date(selectedAppointment.startTime).getTime();
+                const end = new Date(selectedAppointment.endTime).getTime();
+                const now = Date.now();
+                const progress = Math.max(0, Math.min(1, (now - start) / (end - start)));
+                const startDate = formatLocalDate(selectedAppointment.startTime);
+                const endDate = formatLocalDate(selectedAppointment.endTime);
+                return (
+                  <div className="w-full mb-6">
+                    <div className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-xl border border-white/40 rounded-2xl p-5 shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative overflow-hidden">
+                      {/* Subtle background pattern */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-purple-50/30 rounded-2xl"></div>
+                      
+                      <div className="relative z-10">
+                        {/* Status header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
+                              <div className="absolute inset-0 w-3 h-3 bg-blue-400 rounded-full animate-ping opacity-75"></div>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-800">Session in Progress</span>
+                          </div>
+                          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+                            {Math.round(progress * 100)}%
+                          </div>
+                        </div>
+                        
+                        {/* Time display */}
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div className="text-center">
+                            <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Started</div>
+                            <div className="text-xs font-semibold text-gray-700 bg-gray-50 px-2 py-1 rounded-lg">
+                              {startDate === endDate 
+                                ? formatLocalTimeOnly(selectedAppointment.startTime)
+                                : formatLocalTime(selectedAppointment.startTime)
+                              }
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Ends</div>
+                            <div className="text-xs font-semibold text-gray-700 bg-gray-50 px-2 py-1 rounded-lg">
+                              {startDate === endDate
+                                ? formatLocalTimeOnly(selectedAppointment.endTime)
+                                : formatLocalTime(selectedAppointment.endTime)
+                              }
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Advanced progress bar */}
+                        <div className="relative mb-3">
+                          <div className="w-full h-4 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 rounded-full shadow-inner border border-gray-200/50">
+                            <div
+                              className="h-4 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 rounded-full transition-all duration-1000 ease-out relative overflow-hidden shadow-lg"
+                              style={{ width: `${progress * 100}%` }}
+                            >
+                              {/* Animated gradient overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse"></div>
+                              {/* Moving shine effect */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent w-1/3 animate-shine-move"></div>
+                            </div>
+                            
+                            {/* Enhanced progress indicator */}
+                            <div
+                              className="absolute top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-1000 ease-out"
+                              style={{ left: `calc(${progress * 100}% - 10px)` }}
+                            >
+                              <div className="w-5 h-5 bg-white border-3 border-blue-500 rounded-full shadow-lg flex items-center justify-center">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Time remaining with icon */}
+                        <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-medium">
+                            {progress < 1 
+                              ? `${Math.ceil((end - now) / (1000 * 60))} min remaining`
+                              : 'Session completed'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+  <div>
                       <h3 className="text-lg font-semibold mb-2">Participants</h3>
                       <div className="space-y-4">
                         {[
@@ -1086,6 +1250,13 @@ export function AppointmentsPage() {
                       </div>
                     </div>
 
+                    {selectedAppointment.description && selectedAppointment.description.trim() !== '' && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">Description</h3>
+                        <p className="text-gray-600">{selectedAppointment.description}</p>
+                      </div>
+                    )}
+
                     <div>
                       <h3 className="text-lg font-semibold mb-2">Location</h3>
                       <div className="flex items-center text-gray-600 mb-2">
@@ -1123,6 +1294,90 @@ export function AppointmentsPage() {
                         </div>
                       </div>
                     </div>
+
+                    {selectedAppointment.confirmationRequest && (
+                      <div className="border-t border-gray-200 pt-6">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <History className="h-5 w-5 text-[#de9151]" />
+                          Confirmation Request
+                        </h3>
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">Status:</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              selectedAppointment.confirmationRequest.status === 0 
+                                ? "bg-yellow-100 text-yellow-800"
+                                : selectedAppointment.confirmationRequest.status === 1
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}>
+                              {selectedAppointment.confirmationRequest.status === 0 
+                                ? "Pending"
+                                : selectedAppointment.confirmationRequest.status === 1
+                                ? "Approved"
+                                : "Rejected"}
+                            </span>
+                          </div>
+                          {selectedAppointment.confirmationRequest.img && (
+                            <div>
+                              <p className="text-sm text-gray-500 mb-2">Confirmation Image:</p>
+                              <img 
+                                src={selectedAppointment.confirmationRequest.img} 
+                                alt="Confirmation" 
+                                className="max-w-full h-auto rounded-lg border shadow-sm"
+                              />
+                            </div>
+                          )}
+                          {selectedAppointment.confirmationRequest.content && (
+                            <div>
+                              <p className="text-sm text-gray-500 mb-2">Content:</p>
+                              <p className="text-gray-600 bg-white p-3 rounded-lg border">{selectedAppointment.confirmationRequest.content}</p>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-500">Created:</p>
+                              <p className="text-gray-600">{formatLocalTime(selectedAppointment.confirmationRequest.createdAt)}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Expires:</p>
+                              <p className="text-gray-600">{formatLocalTime(selectedAppointment.confirmationRequest.expiresdAt)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {appointmentStatus === 4 && 
+                     JSON.parse(localStorage.getItem("basicInfo") || "{}").role === 2 && 
+                     JSON.parse(localStorage.getItem("basicInfo") || "{}").id === selectedAppointment.booker.id && 
+                     !selectedAppointment.confirmationRequest && (
+                      <div className="border-t border-gray-200 pt-6">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <History className="h-5 w-5 text-[#de9151]" />
+                          Confirmation Request
+                        </h3>
+                        <div className="text-center py-6">
+                          <div className="mb-4">
+                            <div className="w-16 h-16 bg-[#de9151]/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                              <History className="h-8 w-8 text-[#de9151]" />
+                            </div>
+                            <h4 className="text-lg font-medium text-gray-900 mb-2">Appointment Completed</h4>
+                            <p className="text-gray-600 max-w-md mx-auto">
+                              This appointment has been marked as finished. As the coach, you can now send a confirmation request to verify the completion.
+                            </p>
+                          </div>
+                          <Button 
+                            className="bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 text-white px-6 py-2 rounded-lg shadow-sm transition-all duration-300"
+                            onClick={() => {
+                              setShowConfirmationForm(true)
+                            }}
+                          >
+                            Send Confirmation Request
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
@@ -1447,6 +1702,132 @@ export function AppointmentsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Request Form Modal */}
+      {showConfirmationForm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 w-[500px] max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                  <History className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Send Confirmation Request</h2>
+                  <p className="text-sm text-gray-500">Verify the completion of this appointment</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowConfirmationForm(false)}
+                className="h-8 w-8 hover:bg-gray-100"
+                disabled={isSendingConfirmation}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="relative">
+                <Label className="mb-2 block text-sm font-medium text-gray-700">Message (Optional)</Label>
+                <Textarea 
+                  placeholder="Add a message to your confirmation request..." 
+                  value={confirmationMessage}
+                  onChange={(e) => setConfirmationMessage(e.target.value)}
+                  disabled={isSendingConfirmation}
+                  className="min-h-[120px] resize-none border-gray-200 focus:border-purple-500 focus:ring-purple-500/20"
+                />
+                <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+                  {confirmationMessage.length}/500
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium text-gray-700">Image (Optional)</Label>
+                <div className="relative">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) setConfirmationImage(file)
+                    }}
+                    disabled={isSendingConfirmation}
+                    className="hidden"
+                    id="confirmation-image"
+                  />
+                  <label
+                    htmlFor="confirmation-image"
+                    className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors
+                      ${confirmationImage 
+                        ? 'border-purple-200 bg-purple-50' 
+                        : 'border-gray-200 hover:border-purple-200 hover:bg-gray-50'
+                      }`}
+                  >
+                    {confirmationImage ? (
+                      <div className="relative w-full h-full">
+                        <img
+                          src={URL.createObjectURL(confirmationImage)}
+                          alt="Preview"
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setConfirmationImage(null)
+                            if (fileInputRef.current) fileInputRef.current.value = ""
+                          }}
+                          className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
+                        >
+                          <X className="h-4 w-4 text-gray-500" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <svg className="w-8 h-8 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-medium">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500">PNG, JPG or GIF (max. 2MB)</p>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowConfirmationForm(false)}
+                  disabled={isSendingConfirmation}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 text-white px-6 py-2 rounded-lg shadow-sm transition-all duration-300 text-sm font-medium"
+                  onClick={handleSendConfirmation}
+                  disabled={isSendingConfirmation}
+                >
+                  {isSendingConfirmation ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Sending...
+                    </div>
+                  ) : (
+                    "Send Request"
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

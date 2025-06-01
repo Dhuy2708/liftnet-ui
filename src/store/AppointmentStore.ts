@@ -60,6 +60,7 @@ interface AppointmentStore {
   setPageNumber: (page: number) => void;
   setPageSize: (size: number) => void;
   deleteAppointment: (id: string) => Promise<{ success: boolean; message: string }>;
+  sendConfirmationRequest: (appointmentId: string, data: { content?: string; image?: File }) => Promise<{ success: boolean; message: string }>;
 }
 
 export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
@@ -202,6 +203,37 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
       return { 
         success: false, 
         message: error instanceof Error ? error.message : "Failed to delete appointment" 
+      };
+    }
+  },
+
+  sendConfirmationRequest: async (appointmentId: string, data: { content?: string; image?: File }) => {
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("AppointmentId", appointmentId);
+      if (data.content) formData.append("Content", data.content);
+      if (data.image) formData.append("Image", data.image);
+
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Appointment/RequestConfirmation`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        }
+      );
+
+      if (response.data.success) {
+        return { success: true, message: "Confirmation request sent successfully" };
+      }
+      return { success: false, message: response.data.message || "Failed to send confirmation request" };
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : "Failed to send confirmation request" 
       };
     }
   }
