@@ -59,6 +59,7 @@ interface AppointmentStore {
   fetchAppointmentById: (id: string) => Promise<Appointment | null>;
   setPageNumber: (page: number) => void;
   setPageSize: (size: number) => void;
+  deleteAppointment: (id: string) => Promise<{ success: boolean; message: string }>;
 }
 
 export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
@@ -121,7 +122,7 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
           name: sortBy,
           type: sortOrder === "asc" ? 1 : 2
         };
-      }
+        }
 
       const response = await axios.post<AppointmentResponse>(
         `${import.meta.env.VITE_API_URL}/api/Appointment/list`,
@@ -174,6 +175,34 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
     } catch (error) {
       console.error("Error fetching appointment:", error);
       return null;
+    }
+  },
+
+  deleteAppointment: async (id: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.delete(
+        `${import.meta.env.VITE_API_URL}/api/Appointment/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      if (response.data.success) {
+        set(state => ({
+          appointments: state.appointments.filter(app => app.id !== id)
+        }));
+        return { success: true, message: "Appointment deleted successfully" };
+      }
+      return { success: false, message: response.data.message || "Failed to delete appointment" };
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : "Failed to delete appointment" 
+      };
     }
   }
 })); 

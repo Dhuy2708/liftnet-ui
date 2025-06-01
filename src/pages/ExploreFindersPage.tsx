@@ -18,6 +18,7 @@ import {
   Filter,
   ArrowUpDown,
   X,
+  Coins,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -114,6 +115,7 @@ export default function TrainerExplorerPage() {
   const [isBooking, setIsBooking] = useState(false)
   const [bookingMessage, setBookingMessage] = useState<{text: string, success: boolean} | null>(null)
   const [appointmentName, setAppointmentName] = useState("")
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false)
 
   const { posts, isLoading, hasMore, fetchExplorePosts, fetchAppliedPosts, pageNumber, applyToPost } = useFinderStore()
   const navigate = useNavigate()
@@ -303,17 +305,17 @@ export default function TrainerExplorerPage() {
     try {
       await applyToPost(selectedPost.id, applicationMessage)
       // Update selected post's applyingStatus
-      setSelectedPost(prev => prev ? { ...prev, applyingStatus: 1 } : null)
+        setSelectedPost(prev => prev ? { ...prev, applyingStatus: 1 } : null)
       // Update the post in filteredPosts
-      setFilteredPosts(prev => 
-        prev.map(post => 
-          post.id === selectedPost.id 
-            ? { ...post, applyingStatus: 1 }
-            : post
+        setFilteredPosts(prev => 
+          prev.map(post => 
+            post.id === selectedPost.id 
+              ? { ...post, applyingStatus: 1 }
+              : post
+          )
         )
-      )
       setShowApplyForm(false)
-      toast.success("Application submitted successfully!")
+        toast.success("Application submitted successfully!")
     } catch {
       toast.error("Failed to submit application")
     } finally {
@@ -374,11 +376,7 @@ export default function TrainerExplorerPage() {
           "Content-Type": "application/json"
         }
       })
-      setBookingMessage({text: "Appointment created successfully", success: true})
-      setTimeout(() => {
-        setShowBookingForm(false)
-        navigate('/appointments')
-      }, 1200)
+      setShowSuccessDialog(true)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
       setBookingMessage({text: error?.response?.data?.message || 'Error', success: false})
@@ -748,12 +746,11 @@ export default function TrainerExplorerPage() {
                                           </div>
 
                                           <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center">
-                                              <DollarSign className="h-4 w-4 text-emerald-600" />
+                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#de9151]/10 to-[#de9151]/20 flex items-center justify-center">
+                                              <Coins className="h-4 w-4 text-[#de9151]" />
                                             </div>
                                             <div>
                                               <p className="text-xs font-semibold text-black">
-                                                $
                                                 {post.startPrice === post.endPrice
                                                   ? post.startPrice
                                                   : `${post.startPrice}-${post.endPrice}`}
@@ -948,6 +945,14 @@ export default function TrainerExplorerPage() {
                                                     <Clock className="h-4 w-4" />
                                                     <span>{formatTime(post.startTime)}</span>
                                                   </div>
+                                                  <div className="flex items-center gap-1.5 bg-[#de9151]/10 px-2 py-1 rounded-lg">
+                                                    <Coins className="h-4 w-4 text-[#de9151]" />
+                                                    <span className="text-[#de9151] font-semibold text-base">
+                                                      {post.startPrice === post.endPrice
+                                                        ? post.startPrice
+                                                        : `${post.startPrice}-${post.endPrice}`}
+                                                    </span>
+                                                  </div>
                                                 </div>
                                               </CardContent>
                                             </Card>
@@ -976,8 +981,8 @@ export default function TrainerExplorerPage() {
                                                 )}
                                               >
                                                 {i + 1}
-                                              </Button>
-                                            ))}
+                                            </Button>
+                                          ))}
                                 </div>
                                           <Button
                                             variant="outline"
@@ -998,25 +1003,25 @@ export default function TrainerExplorerPage() {
                                     <div className="text-center py-12 bg-slate-50/50 rounded-xl">
                                       <CheckCircle className="h-10 w-10 text-slate-300 mx-auto mb-3" />
                                       <p className="text-slate-500">No accepted applications</p>
-                                    </div>
-                                  ) : (
+                              </div>
+                            ) : (
                                     <>
                                       <div className="grid gap-4 p-4 pb-8" style={{
-                                        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'
-                                      }}>
+                                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'
+                                }}>
                                         {filteredPosts
                                           .filter(post => post.applyingStatus === 4)
                                           .slice((currentPage - 1) * pageSize, currentPage * pageSize)
                                           .map((post) => (
-                                            <Card
-                                              key={post.id}
-                                              className={cn(
+                                    <Card
+                                      key={post.id}
+                                      className={cn(
                                                 "cursor-pointer transition-all duration-200 hover:shadow-md",
                                                 selectedPost?.id === post.id && "ring-2 ring-[#de9151]"
-                                              )}
-                                              onClick={() => handlePostSelect(post)}
-                                            >
-                                              <CardContent className="p-4">
+                                      )}
+                                      onClick={() => handlePostSelect(post)}
+                                    >
+                                      <CardContent className="p-4">
                                                 <div className="flex items-start justify-between mb-3">
                                                   <div className="flex items-center gap-3">
                                                     <Avatar className="h-10 w-10">
@@ -1024,30 +1029,38 @@ export default function TrainerExplorerPage() {
                                                       <AvatarFallback>
                                                         {post.poster?.firstName?.[0]}
                                                         {post.poster?.lastName?.[0]}
-                                                      </AvatarFallback>
-                                                    </Avatar>
+                                                  </AvatarFallback>
+                                                </Avatar>
                                                     <div>
                                                       <h3 className="font-medium text-black">
                                                         {post.poster?.firstName} {post.poster?.lastName}
                                                       </h3>
                                                       <p className="text-sm text-slate-600">@{post.poster?.username}</p>
-                                                    </div>
-                                                  </div>
-                                                  <div className="flex flex-col gap-1 items-end">
-                                                    {getStatusBadge(post.status)}
-                                                    {getApplyingStatusBadge(post.applyingStatus)}
-                                                  </div>
-                                                </div>
+                                              </div>
+                                          </div>
+                                          <div className="flex flex-col gap-1 items-end">
+                                            {getStatusBadge(post.status)}
+                                            {getApplyingStatusBadge(post.applyingStatus)}
+                                          </div>
+                                        </div>
                                                 <h4 className="font-semibold text-black mb-2">{post.title}</h4>
                                                 <p className="text-sm text-slate-600 line-clamp-2 mb-3">{post.description}</p>
                                                 <div className="flex items-center gap-4 text-sm text-slate-500">
                                                   <div className="flex items-center gap-1">
                                                     <Calendar className="h-4 w-4" />
                                                     <span>{formatDate(post.startTime)}</span>
-                                                  </div>
+                                            </div>
                                                   <div className="flex items-center gap-1">
                                                     <Clock className="h-4 w-4" />
                                                     <span>{formatTime(post.startTime)}</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1.5 bg-[#de9151]/10 px-2 py-1 rounded-lg">
+                                                    <Coins className="h-4 w-4 text-[#de9151]" />
+                                                    <span className="text-[#de9151] font-semibold text-base">
+                                                      {post.startPrice === post.endPrice
+                                                        ? post.startPrice
+                                                        : `${post.startPrice}-${post.endPrice}`}
+                                                    </span>
                                                   </div>
                                                 </div>
                                               </CardContent>
@@ -1077,8 +1090,8 @@ export default function TrainerExplorerPage() {
                                                 )}
                                               >
                                                 {i + 1}
-                                              </Button>
-                                            ))}
+                                            </Button>
+                                          ))}
                                           </div>
                                           <Button
                                             variant="outline"
@@ -1149,11 +1162,19 @@ export default function TrainerExplorerPage() {
                                                   <div className="flex items-center gap-1">
                                                     <Clock className="h-4 w-4" />
                                                     <span>{formatTime(post.startTime)}</span>
-                                          </div>
-                                        </div>
-                                      </CardContent>
-                                    </Card>
-                                  ))}
+                                                  </div>
+                                                  <div className="flex items-center gap-1.5 bg-[#de9151]/10 px-2 py-1 rounded-lg">
+                                                    <Coins className="h-4 w-4 text-[#de9151]" />
+                                                    <span className="text-[#de9151] font-semibold text-base">
+                                                      {post.startPrice === post.endPrice
+                                                        ? post.startPrice
+                                                        : `${post.startPrice}-${post.endPrice}`}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              </CardContent>
+                                            </Card>
+                                          ))}
                                 </div>
                                       {Math.ceil(filteredPosts.filter(post => (post.applyingStatus === 2 || post.applyingStatus === 3) || post.status === 2).length / pageSize) > 1 && (
                                         <div className="flex justify-center gap-2 mt-4">
@@ -1236,7 +1257,20 @@ export default function TrainerExplorerPage() {
                                       {getApplyingStatusBadge(selectedPost.applyingStatus)}
                                     </div>
                                   </div>
-                                  <p className="text-sm text-slate-600">Posted on {formatDate(selectedPost.createdAt)}</p>
+                                  <div className="flex items-center gap-4 text-sm text-slate-600">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-4 w-4" />
+                                      <span>Posted on {formatDate(selectedPost.createdAt)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 bg-[#de9151]/10 px-2 py-1 rounded-lg">
+                                      <Coins className="h-4 w-4 text-[#de9151]" />
+                                      <span className="text-[#de9151] font-semibold text-base">
+                                        {selectedPost.startPrice === selectedPost.endPrice
+                                          ? selectedPost.startPrice
+                                          : `${selectedPost.startPrice}-${selectedPost.endPrice}`}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
 
                                 {/* Poster Info */}
@@ -1267,10 +1301,10 @@ export default function TrainerExplorerPage() {
                                           </div>
                                         </div>
                                         <div className="flex gap-2">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-slate-500 hover:bg-white/50 rounded-lg"
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-slate-500 hover:bg-white/50 rounded-lg"
                                             onClick={() => handleMessage(selectedPost.poster?.id || "")}
                                           >
                                             <Send className="h-4 w-4" />
@@ -1280,9 +1314,9 @@ export default function TrainerExplorerPage() {
                                             size="sm"
                                             className="text-slate-500 hover:bg-white/50 rounded-lg"
                                             onClick={() => handleViewProfile(selectedPost.poster?.id || "")}
-                                          >
-                                            <Eye className="h-4 w-4" />
-                                          </Button>
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                        </Button>
                                         </div>
                                       </div>
                                     </CardContent>
@@ -1290,12 +1324,14 @@ export default function TrainerExplorerPage() {
                                 )}
 
                                 {/* Description */}
-                                <div className="space-y-3">
-                                  <h4 className="font-bold text-black text-base">Description</h4>
-                                  <div className="bg-gradient-to-r from-slate-50/80 to-slate-100/50 p-4 rounded-xl border border-slate-200">
-                                    <p className="text-sm text-slate-700 leading-relaxed">{selectedPost.description}</p>
+                                {selectedPost.description && selectedPost.description.trim() !== "" && (
+                                  <div className="space-y-3">
+                                    <h4 className="font-bold text-black text-base">Description</h4>
+                                    <div className="bg-gradient-to-r from-slate-50/80 to-slate-100/50 p-4 rounded-xl border border-slate-200">
+                                      <p className="text-sm text-slate-700 leading-relaxed">{selectedPost.description}</p>
+                                    </div>
                                   </div>
-                                </div>
+                                )}
 
                                 {/* Application Details */}
                                 <div className="space-y-4">
@@ -1311,7 +1347,7 @@ export default function TrainerExplorerPage() {
                                             <p className="text-sm text-slate-600">Your application has been accepted. You can now create an appointment with the trainer.</p>
                                           </div>
                                         </div>
-                                        <Button 
+                                        <Button
                                           className="w-full bg-[#de9151] hover:bg-[#de9151]/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl h-11 font-semibold text-sm"
                                           onClick={() => setShowBookingForm(true)}
                                         >
@@ -1322,36 +1358,36 @@ export default function TrainerExplorerPage() {
                                   ) : selectedPost.applyingStatus === 0 ? (
                                     <Card className="border-slate-200 bg-gradient-to-r from-slate-50/80 to-slate-100/50 overflow-hidden">
                                       <CardContent className="p-4">
-                                        <div className="space-y-4">
-                                          <div className="space-y-2">
-                                            <label className="block text-sm font-bold text-black">
-                                              Message to the trainer (optional)
-                                            </label>
-                                            <textarea
-                                              className="w-full h-32 border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 focus:ring-2 focus:ring-[#de9151]/20 focus:border-[#de9151] resize-none transition-all duration-200 text-sm"
-                                              value={applicationMessage}
-                                              onChange={(e) => setApplicationMessage(e.target.value)}
-                                              placeholder="Introduce yourself and explain why you're perfect for this opportunity..."
-                                            />
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <label className="block text-sm font-bold text-black">
+                                          Message to the trainer (optional)
+                                        </label>
+                                        <textarea
+                                          className="w-full h-32 border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 focus:ring-2 focus:ring-[#de9151]/20 focus:border-[#de9151] resize-none transition-all duration-200 text-sm"
+                                          value={applicationMessage}
+                                          onChange={(e) => setApplicationMessage(e.target.value)}
+                                          placeholder="Introduce yourself and explain why you're perfect for this opportunity..."
+                                        />
+                                      </div>
+                                      <Button
+                                        className="w-full bg-gradient-to-r from-[#de9151] to-[#de9151]/90 hover:from-[#de9151]/90 hover:to-[#de9151]/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl h-11 font-semibold text-sm"
+                                        onClick={handleApply}
+                                        disabled={isApplying}
+                                      >
+                                        {isApplying ? (
+                                          <div className="flex items-center gap-2">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                                            Submitting Application...
                                           </div>
-                                          <Button
-                                            className="w-full bg-gradient-to-r from-[#de9151] to-[#de9151]/90 hover:from-[#de9151]/90 hover:to-[#de9151]/80 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl h-11 font-semibold text-sm"
-                                            onClick={handleApply}
-                                            disabled={isApplying}
-                                          >
-                                            {isApplying ? (
-                                              <div className="flex items-center gap-2">
-                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                                                Submitting Application...
-                                              </div>
-                                            ) : (
-                                              <div className="flex items-center gap-2">
-                                                <Send className="h-4 w-4" />
-                                                Apply Now
-                                              </div>
-                                            )}
-                                          </Button>
-                                        </div>
+                                        ) : (
+                                          <div className="flex items-center gap-2">
+                                            <Send className="h-4 w-4" />
+                                            Apply Now
+                                          </div>
+                                        )}
+                                      </Button>
+                                    </div>
                                       </CardContent>
                                     </Card>
                                   ) : selectedPost.applyingStatus === 1 ? (
@@ -1433,108 +1469,197 @@ export default function TrainerExplorerPage() {
       </div>
 
       {showBookingForm && selectedPost && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[60vh] max-h-[98vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+          style={{
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 w-[60vh] max-h-[98vh] overflow-y-auto shadow-2xl border border-slate-100"
+            style={{
+              animation: 'popIn 0.2s ease-out'
+            }}
+          >
+            <style>
+              {`
+                @keyframes fadeIn {
+                  from { opacity: 0; }
+                  to { opacity: 1; }
+                }
+                @keyframes popIn {
+                  from { 
+                    opacity: 0;
+                    transform: scale(0.95);
+                  }
+                  to { 
+                    opacity: 1;
+                    transform: scale(1);
+                  }
+                }
+              `}
+            </style>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Create Appointment</h2>
+              <div>
+                <h2 className="text-xl font-bold bg-gradient-to-r from-black to-[#de9151] bg-clip-text text-transparent">Create Appointment</h2>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowBookingForm(false)}
-                className="h-8 w-8"
+                className="h-8 w-8 hover:bg-slate-100 rounded-xl transition-all duration-200 hover:scale-110"
                 disabled={isBooking}
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
+
             <div className="space-y-4">
               {bookingMessage && bookingMessage.text && (
-                <div className={`text-center text-sm font-medium mb-2 ${bookingMessage.success ? 'text-green-600' : 'text-red-600'}`}>
+                <div 
+                  className={`p-2 rounded-lg text-sm font-medium ${bookingMessage.success ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}
+                >
                   {bookingMessage.text}
                 </div>
               )}
-              <div>
-                <Label className="mb-2 block">Appointment Name</Label>
-                <Input 
-                  value={appointmentName || `Appointment with ${selectedPost?.poster?.firstName || ''} ${selectedPost?.poster?.lastName || ''}`}
-                  onChange={(e) => setAppointmentName(e.target.value)}
-                  disabled={isBooking}
+
+              <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-slate-50/80 to-slate-100/50 rounded-xl border border-slate-200">
+                <img
+                  src={selectedPost?.poster?.avatar}
+                  alt={`${selectedPost?.poster?.firstName || ''} ${selectedPost?.poster?.lastName || ''}`}
+                  className="w-10 h-10 rounded-lg ring-2 ring-white shadow-sm"
                 />
-              </div>
-              <div>
-                <Label className="mb-2 block">Description</Label>
-                <Textarea placeholder="Enter appointment description" disabled={isBooking} />
-              </div>
-              <div>
-                <Label className="mb-2 block">Price ($)</Label>
-                <Input 
-                  value={selectedPost?.startPrice || 0}
-                  disabled={true}
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Participant</Label>
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                  <img
-                    src={selectedPost?.poster?.avatar}
-                    alt={`${selectedPost?.poster?.firstName || ''} ${selectedPost?.poster?.lastName || ''}`}
-                    className="w-10 h-10 rounded-full"
-                  />
-                  <div>
-                    <p className="font-medium">{selectedPost?.poster?.firstName || ''} {selectedPost?.poster?.lastName || ''}</p>
-                    <p className="text-sm text-slate-500">@{selectedPost?.poster?.username || ''}</p>
+                <div className="flex-1">
+                  <p className="font-semibold text-black">{selectedPost?.poster?.firstName || ''} {selectedPost?.poster?.lastName || ''}</p>
+                  <p className="text-sm text-slate-500">@{selectedPost?.poster?.username || ''}</p>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <span className="text-sm font-medium text-[#de9151]">{selectedPost?.startPrice || 0}</span>
+                    <Coins className="h-4 w-4 text-[#de9151]" />
                   </div>
+                  <p className="text-xs text-slate-500">per session</p>
                 </div>
               </div>
-              <div>
-                <Label className="mb-2 block">Location</Label>
-                {selectedPost?.placeName && (
-                  <div className="rounded-lg overflow-hidden border w-full h-[180px]">
-                    <iframe
-                      title="Map overview"
-                      width="100%"
-                      height="180"
-                      style={{ border: 0 }}
-                      src={`https://maps.google.com/maps?q=${selectedPost?.lat},${selectedPost?.lng}&z=15&output=embed`}
-                      allowFullScreen
-                    ></iframe>
-                  </div>
-                )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-medium text-slate-700 mb-1 block">Appointment Name</Label>
+                  <Input 
+                    value={appointmentName || `Appointment with ${selectedPost?.poster?.firstName || ''} ${selectedPost?.poster?.lastName || ''}`}
+                    onChange={(e) => setAppointmentName(e.target.value)}
+                    disabled={isBooking}
+                    className="h-9 bg-slate-50/50 border-slate-200 rounded-lg focus:ring-2 focus:ring-[#de9151]/20 focus:border-[#de9151] transition-all duration-200"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-slate-700 mb-1 block">Repeating Type</Label>
+                  <Input 
+                    value="Once"
+                    disabled={true}
+                    className="h-9 bg-slate-50/50 border-slate-200 rounded-lg"
+                  />
+                </div>
               </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <Label className="mb-2 block">Start Time</Label>
+
+              <div>
+                <Label className="text-xs font-medium text-slate-700 mb-1 block">Description</Label>
+                <Textarea 
+                  placeholder="Enter appointment description" 
+                  disabled={isBooking}
+                  className="min-h-[80px] bg-slate-50/50 border-slate-200 rounded-lg focus:ring-2 focus:ring-[#de9151]/20 focus:border-[#de9151] transition-all duration-200 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-medium text-slate-700 mb-1 block">Start Time</Label>
                   <Input 
                     value={formatLocalTime(selectedPost?.startTime || '')}
                     disabled={true}
+                    className="h-9 bg-slate-50/50 border-slate-200 rounded-lg"
                   />
                 </div>
-                <div className="flex-1">
-                  <Label className="mb-2 block">End Time</Label>
+                <div>
+                  <Label className="text-xs font-medium text-slate-700 mb-1 block">End Time</Label>
                   <Input 
                     value={formatLocalTime(selectedPost?.endTime || '')}
                     disabled={true}
+                    className="h-9 bg-slate-50/50 border-slate-200 rounded-lg"
                   />
                 </div>
               </div>
-              <div>
-                <Label className="mb-2 block">Repeating Type</Label>
-                <Input 
-                  value="Once"
-                  disabled={true}
-                />
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
+
+              {selectedPost?.placeName && (
+                <div className="rounded-lg overflow-hidden border border-slate-200 shadow-sm">
+                  <iframe
+                    title="Map overview"
+                    width="100%"
+                    height="140"
+                    style={{ border: 0 }}
+                    src={`https://maps.google.com/maps?q=${selectedPost?.lat},${selectedPost?.lng}&z=15&output=embed`}
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => setShowBookingForm(false)}
                   disabled={isBooking}
+                  className="h-9 px-4 rounded-lg border-slate-200 hover:bg-slate-50 transition-all duration-200 hover:scale-105"
                 >
                   Cancel
                 </Button>
-                <Button className="bg-[#de9151] hover:bg-[#de9151]/90 flex items-center justify-center min-w-[120px]" onClick={handleCreateAppointment} disabled={isBooking}>
-                  {isBooking && <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>}
-                  Create Appointment
+                <Button 
+                  className="bg-gradient-to-r from-[#de9151] to-[#de9151]/90 hover:from-[#de9151]/90 hover:to-[#de9151]/80 text-white h-9 px-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105" 
+                  onClick={handleCreateAppointment} 
+                  disabled={isBooking}
+                >
+                  {isBooking ? (
+                    <div className="flex items-center gap-2">
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+                      Creating...
+                    </div>
+                  ) : (
+                    'Create Appointment'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Dialog */}
+      {showSuccessDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="text-center py-4">
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 6L9 17L4 12" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Appointment Created Successfully!</h3>
+              <p className="text-gray-600 mb-6">Would you like to go to the appointments page?</p>
+              <div className="flex justify-center gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowSuccessDialog(false)}
+                  className="hover:bg-gray-50"
+                >
+                  Stay Here
+                </Button>
+                <Button 
+                  className="bg-[#de9151] hover:bg-[#de9151]/90 text-white" 
+                  onClick={() => {
+                    setShowSuccessDialog(false)
+                    navigate('/appointments')
+                  }}
+                >
+                  Go to Appointments
                 </Button>
               </div>
             </div>

@@ -74,8 +74,18 @@ export function AppointmentsPage() {
   const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
   const navigate = useNavigate()
   const { appointmentId } = useParams<{ appointmentId?: string }>()
-  const [bookingStart, setBookingStart] = useState("")
-  const [bookingEnd, setBookingEnd] = useState("")
+  const [bookingStart, setBookingStart] = useState(() => {
+    const now = new Date()
+    now.setHours(now.getHours() + 1)
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return formatInTimeZone(now, timeZone, "yyyy-MM-dd'T'HH:mm")
+  })
+  const [bookingEnd, setBookingEnd] = useState(() => {
+    const now = new Date()
+    now.setHours(now.getHours() + 2)
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return formatInTimeZone(now, timeZone, "yyyy-MM-dd'T'HH:mm")
+  })
   const [selectedParticipants, setSelectedParticipants] = useState<any[]>([])
   const [participantSearch, setParticipantSearch] = useState("")
   const [participantResults, setParticipantResults] = useState<any[]>([])
@@ -100,8 +110,15 @@ export function AppointmentsPage() {
   })
   const [appointmentStatus, setAppointmentStatus] = useState<number>(1) // 1: upcoming, 2: in progress, 3: expired
   const [viewedNotifications, setViewedNotifications] = useState<Set<string>>(new Set())
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {})
+  const [confirmMessage, setConfirmMessage] = useState("")
+  const [isConfirmLoading, setIsConfirmLoading] = useState(false)
+  const [confirmStatus, setConfirmStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [confirmError, setConfirmError] = useState("")
+  const [confirmButtonText, setConfirmButtonText] = useState<React.ReactNode>("Confirm")
 
-  const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize } = useAppointmentStore()
+  const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize, deleteAppointment } = useAppointmentStore()
   const { getBalance } = useWalletStore()
 
   useEffect(() => {
@@ -224,7 +241,7 @@ export function AppointmentsPage() {
       case 3:
         return "Rejected"
       case 4:
-        return "Canceled"
+        return "Finished"
       default:
         return "Unknown"
     }
@@ -432,35 +449,114 @@ export function AppointmentsPage() {
   const handleStatusChange = async (newStatus: number) => {
     if (!selectedAppointment) return
 
-    try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/Appointment/actionRequest`,
-        {
-          appointmentId: selectedAppointment.id,
-          action: newStatus === 2 ? 1 : newStatus === 3 ? 2 : 3
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-            "Content-Type": "application/json"
-          }
-        }
-      )
-
-      if (response.data.success) {
-        toast.success(response.data.message || 'Action successful', { position: 'top-right' })
-        if (selectedAppointment) {
-          setSelectedAppointment({...selectedAppointment, status: newStatus})
-          // Update wallet balance for all status changes
-          getBalance()
-        }
-        fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
-      } else {
-        toast.error(response.data.message || 'Action failed', { position: 'top-right' })
-      }
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Action failed', { position: 'top-right' })
+    const actionMap = {
+      2: 'accept',
+      3: 'decline',
+      4: 'cancel'
     }
+
+    const action = actionMap[newStatus as keyof typeof actionMap]
+    if (!action) return
+
+    // Reset states
+    setConfirmStatus('idle')
+    setConfirmError("")
+    setConfirmButtonText("Confirm")
+    
+    // Prepare message based on action and price
+    let message = `Are you sure you want to ${action} this appointment?`
+    if (action === 'accept' && selectedAppointment.price > 0) {
+      message = "You are about to accept this appointment. Are you sure you want to proceed?"
+      setConfirmButtonText(
+        <div className="flex items-center gap-1.5">
+          <span>Accept and pay</span>
+          <div className="flex items-center text-white font-medium">
+            <Coins className="h-4 w-4 mr-1" />
+            {selectedAppointment.price}
+          </div>
+        </div>
+      )
+    }
+
+    setConfirmMessage(message)
+    setConfirmAction(() => async () => {
+      setIsConfirmLoading(true)
+      setConfirmStatus('loading')
+      try {
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/Appointment/actionRequest`,
+          {
+            appointmentId: selectedAppointment.id,
+            action: newStatus === 2 ? 1 : newStatus === 3 ? 2 : 3
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+              "Content-Type": "application/json"
+            }
+          }
+        )
+
+        if (response.data.success) {
+          setConfirmStatus('success')
+          setTimeout(() => {
+            if (selectedAppointment) {
+              setSelectedAppointment({...selectedAppointment, status: newStatus})
+              getBalance()
+            }
+            fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
+            setShowConfirmDialog(false)
+          }, 1500)
+        } else {
+          setConfirmStatus('error')
+          setConfirmError(response.data.message || 'Action failed')
+        }
+      } catch (err: any) {
+        setConfirmStatus('error')
+        setConfirmError(err?.response?.data?.message || 'Action failed')
+      } finally {
+        setIsConfirmLoading(false)
+      }
+    })
+    setShowConfirmDialog(true)
+  }
+
+  const handleDeleteAppointment = async () => {
+    if (!selectedAppointment) return
+
+    setConfirmStatus('idle')
+    setConfirmError("")
+    setConfirmButtonText(
+      <div className="flex items-center gap-1.5 text-white">
+        <Trash2 className="h-4 w-4" />
+        <span>Delete</span>
+      </div>
+    )
+    setConfirmMessage("Are you sure you want to delete this appointment? This action cannot be undone.")
+    setConfirmAction(() => async () => {
+      setIsConfirmLoading(true)
+      setConfirmStatus('loading')
+      try {
+        const result = await deleteAppointment(selectedAppointment.id)
+        if (result.success) {
+          setConfirmStatus('success')
+          setTimeout(() => {
+            setSelectedAppointment(null)
+            fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
+            setShowConfirmDialog(false)
+          }, 1500)
+        } else {
+          setConfirmStatus('error')
+          setConfirmError(result.message)
+        }
+      } catch (err) {
+        setConfirmStatus('error')
+        setConfirmError('Failed to delete appointment')
+      } finally {
+        setIsConfirmLoading(false)
+      }
+    })
+    setShowConfirmDialog(true)
   }
 
   return (
@@ -532,7 +628,7 @@ export function AppointmentsPage() {
                     Rejected
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleStatusFilter(4)}>
-                    Canceled
+                    Finished
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -618,6 +714,19 @@ export function AppointmentsPage() {
                 >
                   <Clock4 className="h-4 w-4" />
                   In Progress
+                </Button>
+                <Button
+                  variant={appointmentStatus === 4 ? "default" : "outline"}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2",
+                    appointmentStatus === 4 
+                      ? "bg-purple-500 hover:bg-purple-600 text-white" 
+                      : "hover:bg-purple-50 text-purple-600 border-purple-200"
+                  )}
+                  onClick={() => handleAppointmentStatusChange(4)}
+                >
+                  <History className="h-4 w-4" />
+                  Finished
                 </Button>
                 <Button
                   variant={appointmentStatus === 3 ? "default" : "outline"}
@@ -757,7 +866,7 @@ export function AppointmentsPage() {
                             <div className="flex items-center text-gray-600 text-sm col-span-2">
                               <Coins className="h-4 w-4 mr-1.5 text-[#de9151]" />
                               <span className="text-[#de9151] font-medium">{appointment.price === 0 ? 'No cost' : `$${appointment.price}`}</span>
-                            </div>
+                          </div>
                           </div>
                           {(appointmentStatus === 2 || appointmentStatus === 3) && (
                             <div className="absolute bottom-2 right-2">
@@ -850,57 +959,57 @@ export function AppointmentsPage() {
                               {getStatusText(selectedAppointment.status)}
                             </Button>
                           ) : (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  className={`px-3 py-1 rounded-full text-sm font-medium hover:opacity-80 transition-all ${getStatusColor(selectedAppointment.status)} flex items-center gap-1.5`}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              className={`px-3 py-1 rounded-full text-sm font-medium hover:opacity-80 transition-all ${getStatusColor(selectedAppointment.status)} flex items-center gap-1.5`}
+                            >
+                              {getStatusText(selectedAppointment.status)}
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-32 p-1">
+                            {selectedAppointment.status === 1 && (
+                              <>
+                                <DropdownMenuItem 
+                                  onClick={() => handleStatusChange(2)}
+                                  className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
                                 >
-                                  {getStatusText(selectedAppointment.status)}
-                                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent className="w-32 p-1">
-                                {selectedAppointment.status === 1 && (
-                                  <>
-                                    <DropdownMenuItem 
-                                      onClick={() => handleStatusChange(2)}
-                                      className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
-                                    >
-                                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                      Accept
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem 
-                                      onClick={() => handleStatusChange(3)}
-                                      className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
-                                    >
-                                      <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                      Decline
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                                {selectedAppointment.status === 2 && (
-                                  <DropdownMenuItem 
-                                    onClick={() => handleStatusChange(4)}
-                                    className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
-                                  >
-                                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                    Cancel
-                                  </DropdownMenuItem>
-                                )}
+                                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                  Accept
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleStatusChange(3)}
+                                  className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
+                                >
+                                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                  Decline
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {selectedAppointment.status === 2 && (
+                              <DropdownMenuItem 
+                                onClick={() => handleStatusChange(4)}
+                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-red-50 hover:text-red-700 focus:bg-red-50 focus:text-red-700"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                Cancel
+                              </DropdownMenuItem>
+                            )}
                                 {selectedAppointment.status === 3 && (
-                                  <DropdownMenuItem 
-                                    onClick={() => handleStatusChange(2)}
-                                    className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
-                                  >
-                                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                    Accept
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                              <DropdownMenuItem 
+                                onClick={() => handleStatusChange(2)}
+                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer rounded-md hover:bg-green-50 hover:text-green-700 focus:bg-green-50 focus:text-green-700"
+                              >
+                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                Accept
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                           )
                         )}
                         {appointmentStatus === 1 && selectedAppointment.editable && (
@@ -908,7 +1017,12 @@ export function AppointmentsPage() {
                             <Button variant="outline" size="icon">
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="outline" size="icon">
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              onClick={handleDeleteAppointment}
+                              className="hover:bg-red-50 hover:text-red-600"
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </>
@@ -1209,6 +1323,130 @@ export function AppointmentsPage() {
                 </Button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            {confirmStatus === 'idle' && (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`w-10 h-10 rounded-full ${
+                    confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children 
+                      ? "bg-red-100" 
+                      : "bg-[#de9151]/10"
+                  } flex items-center justify-center`}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 6.66667V10M10 13.3333H10.0083M18.3333 10C18.3333 14.6024 14.6024 18.3333 10 18.3333C5.39763 18.3333 1.66667 14.6024 1.66667 10C1.66667 5.39763 5.39763 1.66667 10 1.66667C14.6024 1.66667 18.3333 5.39763 18.3333 10Z" 
+                        stroke={
+                          confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children 
+                            ? "#ef4444" 
+                            : "#de9151"
+                        } 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    {confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children 
+                      ? "Confirm Delete" 
+                      : "Confirm Action"
+                    }
+                  </h3>
+                </div>
+                <p className="text-gray-600 mb-6">{confirmMessage}</p>
+                <div className="flex justify-end gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowConfirmDialog(false)}
+                    className="hover:bg-gray-50"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    className={
+                      confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                        ? "bg-red-600 hover:bg-red-700 text-white" 
+                        : "bg-[#de9151] hover:bg-[#de9151]/90 text-white"
+                    }
+                    onClick={() => confirmAction()}
+                    disabled={isConfirmLoading}
+                  >
+                    {confirmButtonText}
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {confirmStatus === 'loading' && (
+              <div className="text-center py-4">
+                <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${
+                  confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                    ? "border-red-600" 
+                    : "border-[#de9151]"
+                } mx-auto mb-4`}></div>
+                <p className="text-gray-600">
+                  {confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                    ? "Deleting appointment..." 
+                    : "Processing your request..."
+                  }
+                </p>
+              </div>
+            )}
+
+            {confirmStatus === 'success' && (
+              <div className="text-center py-4">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 6L9 17L4 12" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <p className="text-gray-600">
+                  {confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                    ? "Appointment deleted successfully!" 
+                    : "Action completed successfully!"
+                  }
+                </p>
+              </div>
+            )}
+
+            {confirmStatus === 'error' && (
+              <div className="text-center py-4">
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 8V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <p className="text-red-600 mb-4">{confirmError}</p>
+                <div className="flex justify-center gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowConfirmDialog(false)}
+                    className="hover:bg-gray-50"
+                  >
+                    Close
+                  </Button>
+                  <Button 
+                    className={
+                      confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                        ? "bg-red-600 hover:bg-red-700 text-white" 
+                        : "bg-[#de9151] hover:bg-[#de9151]/90 text-white"
+                    }
+                    onClick={() => {
+                      setConfirmStatus('idle')
+                      setConfirmError("")
+                    }}
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
