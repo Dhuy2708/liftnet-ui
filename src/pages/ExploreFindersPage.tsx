@@ -359,13 +359,20 @@ export default function TrainerExplorerPage() {
     if (!selectedPost) return
     setIsBooking(true)
     setBookingMessage(null)
+
+    // Convert local time to UTC
+    const toUTCISOString = (localTime: string) => {
+      const date = new Date(localTime)
+      return date.toISOString()
+    }
+
     const body = {
       participantIds: [selectedPost.poster?.id],
       name: appointmentName || `Appointment with ${selectedPost.poster?.firstName} ${selectedPost.poster?.lastName}`,
       description: "",
       placeId: selectedPost.placeName,
-      startTime: selectedPost.startTime,
-      endTime: selectedPost.endTime,
+      startTime: toUTCISOString(selectedPost.startTime),
+      endTime: toUTCISOString(selectedPost.endTime),
       repeatingType: 0,
       price: selectedPost.startPrice
     }
