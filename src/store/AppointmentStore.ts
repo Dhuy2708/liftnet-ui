@@ -61,6 +61,7 @@ interface AppointmentStore {
   setPageSize: (size: number) => void;
   deleteAppointment: (id: string) => Promise<{ success: boolean; message: string }>;
   sendConfirmationRequest: (appointmentId: string, data: { content?: string; image?: File }) => Promise<{ success: boolean; message: string }>;
+  confirmRequest: (confirmationId: number) => Promise<{ success: boolean; message: string }>;
 }
 
 export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
@@ -234,6 +235,32 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
       return { 
         success: false, 
         message: error instanceof Error ? error.message : "Failed to send confirmation request" 
+      };
+    }
+  },
+
+  confirmRequest: async (confirmationId: number) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Appointment/confirm`,
+        confirmationId,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      if (response.data.success) {
+        return { success: true, message: "Confirmation request confirmed successfully" };
+      }
+      return { success: false, message: response.data.message || "Failed to confirm request" };
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : "Failed to confirm request" 
       };
     }
   }
