@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import * as signalR from "@microsoft/signalr";
 import { signalRService } from "@/services/signalRService";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   CheckCircle2,
@@ -73,6 +74,15 @@ export function useNotificationHub() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
   const processedTrackIds = useRef<Set<string>>(new Set());
+  const navigate = useNavigate();
+
+  const handleNotificationClick = (notification: Notification) => {
+    // Handle appointment-related notifications
+    if (notification.eventType >= 1 && notification.eventType <= 4 && notification.objectNames.length >= 2) {
+      const appointmentId = notification.objectNames[1];
+      navigate(`/appointments/${appointmentId}`);
+    }
+  };
 
   useEffect(() => {
     const hubName = "noti-hub";
@@ -128,7 +138,13 @@ export function useNotificationHub() {
             const iconColor = getNotificationIconColor(notification.eventType);
 
             toast.custom((t) => (
-              <div className="flex items-start gap-3 w-96 bg-white border border-gray-100 shadow-lg rounded-2xl p-4 relative">
+              <div 
+                className="flex items-start gap-3 w-96 bg-white border border-gray-100 shadow-lg rounded-2xl p-4 relative cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => {
+                  handleNotificationClick(notification);
+                  toast.dismiss(t);
+                }}
+              >
                 <div className="flex-shrink-0">
                   <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center">
                     <Icon className={`h-5 w-5 ${iconColor}`} />
@@ -146,7 +162,10 @@ export function useNotificationHub() {
                   </div>
                 </div>
                 <button
-                  onClick={() => toast.dismiss(t)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toast.dismiss(t);
+                  }}
                   className="absolute top-2 right-2 p-1 rounded-full hover:bg-red-100 transition-colors"
                   aria-label="Close"
                 >
@@ -193,7 +212,7 @@ export function useNotificationHub() {
       // Clear processed trackIds on cleanup
       processedTrackIds.current.clear();
     };
-  }, []);
+  }, [navigate]);
 
   return { notifications, connection };
 }
