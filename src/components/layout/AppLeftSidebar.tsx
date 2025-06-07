@@ -7,13 +7,14 @@ import {
   BarChart2,
   Calendar,
   Dumbbell,
-  Users,
   Search,
   Menu,
   Sparkles,
   ChevronDown,
   BarChart3,
   User,
+  MessageSquare,
+  Wallet,
 } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
@@ -52,7 +53,7 @@ export function AppLeftSidebar({
   }, [])
 
   useEffect(() => {
-    if (location.pathname.startsWith("/ai-assistant")) {
+    if (location.pathname.startsWith("/plan-ai")) {
       setOpenDropdown("ai")
     }
   }, [location.pathname])
@@ -67,25 +68,26 @@ export function AppLeftSidebar({
 
   const mainNavItems = [
     { name: "Home", icon: Home, path: "/" },
-    { name: "Schedule", icon: Clock, path: "/schedule" },
-    { name: "Statistics", icon: BarChart2, path: "/statistics" },
-  ]
-
-  const aiSubItems = [
-    { name: "Analytics", icon: BarChart3, path: "/ai-assistant/statistic" },
-    { name: "Planning", icon: Calendar, path: "/ai-assistant/planning" },
-    { name: "Physical Stats", icon: User, path: "/ai-assistant/physical-stats" },
-    { name: "AI Coach", icon: Sparkles, path: "/ai-assistant/ai-coach" },
-  ]
-
-  const quickAccessItems = [
-    { name: "Appointments", icon: Calendar, path: "/appointments" },
     ...(role === 1
       ? [{ name: "Trainer Finder", icon: Dumbbell, path: "/trainer-finder" }]
       : role === 2
         ? [{ name: "Explore Finders", icon: Search, path: "/explore-finders" }]
         : []),
-    { name: "Community", icon: Users, path: "/community" },
+    { name: "Appointments", icon: Calendar, path: "/appointments" },
+  ]
+
+  const aiSubItems = [
+    { name: "Analytics", icon: BarChart3, path: "/plan-ai/statistic" },
+    { name: "Planning", icon: Calendar, path: "/plan-ai/planning" },
+    { name: "Physical Stats", icon: User, path: "/plan-ai/physical-stats" },
+    { name: "Lift AI", icon: Sparkles, path: "/plan-ai/chat" },
+  ]
+
+  const quickAccessItems = [
+    { name: "Messages", icon: MessageSquare, path: "/chat" },
+    { name: "Wallet", icon: Wallet, path: "/wallet" },
+    { name: "Schedule", icon: Clock, path: "/schedule" },
+    { name: "Statistics", icon: BarChart2, path: "/statistics" },
   ]
 
   const handleDropdownToggle = (name: string) => {
@@ -177,7 +179,7 @@ export function AppLeftSidebar({
                     "w-full flex items-center rounded-xl transition-all duration-200 group",
                     "hover:shadow-md hover:scale-[1.02]",
                     show ? "gap-3 px-4 py-2" : "justify-center p-2",
-                    location.pathname.startsWith("/ai-assistant")
+                    location.pathname.startsWith("/plan-ai")
                       ? "bg-gradient-to-r from-purple-100/80 to-purple-50/80 text-purple-700 shadow-sm border border-purple-200/50"
                       : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/50 hover:text-gray-900"
                   )}
@@ -186,7 +188,7 @@ export function AppLeftSidebar({
                   <div
                     className={cn(
                       "p-2 rounded-lg transition-all duration-200 flex justify-center items-center",
-                      location.pathname.startsWith("/ai-assistant")
+                      location.pathname.startsWith("/plan-ai")
                         ? "bg-purple-100 shadow-sm"
                         : "bg-gray-100/50 group-hover:bg-white group-hover:shadow-sm"
                     )}
@@ -194,7 +196,7 @@ export function AppLeftSidebar({
                     <Sparkles
                       className={cn(
                         "w-5 h-5 shrink-0",
-                        location.pathname.startsWith("/ai-assistant")
+                        location.pathname.startsWith("/plan-ai")
                           ? "text-purple-600"
                           : "text-gray-500 group-hover:text-purple-600"
                       )}
@@ -206,10 +208,10 @@ export function AppLeftSidebar({
                     <span
                       className={cn(
                         "font-semibold text-sm",
-                        location.pathname.startsWith("/ai-assistant") && "text-purple-700"
+                        location.pathname.startsWith("/plan-ai") && "text-purple-700"
                       )}
                     >
-                      AI Assistant
+                      Plan & AI
                     </span>
                   )}
 
@@ -219,7 +221,7 @@ export function AppLeftSidebar({
                       className={cn(
                         "w-4 h-4 transition-transform duration-200",
                         openDropdown === "ai" && "transform rotate-180",
-                        location.pathname.startsWith("/ai-assistant")
+                        location.pathname.startsWith("/plan-ai")
                           ? "text-purple-600"
                           : "text-gray-500"
                       )}

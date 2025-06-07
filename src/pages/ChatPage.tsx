@@ -84,7 +84,7 @@ export function ChatPage() {
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const connection = signalRService.getConnection()
+  const connection = signalRService.getConnection("chat-hub")
   const {
     conversations,
     fetchConversations,
@@ -274,7 +274,10 @@ export function ChatPage() {
 
   // Helper to send message via SignalR
   const sendSignalRMessage = async (conversationId: string, recieverIds: string[], body: string) => {
-    if (!connection) return
+    if (!connection) {
+      console.error("No SignalR connection available")
+      return
+    }
     const trackId = Math.random().toString()
     const message = {
       trackId,
@@ -299,7 +302,17 @@ export function ChatPage() {
       [...prev, newLocalMessage].sort((a, b) => new Date(a.time || "").getTime() - new Date(b.time || "").getTime()),
     )
 
-    await connection.invoke("SendMessage", recieverIds, message)
+    try {
+      await connection.invoke("SendMessage", recieverIds, message)
+    } catch (error) {
+      console.error("Failed to send message:", error)
+      // Update message status to failed
+      setLocalMessages((prev) =>
+        prev.map((msg) =>
+          msg.trackId === trackId ? { ...msg, status: "failed" as const } : msg
+        )
+      )
+    }
   }
 
   // Send message logic

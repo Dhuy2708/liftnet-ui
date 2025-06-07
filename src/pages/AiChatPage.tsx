@@ -26,6 +26,7 @@ import { useLocation } from "react-router-dom"
 import { AppLeftSidebar } from "@/components/layout/AppLeftSidebar"
 import { useChatbotStore } from "@/store/ChatbotStore"
 import { FaStar } from "react-icons/fa"
+import { usePlanningStore } from "@/store/PlanningStore"
 
 const AICoachContent = () => {
   const location = useLocation()
@@ -528,12 +529,15 @@ const AnatomyViewer = () => {
   const [isBotThinking, setIsBotThinking] = useState(false)
   const [streamReader, setStreamReader] = useState<ReadableStreamDefaultReader<Uint8Array> | null>(null)
   const [loadingConversation, setLoadingConversation] = useState<string | null>(null)
+  const [newMessage, setNewMessage] = useState("")
+
+  const { physicalStats, isLoading, error, isSaving, setPhysicalStats, fetchPhysicalStats } = usePlanningStore()
 
   const {
     conversations,
     activeConversation,
-    isLoading,
-    error,
+    isLoading: chatbotIsLoading,
+    error: chatbotError,
     fetchConversations,
     setActiveConversation,
     createNewConversation,
@@ -545,7 +549,7 @@ const AnatomyViewer = () => {
 
   // Fetch conversations when entering AI Coach tab
   useEffect(() => {
-    if (location.pathname === "/ai-assistant/ai-coach") {
+    if (location.pathname === "/plan-ai/chat") {
       fetchConversations()
     }
   }, [location.pathname, fetchConversations])
@@ -567,6 +571,12 @@ const AnatomyViewer = () => {
       chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight
     }
   }, [activeConversation, conversations])
+
+  useEffect(() => {
+    if (location.pathname === "/plan-ai/physical-stats") {
+      fetchPhysicalStats()
+    }
+  }, [location.pathname, fetchPhysicalStats])
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !activeConversation || isBotThinking) return
@@ -847,10 +857,10 @@ const AnatomyViewer = () => {
             </div>
         )
 
-      case "physical-stats":
+      case "physical-stats": {
         return (
           <div className="max-w-4xl mx-auto">
-              <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-green-50/30">
+            <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-green-50/30">
               <CardContent className="p-12">
                 <div className="text-center space-y-6">
                   <div className="w-20 h-20 bg-gradient-to-br from-[#de9151] to-[#f4a261] rounded-3xl flex items-center justify-center mx-auto shadow-xl">
@@ -858,16 +868,145 @@ const AnatomyViewer = () => {
                   </div>
                   <h3 className="text-3xl font-bold text-gray-900">Physical Statistics</h3>
                   <p className="text-gray-600 max-w-2xl mx-auto text-lg leading-relaxed">
-                    Track your body metrics, set goals, and monitor your progress. Your personal fitness journey
-                    starts here.
+                    Track your body metrics, set goals, and monitor your progress. Your personal fitness journey starts here.
                   </p>
-                    </div>
+                  <div className="mt-8">
+                    {isLoading ? (
+                      <div className="flex justify-center">
+                        <div className="w-8 h-8 border-4 border-[#de9151] border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : error ? (
+                      <div className="text-red-500">{error}</div>
+                    ) : (
+                      <form
+                        className="space-y-6"
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          const formData = new FormData(e.currentTarget);
+                          const stats = {
+                            age: formData.get('age') ? Number(formData.get('age')) : null,
+                            gender: formData.get('gender') ? String(formData.get('gender')) : null,
+                            height: formData.get('height') ? Number(formData.get('height')) : null,
+                            mass: formData.get('mass') ? Number(formData.get('mass')) : null,
+                            bdf: formData.get('bdf') ? Number(formData.get('bdf')) : null,
+                            activityLevel: formData.get('activityLevel') ? String(formData.get('activityLevel')) : null,
+                            goal: formData.get('goal') ? String(formData.get('goal')) : null,
+                          };
+                          await setPhysicalStats(stats);
+                        }}
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-[#de9151]/30 transition-colors">
+                            <label className="text-sm font-medium text-gray-500 block mb-2">Age</label>
+                            <input
+                              type="number"
+                              name="age"
+                              defaultValue={physicalStats?.age ?? ''}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] text-lg font-semibold text-gray-900"
+                              placeholder="Enter your age"
+                            />
+                          </div>
+                          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-[#de9151]/30 transition-colors">
+                            <label className="text-sm font-medium text-gray-500 block mb-2">Gender</label>
+                            <select
+                              name="gender"
+                              defaultValue={physicalStats?.gender ?? ''}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] text-lg font-semibold text-gray-900"
+                            >
+                              <option value="">Select gender</option>
+                              <option value="male">Male</option>
+                              <option value="female">Female</option>
+                              <option value="other">Other</option>
+                            </select>
+                          </div>
+                          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-[#de9151]/30 transition-colors">
+                            <label className="text-sm font-medium text-gray-500 block mb-2">Height (cm)</label>
+                            <input
+                              type="number"
+                              name="height"
+                              defaultValue={physicalStats?.height ?? ''}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] text-lg font-semibold text-gray-900"
+                              placeholder="Enter your height"
+                            />
+                          </div>
+                          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-[#de9151]/30 transition-colors">
+                            <label className="text-sm font-medium text-gray-500 block mb-2">Weight (kg)</label>
+                            <input
+                              type="number"
+                              name="mass"
+                              defaultValue={physicalStats?.mass ?? ''}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] text-lg font-semibold text-gray-900"
+                              placeholder="Enter your weight"
+                            />
+                          </div>
+                          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-[#de9151]/30 transition-colors">
+                            <label className="text-sm font-medium text-gray-500 block mb-2">Body Fat %</label>
+                            <input
+                              type="number"
+                              name="bdf"
+                              defaultValue={physicalStats?.bdf ?? ''}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] text-lg font-semibold text-gray-900"
+                              placeholder="Enter body fat %"
+                            />
+                          </div>
+                          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-[#de9151]/30 transition-colors">
+                            <label className="text-sm font-medium text-gray-500 block mb-2">Activity Level</label>
+                            <select
+                              name="activityLevel"
+                              defaultValue={physicalStats?.activityLevel ?? ''}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] text-lg font-semibold text-gray-900"
+                            >
+                              <option value="">Select activity level</option>
+                              <option value="sedentary">Sedentary</option>
+                              <option value="light">Lightly Active</option>
+                              <option value="moderate">Moderately Active</option>
+                              <option value="very">Very Active</option>
+                              <option value="extra">Extra Active</option>
+                            </select>
+                          </div>
+                          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-[#de9151]/30 transition-colors md:col-span-2">
+                            <label className="text-sm font-medium text-gray-500 block mb-2">Fitness Goal</label>
+                            <select
+                              name="goal"
+                              defaultValue={physicalStats?.goal ?? ''}
+                              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-[#de9151] focus:ring-[#de9151] text-lg font-semibold text-gray-900"
+                            >
+                              <option value="">Select your goal</option>
+                              <option value="weight_loss">Weight Loss</option>
+                              <option value="muscle_gain">Muscle Gain</option>
+                              <option value="maintenance">Maintenance</option>
+                              <option value="endurance">Endurance</option>
+                              <option value="strength">Strength</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex justify-end mt-8">
+                          <button
+                            type="submit"
+                            disabled={isSaving}
+                            className="px-8 py-3 bg-gradient-to-r from-[#de9151] to-[#f4a261] text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isSaving ? (
+                              <div className="flex items-center space-x-2">
+                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <span>Saving...</span>
+                              </div>
+                            ) : (
+                              'Save Changes'
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
-                    </div>
+          </div>
         )
+      }
 
-      case "ai-coach":
+      case "chat":
         return <AICoachContent />
 
       default:
@@ -923,7 +1062,7 @@ const AnatomyViewer = () => {
       </div>
 
       {/* Elegant Chat Panel - Only show when not in AI Coach tab */}
-      {isChatOpen && location.pathname !== "/ai-assistant/ai-coach" && (
+      {isChatOpen && location.pathname !== "/plan-ai/chat" && (
         <div
           className="fixed top-14 right-0 h-[calc(100vh-3.5rem)] bg-white border-l border-gray-100 shadow-lg flex"
           style={{ width: `${chatWidth}px` }}
@@ -945,7 +1084,7 @@ const AnatomyViewer = () => {
               <Button
                 onClick={() => setIsCreatingNew(true)}
                 className="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-xl h-10 font-medium transition-colors"
-                disabled={isLoading}
+                disabled={chatbotIsLoading}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Chat

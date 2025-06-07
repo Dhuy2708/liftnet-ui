@@ -25,6 +25,7 @@ import { WalletPage } from "./pages/WalletPage"
 import { TopUpPage } from "./pages/TopUpPage"
 import { WithdrawPage } from "./pages/WithdrawPage"
 import { PaymentCallbackPage } from "./pages/PaymentCallbackPage"
+import { Toaster } from "sonner"
 
 function AppContent() {
   const location = useLocation();
@@ -33,7 +34,8 @@ function AppContent() {
 
   useEffect(() => {
     if (basicInfo) {
-      signalRService.startConnection();
+      signalRService.startConnection("chat-hub");
+      signalRService.startConnection("noti-hub");
     }
   }, [basicInfo]);
 
@@ -98,7 +100,7 @@ function AppContent() {
         />
 
         <Route
-          path="/ai-assistant"
+          path="/plan-ai"
           element={
             <ProtectedRoute>
               <LargeAppLayout>
@@ -109,7 +111,7 @@ function AppContent() {
         />
 
         <Route
-          path="/ai-assistant/statistic"
+          path="/plan-ai/statistic"
           element={
             <ProtectedRoute>
               <LargeAppLayout>
@@ -120,7 +122,7 @@ function AppContent() {
         />
 
         <Route
-          path="/ai-assistant/planning"
+          path="/plan-ai/planning"
           element={
             <ProtectedRoute>
               <LargeAppLayout>
@@ -131,7 +133,7 @@ function AppContent() {
         />
 
         <Route
-          path="/ai-assistant/physical-stats"
+          path="/plan-ai/physical-stats"
           element={
             <ProtectedRoute>
               <LargeAppLayout>
@@ -142,7 +144,7 @@ function AppContent() {
         />
 
         <Route
-          path="/ai-assistant/ai-coach"
+          path="/plan-ai/chat"
           element={
             <ProtectedRoute>
               <LargeAppLayout>
@@ -282,6 +284,20 @@ function AppContent() {
           }
         />
       </Routes>
+      <Toaster 
+        richColors 
+        closeButton
+        toastOptions={{
+          className: "!bg-white !border !border-gray-100 !shadow-lg !rounded-2xl !p-4",
+          style: {
+            background: "white",
+            border: "1px solid #f3f4f6",
+            borderRadius: "1rem",
+            padding: "1rem",
+            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+          },
+        }}
+      />
     </>
   );
 }

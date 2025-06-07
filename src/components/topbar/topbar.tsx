@@ -3,10 +3,11 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { Link, useLocation } from "react-router-dom"
+import { Link } from "react-router-dom"
 import { useAuthStore } from "@/store/AuthStore"
 import { useSocialStore } from "@/store/SocialStore"
 import { useWalletStore } from "@/store/WalletStore"
+import { useNotificationHub } from "@/hooks/useNotificationHub"
 import {
   Bell,
   MessageSquare,
@@ -24,6 +25,13 @@ import {
   Plus,
   Coins,
   Crown,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  UserPlus,
+  UserCheck,
+  UserX,
+  Heart,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CreatePostModal } from "@/components/ui/create-post-modal"
@@ -36,20 +44,35 @@ interface TopBarProps {
 }
 
 export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
-  const location = useLocation()
   const { basicInfo, logout } = useAuthStore()
   const { searchPrioritizedUsers, searchResults, hasMore, currentPage, clearSearchResults } = useSocialStore()
   const { balance, getBalance } = useWalletStore()
+  const { notifications } = useNotificationHub()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
   const searchResultsRef = useRef<HTMLDivElement>(null)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const profileButtonRef = useRef<HTMLButtonElement>(null)
+  const notificationsRef = useRef<HTMLDivElement>(null)
   const debouncedSearch = useDebounce(searchQuery, 500)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setShowNotifications(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
 
   useEffect(() => {
     if (debouncedSearch) {
@@ -61,27 +84,6 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
       clearSearchResults()
     }
   }, [debouncedSearch])
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        profileMenuRef.current &&
-        profileButtonRef.current &&
-        !profileMenuRef.current.contains(event.target as Node) &&
-        !profileButtonRef.current.contains(event.target as Node)
-      ) {
-        setShowProfileMenu(false)
-      }
-      if (searchResultsRef.current && !searchResultsRef.current.contains(event.target as Node)) {
-        setShowSearchResults(false)
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [])
 
   useEffect(() => {
     getBalance()
@@ -116,6 +118,31 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
       searchPrioritizedUsers(searchQuery, nextPage).finally(() => {
         setIsSearching(false)
       })
+    }
+  }
+
+  const handleNotificationClick = () => {
+    setShowNotifications(false)
+  }
+
+  const getNotificationIcon = (eventType: number) => {
+    switch (eventType) {
+      case 1: // Book Appointment
+        return <Calendar className="h-5 w-5 text-blue-500" />
+      case 2: // Accept Appointment
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />
+      case 3: // Cancel Appointment
+        return <XCircle className="h-5 w-5 text-red-500" />
+      case 10: // Apply Finder
+        return <UserPlus className="h-5 w-5 text-purple-500" />
+      case 11: // Accept Finder
+        return <UserCheck className="h-5 w-5 text-emerald-500" />
+      case 12: // Reject Finder
+        return <UserX className="h-5 w-5 text-rose-500" />
+      case 20: // Follow
+        return <Heart className="h-5 w-5 text-pink-500" />
+      default:
+        return <Bell className="h-5 w-5 text-[#de9151]" />
     }
   }
 
@@ -242,18 +269,59 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
               </Button>
             </Link>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-xl p-2 hover:bg-gray-50 hover:scale-105 transition-all duration-200 group relative"
-            >
-              <div className="relative">
-                <Bell className="h-5 w-5 text-gray-600 group-hover:text-[#de9151] transition-colors" />
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-red-600 text-xs font-bold text-white shadow-lg animate-pulse">
-                  2
-                </span>
-              </div>
-            </Button>
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-xl p-2 hover:bg-gray-50 hover:scale-105 transition-all duration-200 group relative"
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <div className="relative">
+                  <Bell className="h-5 w-5 text-gray-600 group-hover:text-[#de9151] transition-colors" />
+                </div>
+              </Button>
+
+              {showNotifications && (
+                <div
+                  ref={notificationsRef}
+                  className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in duration-200"
+                >
+                  <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-100">
+                    <h3 className="font-semibold text-gray-900">Notifications</h3>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">No notifications</div>
+                    ) : (
+                      notifications.map((notification, index) => (
+                        <button
+                          key={index}
+                          className="w-full text-left p-4 hover:bg-gray-50 transition-all duration-200 border-b border-gray-100 last:border-0"
+                          onClick={() => handleNotificationClick()}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0">
+                              <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center">
+                                {getNotificationIcon(notification.eventType)}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-gray-900">{notification.title}</span>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-1">{notification.body}</p>
+                              <div className="text-xs text-gray-500">
+                                {new Date(notification.createdAt).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <Link to="/chat" className="relative">
               <Button
