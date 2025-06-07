@@ -5,73 +5,57 @@ import { Spin } from "antd"
 import { formatCurrency } from "../utils/format"
 import { ArrowUpRight, ArrowDownLeft, Wallet, Clock, DollarSign, BarChart3 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { useWalletStore } from "../store/WalletStore"
-
-interface Transaction {
-  id: string
-  amount: number
-  type: "credit" | "debit"
-  description: string
-  date: string
-  currency: "LIFT"
-}
+import { useWalletStore, TransactionType, TransactionStatus } from "../store/WalletStore"
 
 export const WalletPage = () => {
   const navigate = useNavigate()
-  const { balance, isLoading, error, getBalance } = useWalletStore()
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const { balance, transactions, isLoading, getBalance, getTransactions } = useWalletStore()
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     getBalance()
-  }, [getBalance])
+    getTransactions(currentPage)
+  }, [getBalance, getTransactions, currentPage])
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        // Simulated API response
-        setTransactions([
-          {
-            id: "1",
-            amount: 100,
-            type: "credit",
-            description: "Payment for training session",
-            date: "2024-03-20",
-            currency: "LIFT",
-          },
-          {
-            id: "2",
-            amount: 50,
-            type: "debit",
-            description: "Subscription renewal",
-            date: "2024-03-19",
-            currency: "LIFT",
-          },
-          {
-            id: "3",
-            amount: 75,
-            type: "credit",
-            description: "Reward bonus",
-            date: "2024-03-17",
-            currency: "LIFT",
-          },
-        ])
-      } catch (error) {
-        console.error("Error fetching transactions:", error)
-      }
+  const getTransactionType = (type: TransactionType) => {
+    switch (type) {
+      case TransactionType.Topup:
+        return "Top Up"
+      case TransactionType.Transfer:
+        return "Transfer"
+      case TransactionType.Withdraw:
+        return "Withdraw"
+      default:
+        return "Unknown"
     }
+  }
 
-    fetchTransactions()
-  }, [])
+  const getTransactionStatus = (status: TransactionStatus) => {
+    switch (status) {
+      case TransactionStatus.Pending:
+        return "Pending"
+      case TransactionStatus.Success:
+        return "Success"
+      case TransactionStatus.Failed:
+        return "Failed"
+      case TransactionStatus.Hold:
+        return "On Hold"
+      default:
+        return "Unknown"
+    }
+  }
 
-  const filteredTransactions = transactions
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(date)
+  const getTypeBadgeColor = (type: TransactionType) => {
+    switch (type) {
+      case TransactionType.Topup:
+        return 'bg-blue-100 text-blue-600'
+      case TransactionType.Transfer:
+        return 'bg-purple-100 text-purple-600'
+      case TransactionType.Withdraw:
+        return 'bg-orange-100 text-orange-600'
+      default:
+        return 'bg-gray-100 text-gray-600'
+    }
   }
 
   if (isLoading) {
@@ -139,59 +123,51 @@ export const WalletPage = () => {
             </div>
           </div>
 
-          {filteredTransactions.length === 0 ? (
+          {transactions.length === 0 ? (
             <div className="text-center py-12">
               <BarChart3 className="mx-auto h-12 w-12 text-gray-300" />
               <p className="mt-4 text-gray-500">No transactions found</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Date</th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Description</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-500">Amount</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-gray-500 w-1/5">Transaction ID</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-gray-500 w-1/5">Amount</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-gray-500 w-1/5">Type</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-gray-500 w-1/5">Status</th>
+                    <th className="text-center py-3 px-4 text-sm font-medium text-gray-500 w-1/5">Description</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTransactions.map((transaction) => (
+                  {transactions.map((transaction) => (
                     <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-4 px-4 text-sm text-gray-600">{formatDate(transaction.date)}</td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                              transaction.type === "credit" ? "bg-green-100" : "bg-red-100"
-                            }`}
-                          >
-                            {transaction.type === "credit" ? (
-                              <ArrowDownLeft size={16} className="text-green-600" />
-                            ) : (
-                              <ArrowUpRight size={16} className="text-red-600" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-800">{transaction.description}</p>
-                            <p className="text-xs text-gray-500">
-                              {transaction.type === "credit" ? "Received" : "Sent"}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td
-                        className={`py-4 px-4 text-right font-medium ${
-                          transaction.type === "credit" ? "text-green-600" : "text-red-600"
-                        }`}
-                      >
-                        <div className="flex items-center justify-end">
-                          <span className="mr-1">{transaction.type === "credit" ? "+" : "-"}</span>
-                          <span>{formatCurrency(transaction.amount, "LIFT")}</span>
+                      <td className="py-4 px-4 text-sm text-gray-600 text-center">{transaction.transactionId}</td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center">
+                          <span className="font-medium text-gray-800">{formatCurrency(transaction.amount, "VND")}</span>
                           <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-full bg-orange-50 text-[#de9151]">
-                            LIFT
+                            VND
                           </span>
                         </div>
                       </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeBadgeColor(transaction.type)}`}>
+                          {getTransactionType(transaction.type)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          transaction.status === TransactionStatus.Success ? 'bg-green-100 text-green-600' :
+                          transaction.status === TransactionStatus.Pending ? 'bg-yellow-100 text-yellow-600' :
+                          transaction.status === TransactionStatus.Failed ? 'bg-red-100 text-red-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {getTransactionStatus(transaction.status)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-gray-600 text-center">{transaction.description}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -200,8 +176,11 @@ export const WalletPage = () => {
           )}
 
           <div className="mt-6 flex justify-center">
-            <button className="px-4 py-2 text-[#de9151] text-sm font-medium hover:underline transition-all flex items-center">
-              View All Transactions
+            <button 
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="px-4 py-2 text-[#de9151] text-sm font-medium hover:underline transition-all flex items-center"
+            >
+              Load More
               <ArrowUpRight size={16} className="ml-1" />
             </button>
           </div>
