@@ -7,7 +7,7 @@ import { Link } from "react-router-dom"
 import { useAuthStore } from "@/store/AuthStore"
 import { useSocialStore } from "@/store/SocialStore"
 import { useWalletStore } from "@/store/WalletStore"
-import { useNotificationHub } from "@/hooks/useNotificationHub"
+import { useNotificationStore } from "@/store/NotificationStore"
 import {
   Bell,
   MessageSquare,
@@ -47,13 +47,12 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
   const { basicInfo, logout } = useAuthStore()
   const { searchPrioritizedUsers, searchResults, hasMore, currentPage, clearSearchResults } = useSocialStore()
   const { balance, getBalance } = useWalletStore()
-  const { notifications } = useNotificationHub()
+  const { notifications: notificationStoreNotifications, isLoading, hasMore: notificationStoreHasMore, fetchNotifications, pageNumber, pageSize } = useNotificationStore()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [showSearchResults, setShowSearchResults] = useState(false)
-  const [isSearching, setIsSearching] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const searchResultsRef = useRef<HTMLDivElement>(null)
   const profileMenuRef = useRef<HTMLDivElement>(null)
@@ -76,9 +75,8 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
 
   useEffect(() => {
     if (debouncedSearch) {
-      setIsSearching(true)
       searchPrioritizedUsers(debouncedSearch, 1).finally(() => {
-        setIsSearching(false)
+        setShowSearchResults(true)
       })
     } else {
       clearSearchResults()
@@ -88,6 +86,12 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
   useEffect(() => {
     getBalance()
   }, [])
+
+  useEffect(() => {
+    if (showNotifications) {
+      fetchNotifications(1, pageSize)
+    }
+  }, [showNotifications])
 
   const handleLogout = async () => {
     await logout()
@@ -101,9 +105,8 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery) {
-      setIsSearching(true)
       searchPrioritizedUsers(searchQuery, 1).finally(() => {
-        setIsSearching(false)
+        setShowSearchResults(true)
       })
     }
   }
@@ -112,17 +115,25 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
     const bottom = scrollHeight - scrollTop <= clientHeight * 1.5
 
-    if (bottom && hasMore && !isSearching) {
+    if (bottom && hasMore && !isLoading) {
       const nextPage = currentPage + 1
-      setIsSearching(true)
       searchPrioritizedUsers(searchQuery, nextPage).finally(() => {
-        setIsSearching(false)
+        setShowSearchResults(true)
       })
     }
   }
 
   const handleNotificationClick = () => {
     setShowNotifications(false)
+  }
+
+  const handleNotificationScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
+    const bottom = scrollHeight - scrollTop <= clientHeight * 1.5
+
+    if (bottom && notificationStoreHasMore && !isLoading) {
+      fetchNotifications(pageNumber + 1, pageSize)
+    }
   }
 
   const getNotificationIcon = (eventType: number) => {
@@ -189,7 +200,7 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
                     }}
                     className="pl-10 w-full bg-gray-50 border-0 focus:bg-white focus:ring-2 focus:ring-[#de9151]/20 focus:border-[#de9151] rounded-full h-9 transition-all duration-200 shadow-sm hover:shadow-md"
                   />
-                  {isSearching && (
+                  {isLoading && (
                     <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#de9151] animate-spin" />
                   )}
                 </div>
@@ -234,7 +245,7 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
                         </div>
                       </Link>
                     ))}
-                    {isSearching && (
+                    {isLoading && (
                       <div className="flex items-center justify-center p-4 border-t border-gray-100">
                         <Loader2 className="h-4 w-4 text-[#de9151] animate-spin mr-2" />
                         <span className="text-sm text-gray-500 font-medium">Loading more results...</span>
@@ -289,13 +300,13 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
                   <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-100">
                     <h3 className="font-semibold text-gray-900">Notifications</h3>
                   </div>
-                  <div className="max-h-96 overflow-y-auto">
-                    {notifications.length === 0 ? (
+                  <div className="max-h-96 overflow-y-auto" onScroll={handleNotificationScroll}>
+                    {notificationStoreNotifications.length === 0 ? (
                       <div className="p-4 text-center text-gray-500">No notifications</div>
                     ) : (
-                      notifications.map((notification, index) => (
+                      notificationStoreNotifications.map((notification) => (
                         <button
-                          key={index}
+                          key={notification.id}
                           className="w-full text-left p-4 hover:bg-gray-50 transition-all duration-200 border-b border-gray-100 last:border-0"
                           onClick={() => handleNotificationClick()}
                         >
@@ -317,6 +328,12 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
                           </div>
                         </button>
                       ))
+                    )}
+                    {isLoading && (
+                      <div className="flex items-center justify-center p-4 border-t border-gray-100">
+                        <Loader2 className="h-4 w-4 text-[#de9151] animate-spin mr-2" />
+                        <span className="text-sm text-gray-500 font-medium">Loading more notifications...</span>
+                      </div>
                     )}
                   </div>
                 </div>
