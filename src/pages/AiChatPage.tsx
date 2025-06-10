@@ -60,12 +60,12 @@ const AiChatPage = () => {
       }} />
       
       <div className={cn(
-        "h-full transition-all duration-500 overflow-hidden",
+        "h-full transition-all duration-500",
         showSidebars ? "lg:pl-72" : "lg:pl-24",
         location.pathname === "/plan-ai/chat" ? "p-0" : "p-8"
       )}>
         <div className="flex flex-col h-full">
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
             {getPageContent()}
           </div>
         </div>
