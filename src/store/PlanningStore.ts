@@ -11,9 +11,43 @@ interface PhysicalStats {
   goal: string | null
 }
 
-interface PlanningState {
+export interface Exercise {
+  id: string
+  order: number
+  bodyPart: string
+  equipment: string
+  gifUrl: string
+  name: string
+  target: string
+  secondaryMuscles: string[]
+  instructions: string[]
+  category: string
+  difficulty: string
+  description: string
+}
+
+interface PlanningDay {
+  id: number
+  dayOfWeek: number
+  exercises: Exercise[]
+}
+
+interface PlanningListResponse {
+  pageNumber: number
+  pageSize: number
+  totalCount: number
+  nextPageToken: string | null
+  datas: PlanningDay[]
+  success: boolean
+  message: string | null
+  errors: string[]
+  validationFailure: any
+}
+
+export interface PlanningState {
   physicalStats: PhysicalStats | null
-  isLoading: boolean
+  planningList: PlanningDay[] | null
+  loading: boolean
   error: string | null
   isSaving: boolean
 }
@@ -21,18 +55,20 @@ interface PlanningState {
 interface PlanningActions {
   fetchPhysicalStats: () => Promise<void>
   setPhysicalStats: (stats: PhysicalStats) => Promise<void>
+  fetchPlanningList: () => Promise<void>
 }
 
 type PlanningStore = PlanningState & PlanningActions
 
 export const usePlanningStore = create<PlanningStore>((set) => ({
   physicalStats: null,
-  isLoading: false,
+  planningList: null,
+  loading: false,
   error: null,
   isSaving: false,
 
   fetchPhysicalStats: async () => {
-    set({ isLoading: true, error: null })
+    set({ loading: true, error: null })
     try {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/Planning/getPhysicalStat`,
@@ -52,7 +88,7 @@ export const usePlanningStore = create<PlanningStore>((set) => ({
       set({ error: "Failed to fetch physical stats" })
       console.error("Error fetching physical stats:", error)
     } finally {
-      set({ isLoading: false })
+      set({ loading: false })
     }
   },
 
@@ -79,6 +115,31 @@ export const usePlanningStore = create<PlanningStore>((set) => ({
       console.error("Error saving physical stats:", error)
     } finally {
       set({ isSaving: false })
+    }
+  },
+
+  fetchPlanningList: async () => {
+    set({ loading: true, error: null })
+    try {
+      const response = await axios.get<PlanningListResponse>(
+        `${import.meta.env.VITE_API_URL}/api/Planning/list`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      )
+
+      if (response.data.success && response.data.datas) {
+        set({ planningList: response.data.datas })
+      } else {
+        set({ planningList: null })
+      }
+    } catch (error) {
+      set({ error: "Failed to fetch planning list" })
+      console.error("Error fetching planning list:", error)
+    } finally {
+      set({ loading: false })
     }
   },
 })) 
