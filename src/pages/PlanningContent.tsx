@@ -1,527 +1,171 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/chatbot/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dumbbell, Clock, Target, Zap, Heart, Leaf, RotateCcw, Calendar, LayoutGrid } from "lucide-react"
+import { Dumbbell, Target, Zap, Heart, Leaf, RotateCcw, Calendar, LayoutGrid, TrendingUp } from "lucide-react"
+import { usePlanningStore } from "@/store/PlanningStore"
 
-// Exercise data structure
-interface Exercise {
-  name: string
-  sets?: string
-  reps?: string
-  duration?: string
-  type: "Strength" | "Cardio" | "Flexibility" | "Recovery"
-  targetMuscle: string
+// Helper function to format camelized string for display
+const formatCamelCase = (str: string) => {
+  return str.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())
 }
 
-// Weekly schedule data with multiple exercises per day
-const weeklySchedule: Record<string, Exercise[]> = {
-  monday: [
-    {
-      name: "Barbell Bench Press",
-      sets: "4",
-      reps: "8-10",
-      type: "Strength",
-      targetMuscle: "Chest",
-    },
-    {
-      name: "Dumbbell Bench Press",
-      sets: "3",
-      reps: "10-12",
-      type: "Strength",
-      targetMuscle: "Chest",
-    },
-    {
-      name: "Chest Fly",
-      sets: "3",
-      reps: "12-15",
-      type: "Strength",
-      targetMuscle: "Chest",
-    },
-    {
-      name: "Tricep Dips",
-      sets: "3",
-      reps: "10-12",
-      type: "Strength",
-      targetMuscle: "Triceps",
-    },
-    {
-      name: "Overhead Tricep Extension",
-      sets: "3",
-      reps: "12-15",
-      type: "Strength",
-      targetMuscle: "Triceps",
-    },
-  ],
-  tuesday: [
-    {
-      name: "Treadmill Running",
-      duration: "20 min",
-      type: "Cardio",
-      targetMuscle: "Full Body",
-    },
-    {
-      name: "Burpees",
-      sets: "4",
-      reps: "10",
-      type: "Cardio",
-      targetMuscle: "Full Body",
-    },
-    {
-      name: "Mountain Climbers",
-      sets: "3",
-      reps: "30 sec",
-      type: "Cardio",
-      targetMuscle: "Core",
-    },
-    {
-      name: "Jump Squats",
-      sets: "3",
-      reps: "15",
-      type: "Cardio",
-      targetMuscle: "Legs",
-    },
-  ],
-  wednesday: [
-    {
-      name: "Pull-ups",
-      sets: "4",
-      reps: "6-8",
-      type: "Strength",
-      targetMuscle: "Back",
-    },
-    {
-      name: "Barbell Rows",
-      sets: "4",
-      reps: "8-10",
-      type: "Strength",
-      targetMuscle: "Back",
-    },
-    {
-      name: "Lat Pulldowns",
-      sets: "3",
-      reps: "10-12",
-      type: "Strength",
-      targetMuscle: "Back",
-    },
-    {
-      name: "Barbell Curls",
-      sets: "3",
-      reps: "10-12",
-      type: "Strength",
-      targetMuscle: "Biceps",
-    },
-    {
-      name: "Hammer Curls",
-      sets: "3",
-      reps: "12-15",
-      type: "Strength",
-      targetMuscle: "Biceps",
-    },
-  ],
-  thursday: [
-    {
-      name: "Stationary Bike",
-      duration: "25 min",
-      type: "Cardio",
-      targetMuscle: "Legs",
-    },
-    {
-      name: "Rowing Machine",
-      duration: "15 min",
-      type: "Cardio",
-      targetMuscle: "Full Body",
-    },
-    {
-      name: "Plank",
-      sets: "3",
-      reps: "60 sec",
-      type: "Strength",
-      targetMuscle: "Core",
-    },
-  ],
-  friday: [
-    {
-      name: "Squats",
-      sets: "4",
-      reps: "8-10",
-      type: "Strength",
-      targetMuscle: "Legs",
-    },
-    {
-      name: "Romanian Deadlifts",
-      sets: "4",
-      reps: "8-10",
-      type: "Strength",
-      targetMuscle: "Legs",
-    },
-    {
-      name: "Leg Press",
-      sets: "3",
-      reps: "12-15",
-      type: "Strength",
-      targetMuscle: "Legs",
-    },
-    {
-      name: "Lateral Raises",
-      sets: "3",
-      reps: "12-15",
-      type: "Strength",
-      targetMuscle: "Shoulders",
-    },
-    {
-      name: "Shoulder Press",
-      sets: "3",
-      reps: "10-12",
-      type: "Strength",
-      targetMuscle: "Shoulders",
-    },
-    {
-      name: "Calf Raises",
-      sets: "4",
-      reps: "15-20",
-      type: "Strength",
-      targetMuscle: "Calves",
-    },
-  ],
-  saturday: [
-    {
-      name: "Swimming Freestyle",
-      duration: "30 min",
-      type: "Cardio",
-      targetMuscle: "Full Body",
-    },
-    {
-      name: "Water Jogging",
-      duration: "15 min",
-      type: "Cardio",
-      targetMuscle: "Legs",
-    },
-  ],
-  sunday: [
-    {
-      name: "Yoga Flow",
-      duration: "30 min",
-      type: "Flexibility",
-      targetMuscle: "Full Body",
-    },
-    {
-      name: "Light Walking",
-      duration: "20 min",
-      type: "Recovery",
-      targetMuscle: "Legs",
-    },
-    {
-      name: "Stretching",
-      duration: "15 min",
-      type: "Flexibility",
-      targetMuscle: "Full Body",
-    },
-  ],
+// Helper function to format array of strings
+const formatArray = (arr: string[]) => {
+  return arr.map(formatCamelCase).join(", ")
 }
 
 // Helper function to get exercise type styling
-const getExerciseTypeStyle = (type: "Strength" | "Cardio" | "Flexibility" | "Recovery") => {
-  switch (type) {
-    case "Strength":
+const getExerciseTypeStyle = (type: string) => {
+  switch (type.toLowerCase()) {
+    case "strength":
       return {
-        badge: "bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0",
-        icon: <Dumbbell className="h-3 w-3" />,
+        badge: "bg-gradient-to-r from-blue-500/90 to-indigo-500/90 text-white border-0 shadow-lg shadow-blue-500/25",
+        icon: <Dumbbell className="h-3.5 w-3.5" />,
         accent: "border-l-blue-500",
+        cardBg: "bg-gradient-to-br from-blue-50/80 to-indigo-50/80",
       }
-    case "Cardio":
+    case "cardio":
       return {
-        badge: "bg-gradient-to-r from-red-500 to-pink-600 text-white border-0",
-        icon: <Heart className="h-3 w-3" />,
+        badge: "bg-gradient-to-r from-red-500/90 to-rose-500/90 text-white border-0 shadow-lg shadow-red-500/25",
+        icon: <Heart className="h-3.5 w-3.5" />,
         accent: "border-l-red-500",
+        cardBg: "bg-gradient-to-br from-red-50/80 to-rose-50/80",
       }
-    case "Flexibility":
+    case "flexibility":
       return {
-        badge: "bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0",
-        icon: <Leaf className="h-3 w-3" />,
-        accent: "border-l-green-500",
+        badge:
+          "bg-gradient-to-r from-emerald-500/90 to-teal-500/90 text-white border-0 shadow-lg shadow-emerald-500/25",
+        icon: <Leaf className="h-3.5 w-3.5" />,
+        accent: "border-l-emerald-500",
+        cardBg: "bg-gradient-to-br from-emerald-50/80 to-teal-50/80",
       }
-    case "Recovery":
+    case "recovery":
       return {
-        badge: "bg-gradient-to-r from-gray-500 to-slate-600 text-white border-0",
-        icon: <RotateCcw className="h-3 w-3" />,
-        accent: "border-l-gray-500",
+        badge: "bg-gradient-to-r from-slate-500/90 to-gray-500/90 text-white border-0 shadow-lg shadow-slate-500/25",
+        icon: <RotateCcw className="h-3.5 w-3.5" />,
+        accent: "border-l-slate-500",
+        cardBg: "bg-gradient-to-br from-slate-50/80 to-gray-50/80",
       }
     default:
       return {
-        badge: "bg-gradient-to-r from-gray-500 to-slate-600 text-white border-0",
-        icon: <Zap className="h-3 w-3" />,
-        accent: "border-l-gray-500",
+        badge:
+          "bg-gradient-to-r from-purple-500/90 to-violet-500/90 text-white border-0 shadow-lg shadow-purple-500/25",
+        icon: <Zap className="h-3.5 w-3.5" />,
+        accent: "border-l-purple-500",
+        cardBg: "bg-gradient-to-br from-purple-50/80 to-violet-50/80",
       }
   }
 }
 
+// Helper function to get day name
+const getDayName = (dayNumber: number) => {
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+  return days[dayNumber - 2] || "Unknown"
+}
+
 // Helper function to get day styling
-const getDayStyle = (day: string, index: number) => {
+const getDayStyle = (day: number) => {
   const colors = [
-    "from-violet-600 to-purple-600", // Monday
-    "from-blue-600 to-cyan-600", // Tuesday
-    "from-emerald-600 to-teal-600", // Wednesday
-    "from-amber-600 to-orange-600", // Thursday
-    "from-red-600 to-pink-600", // Friday
-    "from-indigo-600 to-blue-600", // Saturday
-    "from-gray-600 to-slate-600", // Sunday
+    "from-violet-500 via-purple-500 to-indigo-500", // Monday
+    "from-blue-500 via-cyan-500 to-teal-500", // Tuesday
+    "from-emerald-500 via-green-500 to-lime-500", // Wednesday
+    "from-amber-500 via-orange-500 to-red-500", // Thursday
+    "from-rose-500 via-pink-500 to-fuchsia-500", // Friday
+    "from-indigo-500 via-blue-500 to-cyan-500", // Saturday
+    "from-slate-500 via-gray-500 to-zinc-500", // Sunday
   ]
 
   return {
-    gradient: colors[index] || colors[0],
-    isWeekend: day === "saturday" || day === "sunday",
+    gradient: colors[day - 2] || colors[0],
+    isWeekend: day === 7 || day === 8,
   }
 }
 
+// Helper: get all days of week (2-8)
+const allDaysOfWeek = [2, 3, 4, 5, 6, 7, 8]
+
 const WeeklySchedule = () => {
-  const [viewMode, setViewMode] = useState<"vertical" | "horizontal">("vertical")
-  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+  const { planningList, loading, error, fetchPlanningList } = usePlanningStore()
+  const [viewMode, setViewMode] = useState<"vertical" | "horizontal">("horizontal")
 
-  const VerticalView = () => (
-    <div className="flex flex-col gap-6">
-      {days.map((day, dayIndex) => {
-        const dayStyle = getDayStyle(day, dayIndex)
-        const exercises = weeklySchedule[day]
+  useEffect(() => {
+    fetchPlanningList()
+  }, [fetchPlanningList])
 
-        return (
-          <Card
-            key={day}
-            className={`overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 ${
-              dayStyle.isWeekend ? "ring-2 ring-gray-200" : ""
-            }`}
-          >
-            {/* Day Header */}
-            <div className={`bg-gradient-to-r ${dayStyle.gradient} p-4 text-white relative overflow-hidden`}>
-              <div className="absolute inset-0 bg-black/10"></div>
-              <div className="relative z-10">
-                <h3 className="font-bold text-lg capitalize text-center">{day}</h3>
-                <div className="text-center text-sm opacity-90 mt-1">
-                  {exercises.length} exercise{exercises.length !== 1 ? "s" : ""}
-                </div>
-              </div>
-              {/* Decorative elements */}
-              <div className="absolute -top-4 -right-4 w-16 h-16 bg-white/10 rounded-full"></div>
-              <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-white/10 rounded-full"></div>
-            </div>
-
-            {/* Exercises */}
-            <CardContent className="p-0">
-              <div className="space-y-0">
-                {exercises.map((exercise, idx) => {
-                  const typeStyle = getExerciseTypeStyle(exercise.type)
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`p-4 border-l-4 ${typeStyle.accent} hover:bg-gray-50/80 transition-colors duration-200 group ${
-                        idx !== exercises.length - 1 ? "border-b border-gray-100" : ""
-                      }`}
-                    >
-                      <div className="space-y-3">
-                        {/* Exercise Header */}
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-semibold text-gray-900 text-sm leading-tight group-hover:text-gray-700 transition-colors">
-                            {exercise.name}
-                          </h4>
-                          <Badge className={`${typeStyle.badge} text-xs font-medium flex items-center gap-1 px-2 py-1`}>
-                            {typeStyle.icon}
-                            {exercise.type}
-                          </Badge>
-                        </div>
-
-                        {/* Exercise Details */}
-                        <div className="grid grid-cols-1 gap-2 text-xs">
-                          {/* Target Muscle */}
-                          <div className="flex items-center gap-2 text-gray-600">
-                            <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
-                              <Target className="h-3 w-3 text-gray-500" />
-                            </div>
-                            <span className="font-medium">{exercise.targetMuscle}</span>
-                          </div>
-
-                          {/* Sets & Reps or Duration */}
-                          {exercise.sets && exercise.reps && (
-                            <div className="flex items-center gap-2 text-gray-700">
-                              <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
-                                <Dumbbell className="h-3 w-3 text-blue-600" />
-                              </div>
-                              <span className="font-bold">
-                                {exercise.sets} sets × {exercise.reps} reps
-                              </span>
-                            </div>
-                          )}
-
-                          {exercise.duration && (
-                            <div className="flex items-center gap-2 text-gray-700">
-                              <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
-                                <Clock className="h-3 w-3 text-green-600" />
-                              </div>
-                              <span className="font-bold">{exercise.duration}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })}
-    </div>
-  )
-
-  const HorizontalView = () => (
-    <Card className="border-0 shadow-xl overflow-hidden">
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <div className="min-w-full">
-            {/* Day Headers */}
-            <div className="grid grid-cols-7 bg-gradient-to-r from-purple-600 to-pink-600">
-              {days.map((day, dayIndex) => {
-                const dayStyle = getDayStyle(day, dayIndex)
-                const exercises = weeklySchedule[day]
-
-                return (
-                  <div
-                    key={day}
-                    className={`p-4 text-white text-center border-r border-white/20 last:border-r-0 relative overflow-hidden ${
-                      dayStyle.isWeekend ? "bg-black/10" : ""
-                    }`}
-                  >
-                    <div className="relative z-10">
-                      <h3 className="font-bold text-lg capitalize">{day}</h3>
-                      <div className="text-sm opacity-90 mt-1">
-                        {exercises.length} exercise{exercises.length !== 1 ? "s" : ""}
-                      </div>
-                    </div>
-                    {/* Decorative elements */}
-                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-white/10 rounded-full"></div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Exercise Content */}
-            <div className="grid grid-cols-7 min-h-[500px]">
-              {days.map((day, dayIndex) => {
-                const dayStyle = getDayStyle(day, dayIndex)
-                const exercises = weeklySchedule[day]
-
-                return (
-                  <div
-                    key={day}
-                    className={`border-r border-gray-200 last:border-r-0 ${
-                      dayStyle.isWeekend ? "bg-gray-50/30" : "bg-white"
-                    }`}
-                  >
-                    <div className="p-3 space-y-3">
-                      {exercises.map((exercise, idx) => {
-                        const typeStyle = getExerciseTypeStyle(exercise.type)
-
-                        return (
-                          <div
-                            key={idx}
-                            className={`p-3 rounded-lg border-l-4 ${typeStyle.accent} bg-white shadow-sm hover:shadow-md transition-all duration-200 group`}
-                          >
-                            <div className="space-y-2">
-                              {/* Exercise Header */}
-                              <div className="space-y-2">
-                                <h4 className="font-semibold text-gray-900 text-sm leading-tight group-hover:text-gray-700 transition-colors">
-                                  {exercise.name}
-                                </h4>
-                                <Badge
-                                  className={`${typeStyle.badge} text-xs font-medium flex items-center gap-1 px-2 py-1 w-fit`}
-                                >
-                                  {typeStyle.icon}
-                                  {exercise.type}
-                                </Badge>
-                              </div>
-
-                              {/* Exercise Details */}
-                              <div className="space-y-2 text-xs">
-                                {/* Target Muscle */}
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <Target className="h-2.5 w-2.5 text-gray-500" />
-                                  </div>
-                                  <span className="font-medium text-xs">{exercise.targetMuscle}</span>
-                                </div>
-
-                                {/* Sets & Reps or Duration */}
-                                {exercise.sets && exercise.reps && (
-                                  <div className="flex items-center gap-2 text-gray-700">
-                                    <div className="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center">
-                                      <Dumbbell className="h-2.5 w-2.5 text-blue-600" />
-                                    </div>
-                                    <span className="font-bold text-xs">
-                                      {exercise.sets} × {exercise.reps}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {exercise.duration && (
-                                  <div className="flex items-center gap-2 text-gray-700">
-                                    <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center">
-                                      <Clock className="h-2.5 w-2.5 text-green-600" />
-                                    </div>
-                                    <span className="font-bold text-xs">{exercise.duration}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent absolute top-0 left-0"></div>
         </div>
-      </CardContent>
-    </Card>
-  )
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-3">
+          <div className="text-red-500 text-lg font-medium">Something went wrong</div>
+          <div className="text-gray-500 text-sm">{error}</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!planningList || planningList.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-100 to-indigo-100 rounded-full flex items-center justify-center">
+            <Calendar className="h-8 w-8 text-purple-500" />
+          </div>
+          <div className="text-gray-600 font-medium">No workout plan available</div>
+          <div className="text-gray-400 text-sm">Create your first workout to get started</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-8 p-6 bg-gradient-to-br from-gray-50/50 to-white min-h-screen">
       {/* Header */}
       <div className="text-center space-y-6">
-        {/* <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-white shadow-lg">
-          <Zap className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Weekly Training Plan</h1>
-          <Zap className="h-6 w-6" />
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Weekly Workout Schedule
+          </h2>
         </div>
-  */}
 
         {/* View Toggle Buttons */}
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant={viewMode === "vertical" ? "default" : "outline"}
-            onClick={() => setViewMode("vertical")}
-            className={`flex items-center gap-2 ${
-              viewMode === "vertical" ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white" : "hover:bg-purple-50"
-            }`}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Card View
-          </Button>
+        <div className="flex items-center justify-center gap-3">
           <Button
             variant={viewMode === "horizontal" ? "default" : "outline"}
             onClick={() => setViewMode("horizontal")}
-            className={`flex items-center gap-2 ${
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-full transition-all duration-300 ${
               viewMode === "horizontal"
-                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
-                : "hover:bg-purple-50"
+                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/25 scale-105"
+                : "hover:bg-purple-50 hover:border-purple-200 hover:text-purple-600"
             }`}
           >
             <Calendar className="h-4 w-4" />
             Calendar View
+          </Button>
+          <Button
+            variant={viewMode === "vertical" ? "default" : "outline"}
+            onClick={() => setViewMode("vertical")}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-full transition-all duration-300 ${
+              viewMode === "vertical"
+                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/25 scale-105"
+                : "hover:bg-purple-50 hover:border-purple-200 hover:text-purple-600"
+            }`}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Card View
           </Button>
         </div>
       </div>
@@ -530,43 +174,371 @@ const WeeklySchedule = () => {
       {viewMode === "vertical" ? <VerticalView /> : <HorizontalView />}
 
       {/* Footer Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-          <div className="text-2xl font-bold text-blue-600">
-            {Object.values(weeklySchedule).reduce(
-              (acc, exercises) => acc + exercises.filter((e) => e.type === "Strength").length,
-              0,
-            )}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-200/50 p-6 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 group">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-full -translate-y-10 translate-x-10"></div>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <Dumbbell className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="text-3xl font-bold text-blue-600 group-hover:scale-110 transition-transform duration-300">
+                {planningList.reduce(
+                  (acc, day) => acc + day.exercises.filter((e) => e.category === "strength").length,
+                  0,
+                )}
+              </div>
+            </div>
+            <div className="text-sm font-semibold text-blue-700">Strength Exercises</div>
           </div>
-          <div className="text-sm text-blue-700 font-medium">Strength</div>
         </div>
-        <div className="text-center p-4 bg-gradient-to-br from-red-50 to-pink-50 rounded-xl border border-red-100">
-          <div className="text-2xl font-bold text-red-600">
-            {Object.values(weeklySchedule).reduce(
-              (acc, exercises) => acc + exercises.filter((e) => e.type === "Cardio").length,
-              0,
-            )}
+
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500/10 to-rose-500/10 border border-red-200/50 p-6 hover:shadow-lg hover:shadow-red-500/10 transition-all duration-300 group">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-red-500/20 to-rose-500/20 rounded-full -translate-y-10 translate-x-10"></div>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-red-500/10 rounded-lg">
+                <Heart className="h-5 w-5 text-red-600" />
+              </div>
+              <div className="text-3xl font-bold text-red-600 group-hover:scale-110 transition-transform duration-300">
+                {planningList.reduce(
+                  (acc, day) => acc + day.exercises.filter((e) => e.category === "cardio").length,
+                  0,
+                )}
+              </div>
+            </div>
+            <div className="text-sm font-semibold text-red-700">Cardio Sessions</div>
           </div>
-          <div className="text-sm text-red-700 font-medium">Cardio</div>
         </div>
-        <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100">
-          <div className="text-2xl font-bold text-green-600">
-            {Object.values(weeklySchedule).reduce(
-              (acc, exercises) => acc + exercises.filter((e) => e.type === "Flexibility").length,
-              0,
-            )}
+
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-200/50 p-6 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 group">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full -translate-y-10 translate-x-10"></div>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-emerald-500/10 rounded-lg">
+                <Leaf className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div className="text-3xl font-bold text-emerald-600 group-hover:scale-110 transition-transform duration-300">
+                {planningList.reduce(
+                  (acc, day) => acc + day.exercises.filter((e) => e.category === "flexibility").length,
+                  0,
+                )}
+              </div>
+            </div>
+            <div className="text-sm font-semibold text-emerald-700">Flexibility Work</div>
           </div>
-          <div className="text-sm text-green-700 font-medium">Flexibility</div>
         </div>
-        <div className="text-center p-4 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl border border-gray-100">
-          <div className="text-2xl font-bold text-gray-600">
-            {Object.values(weeklySchedule).reduce(
-              (acc, exercises) => acc + exercises.filter((e) => e.type === "Recovery").length,
-              0,
-            )}
+
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-500/10 to-gray-500/10 border border-slate-200/50 p-6 hover:shadow-lg hover:shadow-slate-500/10 transition-all duration-300 group">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-slate-500/20 to-gray-500/20 rounded-full -translate-y-10 translate-x-10"></div>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-slate-500/10 rounded-lg">
+                <RotateCcw className="h-5 w-5 text-slate-600" />
+              </div>
+              <div className="text-3xl font-bold text-slate-600 group-hover:scale-110 transition-transform duration-300">
+                {planningList.reduce(
+                  (acc, day) => acc + day.exercises.filter((e) => e.category === "recovery").length,
+                  0,
+                )}
+              </div>
+            </div>
+            <div className="text-sm font-semibold text-slate-700">Recovery Time</div>
           </div>
-          <div className="text-sm text-gray-700 font-medium">Recovery</div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+const VerticalView = () => {
+  const { planningList, loading, error } = usePlanningStore()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent absolute top-0 left-0"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-3">
+          <div className="text-red-500 text-lg font-medium">Something went wrong</div>
+          <div className="text-gray-500 text-sm">{error}</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!planningList || planningList.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-100 to-indigo-100 rounded-full flex items-center justify-center">
+            <Calendar className="h-8 w-8 text-purple-500" />
+          </div>
+          <div className="text-gray-600 font-medium">No workout plan available</div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {allDaysOfWeek.map((dayNum) => {
+        const day = planningList.find((d) => d.dayOfWeek === dayNum)
+        const dayStyle = getDayStyle(dayNum)
+        return (
+          <Card key={dayNum} className="overflow-hidden border-0 shadow-lg shadow-black/5 rounded-2xl">
+            <div className={`p-6 bg-gradient-to-r ${dayStyle.gradient} text-white relative overflow-hidden`}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold">{getDayName(dayNum)}</h3>
+                  <p className="text-white/80 text-sm">
+                    {day && day.exercises.length > 0 ? `${day.exercises.length} exercises` : "Rest day"}
+                  </p>
+                </div>
+                <div className="p-3 bg-white/20 rounded-full">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+              </div>
+            </div>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {day && day.exercises.length > 0 ? (
+                  day.exercises.map((exercise, index) => {
+                    if (!exercise) return null
+                    const typeStyle = getExerciseTypeStyle(exercise.category || "")
+                    return (
+                      <div
+                        key={index}
+                        className={`p-5 rounded-xl border-l-4 ${typeStyle.accent} ${typeStyle.cardBg} 
+                          transition-all duration-300 ease-in-out
+                          hover:shadow-lg hover:shadow-black/10 hover:-translate-y-1 
+                          group cursor-pointer relative border border-white/50`}
+                      >
+                        <div className="flex flex-col w-full">
+                          <div className="relative w-full">
+                            <h4 className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-200 w-full mt-4 text-lg">
+                              {formatCamelCase(exercise.name || "")}
+                            </h4>
+                            <Badge
+                              className={`${typeStyle.badge} transition-all duration-200 group-hover:scale-105 absolute -top-2 -right-2 px-3 py-1`}
+                            >
+                              <span className="flex items-center gap-1.5 font-medium">
+                                {typeStyle.icon}
+                                {formatCamelCase(exercise.category || "")}
+                              </span>
+                            </Badge>
+                          </div>
+                          <div className="space-y-3 text-sm text-gray-600 mt-4">
+                            {exercise.target && (
+                              <p className="flex items-center gap-3 group-hover:text-gray-700 transition-colors duration-200">
+                                <div className="p-1.5 bg-white/80 rounded-lg">
+                                  <Target className="h-4 w-4 text-gray-500 group-hover:text-purple-500 transition-colors duration-200" />
+                                </div>
+                                <span className="font-medium">{formatCamelCase(exercise.target)}</span>
+                              </p>
+                            )}
+                            {exercise.equipment && (
+                              <p className="flex items-center gap-3 group-hover:text-gray-700 transition-colors duration-200">
+                                <div className="p-1.5 bg-white/80 rounded-lg">
+                                  <Dumbbell className="h-4 w-4 text-gray-500 group-hover:text-purple-500 transition-colors duration-200" />
+                                </div>
+                                <span className="font-medium">Equipment: {formatCamelCase(exercise.equipment)}</span>
+                              </p>
+                            )}
+                            {exercise.secondaryMuscles && exercise.secondaryMuscles.length > 0 && (
+                              <p className="flex items-center gap-3 group-hover:text-gray-700 transition-colors duration-200">
+                                <div className="p-1.5 bg-white/80 rounded-lg">
+                                  <Zap className="h-4 w-4 text-gray-500 group-hover:text-purple-500 transition-colors duration-200" />
+                                </div>
+                                <span className="font-medium">Secondary: {formatArray(exercise.secondaryMuscles)}</span>
+                              </p>
+                            )}
+                            {exercise.bodyPart && (
+                              <p className="flex items-center gap-3 group-hover:text-gray-700 transition-colors duration-200">
+                                <div className="p-1.5 bg-white/80 rounded-lg">
+                                  <Heart className="h-4 w-4 text-gray-500 group-hover:text-purple-500 transition-colors duration-200" />
+                                </div>
+                                <span className="font-medium">{formatCamelCase(exercise.bodyPart)}</span>
+                              </p>
+                            )}
+                            {exercise.difficulty && (
+                              <p className="flex items-center gap-3 group-hover:text-gray-700 transition-colors duration-200">
+                                <div className="p-1.5 bg-white/80 rounded-lg">
+                                  <Leaf className="h-4 w-4 text-gray-500 group-hover:text-purple-500 transition-colors duration-200" />
+                                </div>
+                                <span className="font-medium">{formatCamelCase(exercise.difficulty)}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="flex items-center justify-center h-32 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <div className="text-center space-y-2">
+                      <div className="w-12 h-12 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
+                        <RotateCcw className="h-6 w-6 text-gray-400" />
+                      </div>
+                      <span className="text-gray-500 font-semibold text-lg">Rest Day</span>
+                      <p className="text-gray-400 text-sm">Take time to recover</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
+    </div>
+  )
+}
+
+const HorizontalView = () => {
+  const { planningList, loading, error } = usePlanningStore()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent absolute top-0 left-0"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-3">
+          <div className="text-red-500 text-lg font-medium">Something went wrong</div>
+          <div className="text-gray-500 text-sm">{error}</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!planningList || planningList.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-100 to-indigo-100 rounded-full flex items-center justify-center">
+            <Calendar className="h-8 w-8 text-purple-500" />
+          </div>
+          <div className="text-gray-600 font-medium">No workout plan available</div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Day Headers */}
+      <div className="grid grid-cols-7 rounded-2xl overflow-hidden shadow-lg shadow-purple-500/20">
+        {allDaysOfWeek.map((dayNum) => {
+          const dayStyle = getDayStyle(dayNum)
+          return (
+            <div
+              key={dayNum}
+              className={`p-6 bg-gradient-to-br ${dayStyle.gradient} text-white text-center relative overflow-hidden ${
+                dayStyle.isWeekend ? "bg-black/20" : ""
+              }`}
+            >
+              <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
+              <div className="relative">
+                <h3 className="font-bold text-lg">{getDayName(dayNum)}</h3>
+                <p className="text-white/80 text-sm mt-1">
+                  {(() => {
+                    const day = planningList.find((d) => d.dayOfWeek === dayNum)
+                    return day && day.exercises.length > 0 ? `${day.exercises.length} exercises` : "Rest"
+                  })()}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Exercise Content */}
+      <div className="grid grid-cols-7 gap-4 min-h-[600px]">
+        {allDaysOfWeek.map((dayNum) => {
+          const day = planningList.find((d) => d.dayOfWeek === dayNum)
+          return (
+            <div key={dayNum} className="space-y-4">
+              {day && day.exercises.length > 0 ? (
+                day.exercises.map((exercise, index) => {
+                  if (!exercise) return null
+                  const typeStyle = getExerciseTypeStyle(exercise.category || "")
+                  return (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-xl border-l-4 ${typeStyle.accent} ${typeStyle.cardBg} 
+                        transition-all duration-300 ease-in-out
+                        hover:shadow-lg hover:shadow-black/10 hover:-translate-y-1 
+                        group cursor-pointer relative border border-white/50`}
+                    >
+                      <div className="flex flex-col w-full">
+                        <div className="relative w-full">
+                          <h4 className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-200 w-full mt-4 text-sm leading-tight">
+                            {formatCamelCase(exercise.name || "")}
+                          </h4>
+                          <Badge
+                            className={`${typeStyle.badge} transition-all duration-200 group-hover:scale-105 absolute -top-2 -right-2 px-2 py-0.5 text-xs`}
+                          >
+                            <span className="flex items-center gap-1">
+                              {typeStyle.icon}
+                              {formatCamelCase(exercise.category || "").split(" ")[0]}
+                            </span>
+                          </Badge>
+                        </div>
+                        <div className="space-y-2 text-xs text-gray-600 mt-3">
+                          {exercise.target && (
+                            <p className="flex items-center gap-2 group-hover:text-gray-700 transition-colors duration-200">
+                              <Target className="h-3 w-3 text-gray-400 group-hover:text-purple-400 transition-colors duration-200 flex-shrink-0" />
+                              <span className="font-medium truncate">{formatCamelCase(exercise.target)}</span>
+                            </p>
+                          )}
+                          {exercise.bodyPart && (
+                            <p className="flex items-center gap-2 group-hover:text-gray-700 transition-colors duration-200">
+                              <Heart className="h-3 w-3 text-gray-400 group-hover:text-purple-400 transition-colors duration-200 flex-shrink-0" />
+                              <span className="font-medium truncate">{formatCamelCase(exercise.bodyPart)}</span>
+                            </p>
+                          )}
+                          {exercise.difficulty && (
+                            <p className="flex items-center gap-2 group-hover:text-gray-700 transition-colors duration-200">
+                              <Leaf className="h-3 w-3 text-gray-400 group-hover:text-purple-400 transition-colors duration-200 flex-shrink-0" />
+                              <span className="font-medium truncate">{formatCamelCase(exercise.difficulty)}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="flex items-center justify-center h-32 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl border-2 border-dashed border-gray-200">
+                  <div className="text-center space-y-2">
+                    <div className="w-8 h-8 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
+                      <RotateCcw className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <span className="text-gray-500 font-semibold text-sm">Rest Day</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

@@ -180,6 +180,19 @@ const AICoachContent = () => {
   }
 
   const parseMessage = (text: string) => {
+    // Check if the message contains HTML content
+    if (text.includes('<div style=') || text.includes('<div class=')) {
+      return (
+        <div 
+          key="html-content"
+          className="html-content"
+          dangerouslySetInnerHTML={{ 
+            __html: text.replace(/\\n/g, '\n').replace(/\\'/g, "'")
+          }}
+        />
+      )
+    }
+
     const lines = text.split('\n')
     return lines.map((line, idx) => {
       const trimmed = line.trim()
@@ -382,7 +395,7 @@ const AICoachContent = () => {
                       : "bg-gray-50 text-gray-900"
                   )}
                 >
-                  <div className="text-sm leading-relaxed space-y-2">
+                  <div className="text-sm leading-relaxed space-y-2 [&_.html-content]:max-w-full [&_.html-content]:overflow-x-auto [&_.html-content]:whitespace-pre-wrap [&_.html-content]:text-base [&_.html-content]:bg-white [&_.html-content]:p-6 [&_.html-content]:rounded-lg [&_.html-content]:border [&_.html-content]:border-gray-200 [&_.html-content_h2]:text-2xl [&_.html-content_h2]:font-bold [&_.html-content_h2]:mb-4 [&_.html-content_h3]:text-xl [&_.html-content_h3]:font-semibold [&_.html-content_h3]:mt-6 [&_.html-content_h3]:mb-2 [&_.html-content_p]:mb-3 [&_.html-content_ul]:list-disc [&_.html-content_ul]:pl-6 [&_.html-content_li]:mb-2 [&_.html-content_strong]:font-semibold [&_.html-content_em]:text-gray-600">
                     {parseMessage(message.message.replace(/\\n/g, '\n'))}
                   </div>
                   <div className="mt-1 text-xs opacity-60">
