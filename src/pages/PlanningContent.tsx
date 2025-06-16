@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/chatbot/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dumbbell, Target, Zap, Heart, Leaf, RotateCcw, Calendar, LayoutGrid, TrendingUp } from "lucide-react"
-import { usePlanningStore } from "@/store/PlanningStore"
+import { Dumbbell, Target, Zap, Heart, Leaf, RotateCcw, Calendar, LayoutGrid, TrendingUp, X } from "lucide-react"
+import { usePlanningStore, Exercise } from "@/store/PlanningStore"
 
 // Helper function to format camelized string for display
 const formatCamelCase = (str: string) => {
@@ -90,6 +90,7 @@ const allDaysOfWeek = [2, 3, 4, 5, 6, 7, 8]
 const WeeklySchedule = () => {
   const { planningList, loading, error, fetchPlanningList } = usePlanningStore()
   const [viewMode, setViewMode] = useState<"vertical" | "horizontal">("horizontal")
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null)
 
   useEffect(() => {
     fetchPlanningList()
@@ -131,18 +132,16 @@ const WeeklySchedule = () => {
     )
   }
 
-  return (
-    <div className="w-full space-y-8 p-6 bg-gradient-to-br from-gray-50/50 to-white min-h-screen">
+        return (
+    <div className="w-full space-y-8 p-6 pt-1 bg-gradient-to-br from-gray-50/50 to-white min-h-screen">
       {/* Header */}
-      <div className="text-center space-y-6">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Weekly Workout Schedule
-          </h2>
-        </div>
+      <div className="relative flex items-center justify-center">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+          Weekly Workout Schedule
+        </h2>
 
         {/* View Toggle Buttons */}
-        <div className="flex items-center justify-center gap-3">
+        <div className="absolute right-0 flex items-center gap-3">
           <Button
             variant={viewMode === "horizontal" ? "default" : "outline"}
             onClick={() => setViewMode("horizontal")}
@@ -170,88 +169,172 @@ const WeeklySchedule = () => {
         </div>
       </div>
 
-      {/* Schedule Content */}
-      {viewMode === "vertical" ? <VerticalView /> : <HorizontalView />}
-
-      {/* Footer Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-200/50 p-6 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 group">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-full -translate-y-10 translate-x-10"></div>
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <Dumbbell className="h-5 w-5 text-blue-600" />
-              </div>
-              <div className="text-3xl font-bold text-blue-600 group-hover:scale-110 transition-transform duration-300">
-                {planningList.reduce(
-                  (acc, day) => acc + day.exercises.filter((e) => e.category === "strength").length,
-                  0,
-                )}
-              </div>
-            </div>
-            <div className="text-sm font-semibold text-blue-700">Strength Exercises</div>
-          </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500/10 to-rose-500/10 border border-red-200/50 p-6 hover:shadow-lg hover:shadow-red-500/10 transition-all duration-300 group">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-red-500/20 to-rose-500/20 rounded-full -translate-y-10 translate-x-10"></div>
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-red-500/10 rounded-lg">
-                <Heart className="h-5 w-5 text-red-600" />
-              </div>
-              <div className="text-3xl font-bold text-red-600 group-hover:scale-110 transition-transform duration-300">
-                {planningList.reduce(
-                  (acc, day) => acc + day.exercises.filter((e) => e.category === "cardio").length,
-                  0,
-                )}
-              </div>
-            </div>
-            <div className="text-sm font-semibold text-red-700">Cardio Sessions</div>
-          </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-200/50 p-6 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 group">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full -translate-y-10 translate-x-10"></div>
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-500/10 rounded-lg">
-                <Leaf className="h-5 w-5 text-emerald-600" />
-              </div>
-              <div className="text-3xl font-bold text-emerald-600 group-hover:scale-110 transition-transform duration-300">
-                {planningList.reduce(
-                  (acc, day) => acc + day.exercises.filter((e) => e.category === "flexibility").length,
-                  0,
-                )}
-              </div>
-            </div>
-            <div className="text-sm font-semibold text-emerald-700">Flexibility Work</div>
-          </div>
-        </div>
-
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-500/10 to-gray-500/10 border border-slate-200/50 p-6 hover:shadow-lg hover:shadow-slate-500/10 transition-all duration-300 group">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-slate-500/20 to-gray-500/20 rounded-full -translate-y-10 translate-x-10"></div>
-          <div className="relative">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-slate-500/10 rounded-lg">
-                <RotateCcw className="h-5 w-5 text-slate-600" />
-              </div>
-              <div className="text-3xl font-bold text-slate-600 group-hover:scale-110 transition-transform duration-300">
-                {planningList.reduce(
-                  (acc, day) => acc + day.exercises.filter((e) => e.category === "recovery").length,
-                  0,
-                )}
-              </div>
-            </div>
-            <div className="text-sm font-semibold text-slate-700">Recovery Time</div>
-          </div>
-        </div>
+      {/* Category Badges */}
+      <div className="flex flex-wrap gap-2 -mt-5">
+        {planningList && Object.entries(planningList.reduce((acc, day) => {
+          day.exercises.forEach(exercise => {
+            if (exercise.category) {
+              acc[exercise.category] = (acc[exercise.category] || 0) + 1
+            }
+          })
+          return acc
+        }, {} as Record<string, number>)).map(([category, count]) => count > 0 && (
+          <Badge
+            key={category}
+            className={`px-3 py-1 rounded-full text-xs font-medium ${
+              category === "strength" ? "bg-blue-500/10 text-blue-600" :
+              category === "cardio" ? "bg-red-500/10 text-red-600" :
+              category === "mobility" ? "bg-emerald-500/10 text-emerald-600" :
+              category === "plyometrics" ? "bg-amber-500/10 text-amber-600" :
+              category === "rehabilitation" ? "bg-purple-500/10 text-purple-600" :
+              category === "stretching" ? "bg-teal-500/10 text-teal-600" :
+              category === "balance" ? "bg-indigo-500/10 text-indigo-600" :
+              "bg-gray-500/10 text-gray-600"
+            }`}
+          >
+            {formatCamelCase(category)} ({count})
+          </Badge>
+        ))}
       </div>
+
+      {/* Schedule Content */}
+      {viewMode === "vertical" ? (
+        <VerticalView onExerciseClick={setSelectedExercise} />
+      ) : (
+        <HorizontalView onExerciseClick={setSelectedExercise} />
+      )}
+
+      {/* Exercise Detail Modal */}
+      {selectedExercise && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300"
+          style={{ animation: 'fadeIn 0.3s ease-out' }}
+        >
+          <Card 
+            className="w-full max-w-2xl max-h-[80vh] overflow-y-auto border-0 shadow-2xl transition-all duration-300"
+            style={{ animation: 'slideIn 0.3s ease-out' }}
+          >
+            <CardContent className="p-0">
+              {/* Header with gradient background */}
+              <div className="relative p-6 bg-gradient-to-r from-purple-600 to-pink-600">
+                <div className="absolute inset-0 bg-black/10"></div>
+                <div className="relative flex justify-between items-start">
+                  <div className="space-y-1.5">
+                    <h3 className="text-2xl font-bold text-white">
+                      {formatCamelCase(selectedExercise.name)}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <Badge className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        selectedExercise.category === "strength" ? "bg-blue-500/20 text-blue-100" :
+                        selectedExercise.category === "cardio" ? "bg-red-500/20 text-red-100" :
+                        selectedExercise.category === "mobility" ? "bg-emerald-500/20 text-emerald-100" :
+                        selectedExercise.category === "plyometrics" ? "bg-amber-500/20 text-amber-100" :
+                        selectedExercise.category === "rehabilitation" ? "bg-purple-500/20 text-purple-100" :
+                        selectedExercise.category === "stretching" ? "bg-teal-500/20 text-teal-100" :
+                        selectedExercise.category === "balance" ? "bg-indigo-500/20 text-indigo-100" :
+                        "bg-gray-500/20 text-gray-100"
+                      }`}>
+                        {formatCamelCase(selectedExercise.category)}
+                      </Badge>
+                      <Badge className="bg-white/20 text-white px-3 py-1 rounded-full text-xs font-medium">
+                        {formatCamelCase(selectedExercise.difficulty)}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedExercise(null)}
+                    className="hover:bg-white/20 text-white rounded-full"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Exercise Image */}
+                <div className="relative aspect-video rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 shadow-lg">
+                  <img
+                    src={selectedExercise.gifUrl}
+                    alt={selectedExercise.name}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+
+                {/* Exercise Details Grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Left Column */}
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+                      <h3 className="text-base font-semibold text-blue-900 mb-3">Primary Info</h3>
+                      <div className="space-y-2">
+                        <div>
+                          <h4 className="text-xs font-medium text-blue-600">Target Muscle</h4>
+                          <p className="text-blue-900 text-sm">{formatCamelCase(selectedExercise.target)}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-medium text-blue-600">Equipment</h4>
+                          <p className="text-blue-900 text-sm">{formatCamelCase(selectedExercise.equipment)}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-medium text-blue-600">Body Part</h4>
+                          <p className="text-blue-900 text-sm">{formatCamelCase(selectedExercise.bodyPart)}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
+                      <h3 className="text-base font-semibold text-purple-900 mb-3">Secondary Muscles</h3>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedExercise.secondaryMuscles.map((muscle, index) => (
+                          <Badge 
+                            key={index} 
+                            className="bg-white/50 text-purple-700 border-purple-200 px-2 py-0.5 text-xs"
+                          >
+                            {formatCamelCase(muscle)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
+                    <h3 className="text-base font-semibold text-emerald-900 mb-3">Instructions</h3>
+                    <ol className="space-y-2">
+                      {selectedExercise.instructions.map((instruction, index) => (
+                        <li key={index} className="flex gap-2">
+                          <div className="flex-shrink-0 w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center justify-center text-xs">
+                            {index + 1}
+                          </div>
+                          <p className="text-emerald-900 text-sm">{instruction}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideIn {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `}</style>
     </div>
   )
 }
 
-const VerticalView = () => {
+const VerticalView = ({ onExerciseClick }: { onExerciseClick: (exercise: Exercise) => void }) => {
   const { planningList, loading, error } = usePlanningStore()
 
   if (loading) {
@@ -316,9 +399,10 @@ const VerticalView = () => {
                   day.exercises.map((exercise, index) => {
                     if (!exercise) return null
                     const typeStyle = getExerciseTypeStyle(exercise.category || "")
-                    return (
-                      <div
+                  return (
+                    <div
                         key={index}
+                        onClick={() => onExerciseClick(exercise)}
                         className={`p-5 rounded-xl border-l-4 ${typeStyle.accent} ${typeStyle.cardBg} 
                           transition-all duration-300 ease-in-out
                           hover:shadow-lg hover:shadow-black/10 hover:-translate-y-1 
@@ -328,15 +412,15 @@ const VerticalView = () => {
                           <div className="relative w-full">
                             <h4 className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-200 w-full mt-4 text-lg">
                               {formatCamelCase(exercise.name || "")}
-                            </h4>
+                          </h4>
                             <Badge
                               className={`${typeStyle.badge} transition-all duration-200 group-hover:scale-105 absolute -top-2 -right-2 px-3 py-1`}
                             >
                               <span className="flex items-center gap-1.5 font-medium">
-                                {typeStyle.icon}
+                            {typeStyle.icon}
                                 {formatCamelCase(exercise.category || "")}
                               </span>
-                            </Badge>
+                          </Badge>
                           </div>
                           <div className="space-y-3 text-sm text-gray-600 mt-4">
                             {exercise.target && (
@@ -351,7 +435,7 @@ const VerticalView = () => {
                               <p className="flex items-center gap-3 group-hover:text-gray-700 transition-colors duration-200">
                                 <div className="p-1.5 bg-white/80 rounded-lg">
                                   <Dumbbell className="h-4 w-4 text-gray-500 group-hover:text-purple-500 transition-colors duration-200" />
-                                </div>
+                              </div>
                                 <span className="font-medium">Equipment: {formatCamelCase(exercise.equipment)}</span>
                               </p>
                             )}
@@ -359,7 +443,7 @@ const VerticalView = () => {
                               <p className="flex items-center gap-3 group-hover:text-gray-700 transition-colors duration-200">
                                 <div className="p-1.5 bg-white/80 rounded-lg">
                                   <Zap className="h-4 w-4 text-gray-500 group-hover:text-purple-500 transition-colors duration-200" />
-                                </div>
+                            </div>
                                 <span className="font-medium">Secondary: {formatArray(exercise.secondaryMuscles)}</span>
                               </p>
                             )}
@@ -367,7 +451,7 @@ const VerticalView = () => {
                               <p className="flex items-center gap-3 group-hover:text-gray-700 transition-colors duration-200">
                                 <div className="p-1.5 bg-white/80 rounded-lg">
                                   <Heart className="h-4 w-4 text-gray-500 group-hover:text-purple-500 transition-colors duration-200" />
-                                </div>
+                              </div>
                                 <span className="font-medium">{formatCamelCase(exercise.bodyPart)}</span>
                               </p>
                             )}
@@ -375,10 +459,10 @@ const VerticalView = () => {
                               <p className="flex items-center gap-3 group-hover:text-gray-700 transition-colors duration-200">
                                 <div className="p-1.5 bg-white/80 rounded-lg">
                                   <Leaf className="h-4 w-4 text-gray-500 group-hover:text-purple-500 transition-colors duration-200" />
-                                </div>
+                            </div>
                                 <span className="font-medium">{formatCamelCase(exercise.difficulty)}</span>
                               </p>
-                            )}
+                          )}
                           </div>
                         </div>
                       </div>
@@ -404,7 +488,7 @@ const VerticalView = () => {
   )
 }
 
-const HorizontalView = () => {
+const HorizontalView = ({ onExerciseClick }: { onExerciseClick: (exercise: Exercise) => void }) => {
   const { planningList, loading, error } = usePlanningStore()
 
   if (loading) {
@@ -444,12 +528,12 @@ const HorizontalView = () => {
 
   return (
     <div className="space-y-6">
-      {/* Day Headers */}
+            {/* Day Headers */}
       <div className="grid grid-cols-7 rounded-2xl overflow-hidden shadow-lg shadow-purple-500/20">
         {allDaysOfWeek.map((dayNum) => {
           const dayStyle = getDayStyle(dayNum)
-          return (
-            <div
+                return (
+                  <div
               key={dayNum}
               className={`p-6 bg-gradient-to-br ${dayStyle.gradient} text-white text-center relative overflow-hidden ${
                 dayStyle.isWeekend ? "bg-black/20" : ""
@@ -464,25 +548,26 @@ const HorizontalView = () => {
                     return day && day.exercises.length > 0 ? `${day.exercises.length} exercises` : "Rest"
                   })()}
                 </p>
-              </div>
+                      </div>
+                  </div>
+                )
+              })}
             </div>
-          )
-        })}
-      </div>
 
-      {/* Exercise Content */}
+            {/* Exercise Content */}
       <div className="grid grid-cols-7 gap-4 min-h-[600px]">
         {allDaysOfWeek.map((dayNum) => {
           const day = planningList.find((d) => d.dayOfWeek === dayNum)
-          return (
+                return (
             <div key={dayNum} className="space-y-4">
               {day && day.exercises.length > 0 ? (
                 day.exercises.map((exercise, index) => {
                   if (!exercise) return null
                   const typeStyle = getExerciseTypeStyle(exercise.category || "")
-                  return (
-                    <div
+                        return (
+                          <div
                       key={index}
+                      onClick={() => onExerciseClick(exercise)}
                       className={`p-4 rounded-xl border-l-4 ${typeStyle.accent} ${typeStyle.cardBg} 
                         transition-all duration-300 ease-in-out
                         hover:shadow-lg hover:shadow-black/10 hover:-translate-y-1 
@@ -492,16 +577,16 @@ const HorizontalView = () => {
                         <div className="relative w-full">
                           <h4 className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-200 w-full mt-4 text-sm leading-tight">
                             {formatCamelCase(exercise.name || "")}
-                          </h4>
-                          <Badge
+                                </h4>
+                                <Badge
                             className={`${typeStyle.badge} transition-all duration-200 group-hover:scale-105 absolute -top-2 -right-2 px-2 py-0.5 text-xs`}
-                          >
+                                >
                             <span className="flex items-center gap-1">
-                              {typeStyle.icon}
+                                  {typeStyle.icon}
                               {formatCamelCase(exercise.category || "").split(" ")[0]}
                             </span>
-                          </Badge>
-                        </div>
+                                </Badge>
+                              </div>
                         <div className="space-y-2 text-xs text-gray-600 mt-3">
                           {exercise.target && (
                             <p className="flex items-center gap-2 group-hover:text-gray-700 transition-colors duration-200">
@@ -520,11 +605,11 @@ const HorizontalView = () => {
                               <Leaf className="h-3 w-3 text-gray-400 group-hover:text-purple-400 transition-colors duration-200 flex-shrink-0" />
                               <span className="font-medium truncate">{formatCamelCase(exercise.difficulty)}</span>
                             </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
                 })
               ) : (
                 <div className="flex items-center justify-center h-32 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl border-2 border-dashed border-gray-200">
