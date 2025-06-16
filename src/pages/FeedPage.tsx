@@ -22,11 +22,10 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
 export function FeedPage() {
-  const { isLoading, error, fetchFeedList, reactPost, posts, clearPosts } = useFeedStore()
-  const [hasMore, setHasMore] = useState(true)
+  const { isLoading, error, fetchFeedList, reactPost, posts, clearPosts, hasMore } = useFeedStore()
   const [loadingMore, setLoadingMore] = useState(false)
   const [initialLoadDone, setInitialLoadDone] = useState(false)
-  const observer = useRef<IntersectionObserver | null>(null)
+  const observerRef = useRef<IntersectionObserver | null>(null)
   const navigate = useNavigate()
   const [localLikes, setLocalLikes] = useState<Record<string, { isLiked: boolean; count: number }>>({})
   const [sortBy, setSortBy] = useState("best")
@@ -38,6 +37,20 @@ export function FeedPage() {
 
   // Update local likes when posts change
   useEffect(() => {
+    // Check for duplicate IDs
+    const postIds = new Set<string>()
+    const duplicates = posts.filter(post => {
+      if (postIds.has(post.id)) {
+        return true
+      }
+      postIds.add(post.id)
+      return false
+    })
+
+    if (duplicates.length > 0) {
+      console.warn('Duplicate post IDs found:', duplicates.map(p => p.id))
+    }
+
     const newLocalLikes: Record<string, { isLiked: boolean; count: number }> = {}
     posts.forEach((post) => {
       newLocalLikes[post.id] = {
@@ -53,70 +66,73 @@ export function FeedPage() {
     // Reset all state
     clearPosts()
     setInitialLoadDone(false)
-    setHasMore(true)
     setLoadingMore(false)
+
+    // Add event listener for refresh
+    const handleRefresh = () => {
+      clearPosts()
+      setInitialLoadDone(false)
+      setLoadingMore(false)
+      fetchFeedList()
+    }
+    window.addEventListener('refreshFeed', handleRefresh)
 
     // Cleanup function to clear posts when component unmounts
     return () => {
       clearPosts()
       setInitialLoadDone(false)
-      setHasMore(true)
       setLoadingMore(false)
-      if (observer.current) {
-        observer.current.disconnect()
+      if (observerRef.current) {
+        observerRef.current.disconnect()
       }
+      window.removeEventListener('refreshFeed', handleRefresh)
     }
-  }, [clearPosts])
+  }, [clearPosts, fetchFeedList])
 
-  // Initial load and infinite scroll observer setup
+  // Initial load
   useEffect(() => {
-    let mounted = true
-
     if (!initialLoadDone && !isLoading && !loadingMore) {
       setLoadingMore(true)
-      fetchFeedList().then((datas) => {
-        if (mounted) {
-          setLoadingMore(false)
-          setInitialLoadDone(true)
-          if (!datas || datas.length === 0) {
-            setHasMore(false)
-          }
-        }
+      fetchFeedList().then(() => {
+        setLoadingMore(false)
+        setInitialLoadDone(true)
       })
     }
+  }, [initialLoadDone, isLoading, loadingMore, fetchFeedList])
 
-    // Setup intersection observer for infinite scroll
-    if (observer.current) observer.current.disconnect()
-
-    observer.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasMore && !loadingMore && initialLoadDone) {
-        setLoadingMore(true)
-        fetchFeedList().then((datas) => {
-          setLoadingMore(false)
-          if (!datas || datas.length === 0) {
-            setHasMore(false)
-            if (observer.current) {
-              observer.current.disconnect()
-            }
-          }
-        })
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading && hasMore) {
+          loadMore()
+        }
+      },
+      {
+        rootMargin: "500px",
+        threshold: 0.1,
       }
-    })
+    )
+
+    if (lastPostRef.current) {
+      observerRef.current.observe(lastPostRef.current)
+    }
 
     return () => {
-      mounted = false
-      if (observer.current) {
-        observer.current.disconnect()
+      if (lastPostRef.current && observerRef.current) {
+        observerRef.current.unobserve(lastPostRef.current)
       }
     }
-  }, [initialLoadDone, isLoading, loadingMore, hasMore, fetchFeedList])
+  }, [posts, isLoading, hasMore])
+
+  const loadMore = async () => {
+    if (isLoading || !hasMore) return
+    setLoadingMore(true)
+    await fetchFeedList()
+    setLoadingMore(false)
+  }
 
   // Last post ref for infinite scroll
-  const lastPostRef = (node: HTMLDivElement | null) => {
-    if (node && observer.current) {
-      observer.current.observe(node)
-    }
-  }
+  const lastPostRef = useRef<HTMLDivElement | null>(null)
 
   // Helper function to format time ago
   const formatTimeAgo = (dateString: string): string => {
@@ -149,25 +165,29 @@ export function FeedPage() {
   }
 
   const renderLoadingSkeleton = () => {
-    return Array(3)
-      .fill(0)
-      .map((_, i) => (
-        <div
-          key={`skeleton-${i}`}
-          className="bg-white rounded-md shadow-sm border border-gray-200 p-4 mb-3 animate-pulse"
-        >
-          <div className="flex items-start space-x-3 mb-4">
-            <div className="h-10 w-10 rounded-full bg-gray-200"></div>
-            <div className="flex-1">
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/5 mb-3"></div>
-              <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+    return (
+      <div className="space-y-3">
+        {Array(3)
+          .fill(0)
+          .map((_, i) => (
+            <div
+              key={`skeleton-${i}`}
+              className="bg-white rounded-md shadow-sm border border-gray-200 p-4 animate-pulse"
+            >
+              <div className="flex items-start space-x-3 mb-4">
+                <div className="h-10 w-10 rounded-full bg-gray-200"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/5 mb-3"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      ))
+          ))}
+      </div>
+    )
   }
 
   const renderPosts = () => {
@@ -328,20 +348,21 @@ export function FeedPage() {
         </div>
       )
 
-      if (posts.length === index + 1) {
+      // Only attach ref to the last post
+      if (index === posts.length - 1) {
         return (
-          <div key={post.id} ref={lastPostRef}>
+          <div key={`${post.id}-${index}`} ref={lastPostRef}>
             <PostContent />
-          </div>
-        )
-      } else {
-        return (
-          <div key={post.id}>
-            <PostContent />
-            <div className="h-px bg-gray-200 mx-4" />
           </div>
         )
       }
+
+      return (
+        <div key={`${post.id}-${index}`}>
+          <PostContent />
+          <div className="h-px bg-gray-200 mx-4" />
+        </div>
+      )
     })
   }
 
@@ -402,7 +423,6 @@ export function FeedPage() {
         {/* Posts */}
         <div className="bg-transparent rounded-xl">
           {renderPosts()}
-          {loadingMore && renderLoadingSkeleton()}
           {!hasMore && !loadingMore && posts.length > 0 && (
             <div className="text-center text-gray-400 py-6">
               <p className="text-sm font-medium mb-1">You've reached the end!</p>
@@ -410,8 +430,16 @@ export function FeedPage() {
             </div>
           )}
         </div>
+
+        {/* Loading skeleton - always at bottom when loading more */}
+        {loadingMore && (
+          <div className="mt-4">
+            {renderLoadingSkeleton()}
+          </div>
+        )}
       </div>
       <AppRightSidebar />
     </div>
   )
 }
+
