@@ -14,6 +14,7 @@ import {
   FileText,
   EyeOff,
   UserCog,
+  Coins,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -890,7 +891,7 @@ export default function TrainerFinderPage() {
 
                           <div className="flex items-start gap-4">
                             <div className="w-10 h-10 rounded-md bg-gradient-to-br from-[#DE9151]/5 to-[#4A6FA5]/10 flex items-center justify-center flex-shrink-0">
-                              <DollarSign className="h-5 w-5 text-[#DE9151]" />
+                              <Coins className="h-5 w-5 text-[#DE9151]" />
                             </div>
                             <div className="w-full">
                               <p className="font-medium text-gray-800 mb-2">Price Range</p>
@@ -919,42 +920,48 @@ export default function TrainerFinderPage() {
                                 </div>
                                 <div className="flex gap-3 items-center">
                                   <div>
-                                    <label className="block text-xs text-gray-500 mb-1">Start Price ($)</label>
-                                    <Input
-                                      type="number"
-                                      className={cn("w-full", formErrors.startPrice && "border-red-500 focus:ring-red-500")}
-                                      placeholder="0"
-                                      value={form.startPrice}
-                                      min={0}
-                                      onChange={(e) => {
-                                        setForm((f) => ({
-                                          ...f,
-                                          startPrice: e.target.value,
-                                          ...(f.priceType === "single" ? { endPrice: e.target.value } : {}),
-                                        }))
-                                        if (formErrors.startPrice) {
-                                          setFormErrors(prev => ({ ...prev, startPrice: undefined }))
-                                        }
-                                      }}
-                                    />
+                                    <label className="block text-xs text-gray-500 mb-1">Start Price</label>
+                                    <div className="relative">
+                                      <Input
+                                        type="number"
+                                        className={cn("w-full pl-8", formErrors.startPrice && "border-red-500 focus:ring-red-500")}
+                                        placeholder="0"
+                                        value={form.startPrice}
+                                        min={0}
+                                        onChange={(e) => {
+                                          setForm((f) => ({
+                                            ...f,
+                                            startPrice: e.target.value,
+                                            ...(f.priceType === "single" ? { endPrice: e.target.value } : {}),
+                                          }))
+                                          if (formErrors.startPrice) {
+                                            setFormErrors(prev => ({ ...prev, startPrice: undefined }))
+                                          }
+                                        }}
+                                      />
+                                      <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#DE9151]" />
+                                    </div>
                                     {formErrors.startPrice && <p className="text-red-500 text-xs mt-1">{formErrors.startPrice}</p>}
                                   </div>
                                   {form.priceType === "range" && (
                                     <div>
                                       <label className="block text-xs text-gray-500 mb-1">End Price ($)</label>
-                                      <Input
-                                        type="number"
-                                        className={cn("w-full", formErrors.endPrice && "border-red-500 focus:ring-red-500")}
-                                        placeholder="0"
-                                        value={form.endPrice}
-                                        min={Number(form.startPrice) + 1}
-                                        onChange={(e) => {
-                                          setForm((f) => ({ ...f, endPrice: e.target.value }))
-                                          if (formErrors.endPrice) {
-                                            setFormErrors(prev => ({ ...prev, endPrice: undefined }))
-                                          }
-                                        }}
-                                      />
+                                      <div className="relative">
+                                        <Input
+                                          type="number"
+                                          className={cn("w-full pl-8", formErrors.endPrice && "border-red-500 focus:ring-red-500")}
+                                          placeholder="0"
+                                          value={form.endPrice}
+                                          min={Number(form.startPrice) + 1}
+                                          onChange={(e) => {
+                                            setForm((f) => ({ ...f, endPrice: e.target.value }))
+                                            if (formErrors.endPrice) {
+                                              setFormErrors(prev => ({ ...prev, endPrice: undefined }))
+                                            }
+                                          }}
+                                        />
+                                        <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#DE9151]" />
+                                      </div>
                                       {formErrors.endPrice && <p className="text-red-500 text-xs mt-1">{formErrors.endPrice}</p>}
                                     </div>
                                   )}
@@ -974,22 +981,25 @@ export default function TrainerFinderPage() {
                                   <Input
                                     className={cn("w-full", formErrors.locationId && "border-red-500 focus:ring-red-500")}
                                     placeholder="Search for a location..."
-                                    value={form.locationSearch}
+                                    value={form.locationId ? form.locationSearch : form.locationSearch}
                                     onChange={(e) => {
-                                      setForm((f) => ({ ...f, locationSearch: e.target.value }))
+                                      setForm((f) => ({ 
+                                        ...f, 
+                                        locationSearch: e.target.value,
+                                        locationId: "" // Clear selected location when searching
+                                      }))
                                       if (formErrors.locationId) {
                                         setFormErrors(prev => ({ ...prev, locationId: undefined }))
                                       }
                                     }}
                                   />
-                                  {formErrors.locationId && <p className="text-red-500 text-xs mt-1">{formErrors.locationId}</p>}
                                   {locationLoading && (
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-xs text-gray-400">
                                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#DE9151]"></div>
                                       <span>Searching...</span>
                                     </div>
                                   )}
-                                  {locationResults.length > 0 && (
+                                  {locationResults.length > 0 && !form.locationId && (
                                     <div className="absolute z-50 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 max-h-48 overflow-y-auto">
                                       {locationResults.map((loc) => (
                                         <div
@@ -1168,7 +1178,7 @@ export default function TrainerFinderPage() {
 
                             <div className="flex items-start gap-4">
                               <div className="w-10 h-10 rounded-md bg-gradient-to-br from-[#DE9151]/5 to-[#4A6FA5]/10 flex items-center justify-center flex-shrink-0">
-                                <DollarSign className="h-5 w-5 text-[#DE9151]" />
+                                <Coins className="h-5 w-5 text-[#DE9151]" />
                               </div>
                               <div>
                                 <p className="font-medium text-gray-800">Price</p>
