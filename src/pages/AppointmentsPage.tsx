@@ -1664,7 +1664,7 @@ export function AppointmentsPage() {
                 />
               </div>
               <div>
-                <Label className="mb-2 block">Participants</Label>
+                <Label className="mb-2 block">Participant</Label>
                 <div className="relative" ref={participantDropdownRef}>
                   <div className="w-full flex flex-wrap items-center gap-2 rounded-md border border-input bg-white px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-[#2563eb]">
                     {selectedParticipants.map(user => (
@@ -1674,29 +1674,31 @@ export function AppointmentsPage() {
                         <span className="text-xs text-gray-500 ml-1">{getRoleLabel(user.role)}</span>
                         <button
                           className="ml-1 text-gray-400 hover:text-red-500"
-                          onClick={() => setSelectedParticipants(selectedParticipants.filter(u => u.id !== user.id))}
+                          onClick={() => setSelectedParticipants([])}
                         >
                           &times;
                         </button>
                       </div>
                     ))}
-                    <input
-                      className="flex-1 min-w-[120px] outline-none border-none bg-transparent h-full"
-                      placeholder="Search connected friends"
-                      value={participantSearch}
-                      onChange={e => setParticipantSearch(e.target.value)}
-                      style={{ minWidth: 120 }}
-                      disabled={isBooking}
-                    />
+                    {selectedParticipants.length === 0 && (
+                      <input
+                        className="flex-1 min-w-[120px] outline-none border-none bg-transparent h-full"
+                        placeholder="Search connected friends"
+                        value={participantSearch}
+                        onChange={e => setParticipantSearch(e.target.value)}
+                        style={{ minWidth: 120 }}
+                        disabled={isBooking}
+                      />
+                    )}
                   </div>
                   {participantResults.length > 0 && (
                     <div className="absolute z-10 bg-white border rounded w-full mt-1 max-h-48 overflow-y-auto shadow-lg">
-                      {participantResults.filter(u => !selectedParticipants.some(p => p.id === u.id)).map(user => (
+                      {participantResults.map(user => (
                         <div
                           key={user.id}
                           className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 cursor-pointer"
                           onClick={() => {
-                            setSelectedParticipants([...selectedParticipants, user])
+                            setSelectedParticipants([user])
                             setParticipantSearch("")
                             setParticipantResults([])
                           }}

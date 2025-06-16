@@ -48,6 +48,7 @@ type FeedState = {
   posts: Post[]
   isLoading: boolean
   error: string | null
+  hasMore: boolean
 }
 
 // Define the store actions
@@ -69,12 +70,14 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
   posts: [],
   isLoading: false,
   error: null,
+  hasMore: true,
 
   clearPosts: () => {
     set({ 
       posts: [],
       isLoading: false,
-      error: null
+      error: null,
+      hasMore: true
     })
   },
 
@@ -121,18 +124,25 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
 
       if (response.data.success) {
         const datas = response.data.datas || []
-        // Only update posts if we have new data
         if (datas.length > 0) {
           set((state) => ({ 
             posts: [...state.posts, ...datas],
-            isLoading: false 
+            isLoading: false,
+            hasMore: true
           }))
         } else {
-          set({ isLoading: false })
+          set({ 
+            isLoading: false,
+            hasMore: false
+          })
         }
         return datas
       } else {
-        set({ error: response.data.message || "Failed to fetch feed list", isLoading: false })
+        set({ 
+          error: response.data.message || "Failed to fetch feed list", 
+          isLoading: false,
+          hasMore: false
+        })
         return []
       }
     } catch (error) {
@@ -140,6 +150,7 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
       set({
         error: error instanceof Error ? error.message : "Failed to fetch feed list",
         isLoading: false,
+        hasMore: false
       })
       return []
     }

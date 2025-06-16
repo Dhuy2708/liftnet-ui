@@ -67,7 +67,16 @@ export function AppLeftSidebar({
   }
 
   const mainNavItems = [
-    { name: "Home", icon: Home, path: "/" },
+    { 
+      name: "Home", 
+      icon: Home, 
+      path: "/",
+      onClick: () => {
+        if (location.pathname === '/') {
+          window.dispatchEvent(new Event('refreshFeed'))
+        }
+      }
+    },
     ...(role === 1
       ? [{ name: "Trainer Finder", icon: Dumbbell, path: "/trainer-finder" }]
       : role === 2
@@ -133,6 +142,7 @@ export function AppLeftSidebar({
                   <li key={item.name}>
                     <Link
                       to={item.path}
+                      onClick={item.onClick}
                       className={cn(
                         "flex items-center rounded-xl transition-all duration-200 group",
                         "hover:shadow-md hover:scale-[1.02]",
