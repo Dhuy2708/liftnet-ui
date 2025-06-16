@@ -22,7 +22,6 @@ const AICoachContent = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false)
   const [isBotThinking, setIsBotThinking] = useState(false)
   const [streamReader, setStreamReader] = useState<ReadableStreamDefaultReader<Uint8Array> | null>(null)
-  const [loadingConversation, setLoadingConversation] = useState<string | null>(null)
   const [newMessage, setNewMessage] = useState("")
 
   const {
@@ -54,16 +53,14 @@ const AICoachContent = () => {
   }, [activeConversation, conversations])
 
   const handleConversationClick = (conversationId: string) => {
-    setLoadingConversation(conversationId)
     setActiveConversation(conversationId)
     // Save the clicked conversation ID to local storage
     localStorage.setItem("lastActiveConversation", conversationId)
-    setTimeout(() => {
-      setLoadingConversation(null)
-      if (chatMessagesRef.current) {
-        chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight
-      }
-    }, 300)
+    // Update URL without navigation
+    window.history.pushState({}, '', `/plan-ai/chat/${conversationId}`)
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight
+    }
   }
 
   const handleSendMessage = async () => {
@@ -377,14 +374,7 @@ const AICoachContent = () => {
 
         {/* Chat Messages */}
         <div ref={chatMessagesRef} className="flex-1 p-6 space-y-4 overflow-y-auto scrollbar-hide">
-          {loadingConversation === activeConversation ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                <p className="text-gray-500">Loading conversation...</p>
-              </div>
-            </div>
-          ) : activeConversation ? (
+          {activeConversation ? (
             conversations.find(c => c.id === activeConversation)?.messages?.map((message) => (
               <div key={message.id} className={cn("flex", message.isHuman ? "justify-end" : "justify-start")}>
                 <div
