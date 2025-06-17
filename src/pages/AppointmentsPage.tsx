@@ -1681,14 +1681,14 @@ export function AppointmentsPage() {
                       </div>
                     ))}
                     {selectedParticipants.length === 0 && (
-                      <input
-                        className="flex-1 min-w-[120px] outline-none border-none bg-transparent h-full"
-                        placeholder="Search connected friends"
-                        value={participantSearch}
-                        onChange={e => setParticipantSearch(e.target.value)}
-                        style={{ minWidth: 120 }}
-                        disabled={isBooking}
-                      />
+                    <input
+                      className="flex-1 min-w-[120px] outline-none border-none bg-transparent h-full"
+                      placeholder="Search connected friends"
+                      value={participantSearch}
+                      onChange={e => setParticipantSearch(e.target.value)}
+                      style={{ minWidth: 120 }}
+                      disabled={isBooking}
+                    />
                     )}
                   </div>
                   {participantResults.length > 0 && (

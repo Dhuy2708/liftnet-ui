@@ -217,7 +217,7 @@ const WeeklySchedule = () => {
             <CardContent className="p-0">
               {/* Header with gradient background */}
               <div className="relative p-6 bg-gradient-to-r from-purple-600 to-pink-600">
-                <div className="absolute inset-0 bg-black/10"></div>
+              <div className="absolute inset-0 bg-black/10"></div>
                 <div className="relative flex justify-between items-start">
                   <div className="space-y-1.5">
                     <h3 className="text-2xl font-bold text-white">
@@ -407,7 +407,7 @@ const VerticalView = ({ onExerciseClick }: { onExerciseClick: (exercise: Exercis
                           transition-all duration-300 ease-in-out
                           hover:shadow-lg hover:shadow-black/10 hover:-translate-y-1 
                           group cursor-pointer relative border border-white/50`}
-                      >
+                    >
                         <div className="flex flex-col w-full">
                           <div className="relative w-full">
                             <h4 className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-200 w-full mt-4 text-lg">
@@ -537,8 +537,8 @@ const HorizontalView = ({ onExerciseClick }: { onExerciseClick: (exercise: Exerc
               key={dayNum}
               className={`p-6 bg-gradient-to-br ${dayStyle.gradient} text-white text-center relative overflow-hidden ${
                 dayStyle.isWeekend ? "bg-black/20" : ""
-              }`}
-            >
+                    }`}
+                  >
               <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
               <div className="relative">
                 <h3 className="font-bold text-lg">{getDayName(dayNum)}</h3>
@@ -572,7 +572,7 @@ const HorizontalView = ({ onExerciseClick }: { onExerciseClick: (exercise: Exerc
                         transition-all duration-300 ease-in-out
                         hover:shadow-lg hover:shadow-black/10 hover:-translate-y-1 
                         group cursor-pointer relative border border-white/50`}
-                    >
+                          >
                       <div className="flex flex-col w-full">
                         <div className="relative w-full">
                           <h4 className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors duration-200 w-full mt-4 text-sm leading-tight">
@@ -599,7 +599,7 @@ const HorizontalView = ({ onExerciseClick }: { onExerciseClick: (exercise: Exerc
                               <Heart className="h-3 w-3 text-gray-400 group-hover:text-purple-400 transition-colors duration-200 flex-shrink-0" />
                               <span className="font-medium truncate">{formatCamelCase(exercise.bodyPart)}</span>
                             </p>
-                          )}
+                                )}
                           {exercise.difficulty && (
                             <p className="flex items-center gap-2 group-hover:text-gray-700 transition-colors duration-200">
                               <Leaf className="h-3 w-3 text-gray-400 group-hover:text-purple-400 transition-colors duration-200 flex-shrink-0" />
