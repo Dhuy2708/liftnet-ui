@@ -780,60 +780,60 @@ export function ChatPage() {
                   {messagesLoading && (
                     <div className="sticky top-0 left-0 right-0 flex justify-center py-2 bg-gray-50/80 backdrop-blur-sm z-10">
                       <div className="w-6 h-6 border-2 border-gray-200 border-t-[#de9151] rounded-full animate-spin"></div>
-                    </div>
-                  )}
-                  {localMessages.map((message: MessageWithStatus, idx: number) => {
-                    const isMe = message.senderId === currentUserId
-                    const prevMsg = idx > 0 ? localMessages[idx - 1] : null
-                    const isFirstOfGroup = !prevMsg || prevMsg.senderId !== message.senderId
-                    const isLastOfGroup =
-                      idx === localMessages.length - 1 || localMessages[idx + 1].senderId !== message.senderId
-                    return (
-                      <div
-                        key={`${message.trackId || message.id || ''}-${idx}`}
-                        className={`flex ${isMe ? "justify-end" : "justify-start"} ${isFirstOfGroup ? "mt-4" : "mt-1"} group`}
-                      >
-                        <div className="max-w-[75%] relative flex flex-col items-start">
-                          <div
-                            className={`rounded-2xl shadow-sm mb-1 text-sm transition-all duration-200 ${
-                              isMe ? "bg-[#de9151] text-white" : "bg-white text-gray-800 border border-gray-200"
-                            } ${isFirstOfGroup ? "rounded-t-2xl" : "rounded-t-xl"} ${
-                              isLastOfGroup ? "rounded-b-2xl" : "rounded-b-xl"
-                            } ${message.type === 2 || message.type === 3 ? "px-0 py-0" : "px-4 py-3"}`}
-                            onMouseEnter={() => handleMouseEnter(message.id)}
-                            onMouseLeave={handleMouseLeave}
-                          >
-                            {message.type === 2 ? (
-                              <img
-                                src={message.body || "/placeholder.svg"}
-                                alt="media"
-                                className="w-full block rounded-2xl"
-                              />
-                            ) : message.type === 3 ? (
-                              <video controls src={message.body} className="w-full block rounded-2xl" />
-                            ) : (
-                              <span className="whitespace-pre-wrap leading-relaxed">{message.body}</span>
-                            )}
-                            {isMe && (
-                              <span className="ml-2 inline-flex items-center">
-                                {message.status === "sending" && (
-                                  <Loader2 className="h-3 w-3 animate-spin opacity-70" />
-                                )}
-                                {message.status === "sent" && <Check className="h-3 w-3 opacity-70" />}
-                                {message.status === "failed" && <XCircle className="h-3 w-3 text-red-300" />}
-                              </span>
-                            )}
-                            {showTimeMsg === message.id && (
-                              <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded-lg px-2 py-1 shadow-lg z-10 whitespace-nowrap">
-                                {new Date(message.time || "").toLocaleTimeString()}
-                              </div>
-                            )}
-                          </div>
-                        </div>
                       </div>
-                    )
-                  })}
-                  <div ref={messagesEndRef} />
+                  )}
+                      {localMessages.map((message: MessageWithStatus, idx: number) => {
+                        const isMe = message.senderId === currentUserId
+                        const prevMsg = idx > 0 ? localMessages[idx - 1] : null
+                        const isFirstOfGroup = !prevMsg || prevMsg.senderId !== message.senderId
+                        const isLastOfGroup =
+                          idx === localMessages.length - 1 || localMessages[idx + 1].senderId !== message.senderId
+                        return (
+                          <div
+                        key={`${message.trackId || message.id || ''}-${idx}`}
+                            className={`flex ${isMe ? "justify-end" : "justify-start"} ${isFirstOfGroup ? "mt-4" : "mt-1"} group`}
+                          >
+                            <div className="max-w-[75%] relative flex flex-col items-start">
+                              <div
+                                className={`rounded-2xl shadow-sm mb-1 text-sm transition-all duration-200 ${
+                                  isMe ? "bg-[#de9151] text-white" : "bg-white text-gray-800 border border-gray-200"
+                                } ${isFirstOfGroup ? "rounded-t-2xl" : "rounded-t-xl"} ${
+                                  isLastOfGroup ? "rounded-b-2xl" : "rounded-b-xl"
+                                } ${message.type === 2 || message.type === 3 ? "px-0 py-0" : "px-4 py-3"}`}
+                                onMouseEnter={() => handleMouseEnter(message.id)}
+                                onMouseLeave={handleMouseLeave}
+                              >
+                                {message.type === 2 ? (
+                                  <img
+                                    src={message.body || "/placeholder.svg"}
+                                    alt="media"
+                                    className="w-full block rounded-2xl"
+                                  />
+                                ) : message.type === 3 ? (
+                                  <video controls src={message.body} className="w-full block rounded-2xl" />
+                                ) : (
+                                  <span className="whitespace-pre-wrap leading-relaxed">{message.body}</span>
+                                )}
+                                {isMe && (
+                                  <span className="ml-2 inline-flex items-center">
+                                    {message.status === "sending" && (
+                                      <Loader2 className="h-3 w-3 animate-spin opacity-70" />
+                                    )}
+                                    {message.status === "sent" && <Check className="h-3 w-3 opacity-70" />}
+                                    {message.status === "failed" && <XCircle className="h-3 w-3 text-red-300" />}
+                                  </span>
+                                )}
+                                {showTimeMsg === message.id && (
+                                  <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded-lg px-2 py-1 shadow-lg z-10 whitespace-nowrap">
+                                    {new Date(message.time || "").toLocaleTimeString()}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                      <div ref={messagesEndRef} />
                 </div>
               </div>
               {/* Message Input */}

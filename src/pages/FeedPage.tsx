@@ -94,8 +94,8 @@ export function FeedPage() {
     if (!initialLoadDone && !isLoading && !loadingMore) {
       setLoadingMore(true)
       fetchFeedList().then(() => {
-        setLoadingMore(false)
-        setInitialLoadDone(true)
+          setLoadingMore(false)
+          setInitialLoadDone(true)
       })
     }
   }, [initialLoadDone, isLoading, loadingMore, fetchFeedList])
@@ -115,7 +115,7 @@ export function FeedPage() {
 
     if (lastPostRef.current) {
       observerRef.current.observe(lastPostRef.current)
-    }
+            }
 
     return () => {
       if (lastPostRef.current && observerRef.current) {
@@ -168,23 +168,23 @@ export function FeedPage() {
     return (
       <div className="space-y-3">
         {Array(3)
-          .fill(0)
-          .map((_, i) => (
-            <div
-              key={`skeleton-${i}`}
+      .fill(0)
+      .map((_, i) => (
+        <div
+          key={`skeleton-${i}`}
               className="bg-white rounded-md shadow-sm border border-gray-200 p-4 animate-pulse"
-            >
-              <div className="flex items-start space-x-3 mb-4">
-                <div className="h-10 w-10 rounded-full bg-gray-200"></div>
-                <div className="flex-1">
-                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/5 mb-3"></div>
-                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                </div>
-              </div>
+        >
+          <div className="flex items-start space-x-3 mb-4">
+            <div className="h-10 w-10 rounded-full bg-gray-200"></div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/5 mb-3"></div>
+              <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-3/4"></div>
             </div>
+          </div>
+        </div>
           ))}
       </div>
     )
@@ -357,12 +357,12 @@ export function FeedPage() {
         )
       }
 
-      return (
+        return (
         <div key={`${post.id}-${index}`}>
-          <PostContent />
-          <div className="h-px bg-gray-200 mx-4" />
-        </div>
-      )
+            <PostContent />
+            <div className="h-px bg-gray-200 mx-4" />
+          </div>
+        )
     })
   }
 

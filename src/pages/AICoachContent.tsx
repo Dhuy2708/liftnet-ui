@@ -58,9 +58,9 @@ const AICoachContent = () => {
     localStorage.setItem("lastActiveConversation", conversationId)
     // Update URL without navigation
     window.history.pushState({}, '', `/plan-ai/chat/${conversationId}`)
-    if (chatMessagesRef.current) {
-      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight
-    }
+      if (chatMessagesRef.current) {
+        chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight
+      }
   }
 
   const handleSendMessage = async () => {
@@ -154,6 +154,22 @@ const AICoachContent = () => {
     } catch {
       setIsBotThinking(false)
       setStreamReader(null)
+      // Add error message to conversation
+      const currentConvs = useChatbotStore.getState().conversations
+      const convIdx = currentConvs.findIndex(c => c.id === activeConversation)
+      if (convIdx !== -1) {
+        const updatedConvs = [...currentConvs]
+        const msgs = [...(updatedConvs[convIdx].messages || [])]
+        msgs.push({
+          id: Date.now().toString() + "-error",
+          conversationId: activeConversation,
+          message: "Failed to generate answer, please try again later",
+          time: new Date().toISOString(),
+          isHuman: false
+        })
+        updatedConvs[convIdx] = { ...updatedConvs[convIdx], messages: msgs }
+        useChatbotStore.setState({ conversations: updatedConvs })
+      }
     }
   }
 
@@ -177,6 +193,15 @@ const AICoachContent = () => {
   }
 
   const parseMessage = (text: string) => {
+    // Handle error message
+    if (text === "Failed to generate answer, please try again later") {
+      return (
+        <div className="text-red-500 border border-red-200 bg-red-50 p-4 rounded-lg">
+          {text}
+        </div>
+      )
+    }
+
     // Check if the message contains HTML content
     if (text.includes('<div style=') || text.includes('<div class=')) {
       return (
