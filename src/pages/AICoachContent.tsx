@@ -1,12 +1,10 @@
-import React, { useState, useRef, useCallback, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/chatbot/card"
+import React, { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Bot,
-  X,
   Send,
-  Plus,
+  Pencil,
   Search,
   Trash2,
   Menu,
@@ -18,8 +16,6 @@ import { FaStar } from "react-icons/fa"
 const AICoachContent = () => {
   const [showConversationList, setShowConversationList] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [newConversationTitle, setNewConversationTitle] = useState("")
-  const [isCreatingNew, setIsCreatingNew] = useState(false)
   const [isBotThinking, setIsBotThinking] = useState(false)
   const [streamReader, setStreamReader] = useState<ReadableStreamDefaultReader<Uint8Array> | null>(null)
   const [newMessage, setNewMessage] = useState("")
@@ -39,7 +35,6 @@ const AICoachContent = () => {
 
   useEffect(() => {
     fetchConversations()
-    // Load last active conversation from local storage
     const lastActiveConversation = localStorage.getItem("lastActiveConversation")
     if (lastActiveConversation) {
       setActiveConversation(lastActiveConversation)
@@ -54,27 +49,36 @@ const AICoachContent = () => {
 
   const handleConversationClick = (conversationId: string) => {
     setActiveConversation(conversationId)
-    // Save the clicked conversation ID to local storage
     localStorage.setItem("lastActiveConversation", conversationId)
-    // Update URL without navigation
     window.history.pushState({}, '', `/plan-ai/chat/${conversationId}`)
-      if (chatMessagesRef.current) {
-        chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight
-      }
+    if (chatMessagesRef.current) {
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight
+    }
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !activeConversation || isBotThinking) return
+    if (!newMessage.trim() || isBotThinking) return
+
+    let currentConversationId = activeConversation
+
+    if (!currentConversationId) {
+      const conversationId = await createNewConversation(newMessage)
+      if (!conversationId) return
+      currentConversationId = conversationId
+      localStorage.setItem("lastActiveConversation", conversationId)
+      window.history.pushState({}, '', `/plan-ai/chat/${conversationId}`)
+    }
+
     const userMsg = {
       id: Date.now().toString(),
-      conversationId: activeConversation,
+      conversationId: currentConversationId,
       message: newMessage,
       time: new Date().toISOString(),
       isHuman: true
     }
-    // Optimistically add user message
+
     const currentConversations = useChatbotStore.getState().conversations
-    const convIdx = currentConversations.findIndex(c => c.id === activeConversation)
+    const convIdx = currentConversations.findIndex(c => c.id === currentConversationId)
     if (convIdx !== -1) {
       const updatedConvs = [...currentConversations]
       const msgs = [...(updatedConvs[convIdx].messages || [])]
@@ -98,7 +102,7 @@ const AICoachContent = () => {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            conversationId: activeConversation,
+            conversationId: currentConversationId,
             message: userMsg.message
           })
         }
@@ -128,7 +132,7 @@ const AICoachContent = () => {
           .replace(/\\'/g, "'")
         botMsg += formattedChunk
         const currentConvs = useChatbotStore.getState().conversations
-        const convIdx = currentConvs.findIndex(c => c.id === activeConversation)
+        const convIdx = currentConvs.findIndex(c => c.id === currentConversationId)
         if (convIdx !== -1) {
           const updatedConvs = [...currentConvs]
           const msgs = [...(updatedConvs[convIdx].messages || [])]
@@ -141,7 +145,7 @@ const AICoachContent = () => {
           } else {
             msgs.push({
               id: botMessageId,
-              conversationId: activeConversation,
+              conversationId: currentConversationId,
               message: botMsg,
               time: new Date().toISOString(),
               isHuman: false
@@ -154,15 +158,14 @@ const AICoachContent = () => {
     } catch {
       setIsBotThinking(false)
       setStreamReader(null)
-      // Add error message to conversation
       const currentConvs = useChatbotStore.getState().conversations
-      const convIdx = currentConvs.findIndex(c => c.id === activeConversation)
+      const convIdx = currentConvs.findIndex(c => c.id === currentConversationId)
       if (convIdx !== -1) {
         const updatedConvs = [...currentConvs]
         const msgs = [...(updatedConvs[convIdx].messages || [])]
         msgs.push({
           id: Date.now().toString() + "-error",
-          conversationId: activeConversation,
+          conversationId: currentConversationId,
           message: "Failed to generate answer, please try again later",
           time: new Date().toISOString(),
           isHuman: false
@@ -181,19 +184,18 @@ const AICoachContent = () => {
     }
   }
 
+  const handleStartNewChat = () => {
+    setActiveConversation(null)
+    localStorage.removeItem("lastActiveConversation")
+    window.history.pushState({}, '', `/plan-ai/chat`)
+    setNewMessage("")
+  }
+
   const filteredConversations = conversations.filter(conv =>
     conv.title.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleCreateNewConversation = () => {
-    if (!newConversationTitle.trim()) return
-    createNewConversation(newConversationTitle)
-    setNewConversationTitle("")
-    setIsCreatingNew(false)
-  }
-
   const parseMessage = (text: string) => {
-    // Handle error message
     if (text === "Failed to generate answer, please try again later") {
       return (
         <div className="text-red-500 border border-red-200 bg-red-50 p-4 rounded-lg">
@@ -202,7 +204,6 @@ const AICoachContent = () => {
       )
     }
 
-    // Check if the message contains HTML content
     if (text.includes('<div style=') || text.includes('<div class=')) {
       return (
         <div 
@@ -219,7 +220,6 @@ const AICoachContent = () => {
     return lines.map((line, idx) => {
       const trimmed = line.trim()
   
-      // Match cases like **1. Calorie Surplus:** ...
       const numberedMatch = trimmed.match(/^\*\*(\d+)\.\s*(.*?)\*\*(.*)/)
       if (numberedMatch) {
         const number = numberedMatch[1]
@@ -238,7 +238,6 @@ const AICoachContent = () => {
         )
       }
   
-      // Handle * bullet point
       if (trimmed.startsWith('* ')) {
         return (
           <p key={idx} className="flex items-start gap-2 pl-4">
@@ -254,7 +253,6 @@ const AICoachContent = () => {
         )
       }
   
-      // Default bold text
       const boldText = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       return <p key={idx} dangerouslySetInnerHTML={{ __html: boldText }} />
     })
@@ -262,68 +260,31 @@ const AICoachContent = () => {
 
   return (
     <div className="h-full flex relative">
-      {/* Conversations Sidebar */}
       <div className={cn(
         "w-80 border-r-1 border-gray-300 flex flex-col bg-white transition-all duration-300 absolute left-0 top-0 bottom-0 z-10",
         showConversationList ? "translate-x-0" : "-translate-x-full"
       )}>
-        {/* Search and New Chat */}
         <div className="p-4 border-b border-gray-100">
-          {isCreatingNew ? (
-            <div className="space-y-3">
-              <Input
-                type="text"
-                placeholder="Enter conversation title..."
-                value={newConversationTitle}
-                onChange={(e) => setNewConversationTitle(e.target.value)}
-                className="w-full bg-gray-50/50 border-gray-200 focus:border-purple-600 focus:ring-purple-600 rounded-xl h-10"
-                autoFocus
-              />
-              <div className="flex space-x-2">
-                <Button
-                  onClick={handleCreateNewConversation}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl h-10 font-medium transition-colors"
-                  disabled={isLoading || !newConversationTitle.trim()}
-                >
-                  Create
-                </Button>
-                <Button
-                  onClick={() => {
-                    setIsCreatingNew(false)
-                    setNewConversationTitle("")
-                  }}
-                  variant="outline"
-                  className="flex-1 border-gray-200 hover:bg-gray-50 text-gray-600 rounded-xl h-10 font-medium transition-colors"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder="Search conversations..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 w-full bg-gray-50/50 border-gray-200 focus:border-purple-600 focus:ring-purple-600 rounded-xl h-10"
-                />
-              </div>
-              <Button
-                onClick={() => setIsCreatingNew(true)}
-                className="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-xl h-10 font-medium transition-colors"
-                disabled={isLoading}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Chat
-              </Button>
-            </>
-          )}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 w-full bg-gray-50/50 border-gray-200 focus:border-purple-600 focus:ring-purple-600 rounded-xl h-10"
+            />
+          </div>
+          <Button
+            onClick={handleStartNewChat}
+            className="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-xl h-10 font-medium transition-colors"
+            disabled={isLoading}
+          >
+            <Pencil className="w-4 h-4 mr-2" />
+            New Chat
+          </Button>
         </div>
 
-        {/* Conversations List */}
         <div className="flex-1 overflow-y-auto scrollbar-hide">
           {isLoading ? (
             <div className="p-4 text-center text-gray-500">Loading conversations...</div>
@@ -371,12 +332,10 @@ const AICoachContent = () => {
         </div>
       </div>
 
-      {/* Chat Area */}
       <div className={cn(
         "flex-1 flex flex-col bg-white transition-all duration-300",
         showConversationList ? "ml-80" : "ml-0"
       )}>
-        {/* Chat Header */}
         <div className="bg-white border-b border-gray-100 p-6 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Button
@@ -397,7 +356,6 @@ const AICoachContent = () => {
           </div>
         </div>
 
-        {/* Chat Messages */}
         <div ref={chatMessagesRef} className="flex-1 p-6 space-y-4 overflow-y-auto scrollbar-hide">
           {activeConversation ? (
             conversations.find(c => c.id === activeConversation)?.messages?.map((message) => (
@@ -425,17 +383,10 @@ const AICoachContent = () => {
                 <div className="w-16 h-16 bg-purple-600 rounded-2xl flex items-center justify-center mx-auto">
                   <Bot className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900">Welcome to AI Coach</h3>
+                <h3 className="text-xl font-semibold text-gray-900">New Chat</h3>
                 <p className="text-gray-500 max-w-md mx-auto">
-                  Start a new conversation or select an existing one to begin your fitness journey.
+                  Start typing your first message below to begin a new conversation with your AI coach.
                 </p>
-                <Button
-                  onClick={() => setIsCreatingNew(true)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white rounded-xl px-6 py-3 font-medium transition-colors"
-                  disabled={isLoading}
-                >
-                  Start New Conversation
-                </Button>
               </div>
             </div>
           )}
@@ -449,7 +400,6 @@ const AICoachContent = () => {
           )}
         </div>
 
-        {/* Chat Input */}
         <div className="p-6 border-t border-gray-100 bg-white">
           <div className="flex space-x-3">
             <Input
@@ -457,9 +407,9 @@ const AICoachContent = () => {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-              placeholder="Ask your AI coach anything..."
+              placeholder={activeConversation ? "Ask your AI coach anything..." : "Type your first message to start a new chat..."}
               className="flex-1 border-gray-200 focus:border-purple-600 focus:ring-purple-600 rounded-xl h-12 text-base"
-              disabled={!activeConversation || isLoading || isBotThinking}
+              disabled={isLoading || isBotThinking}
             />
             {isBotThinking ? (
               <Button
@@ -472,7 +422,7 @@ const AICoachContent = () => {
               <Button
                 onClick={handleSendMessage}
                 className="bg-purple-600 hover:bg-purple-700 text-white rounded-xl px-6 h-12 transition-colors"
-                disabled={!activeConversation || isLoading || !newMessage.trim()}
+                disabled={isLoading || !newMessage.trim()}
               >
                 <Send className="w-5 h-5" />
               </Button>

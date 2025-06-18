@@ -25,7 +25,7 @@ interface ChatbotStore {
   error: string | null
   fetchConversations: () => Promise<void>
   setActiveConversation: (id: string | null) => void
-  createNewConversation: (title: string) => Promise<void>
+  createNewConversation: (firstPrompt: string) => Promise<string | null>
   deleteConversation: (id: string) => Promise<void>
   fetchMessages: (conversationId: string) => Promise<void>
 }
@@ -110,14 +110,14 @@ export const useChatbotStore = create<ChatbotStore>((set, get) => ({
     }
   },
 
-  createNewConversation: async (title: string) => {
+  createNewConversation: async (firstPrompt: string) => {
     try {
       set({ isLoading: true })
       const token = localStorage.getItem("token")
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/ChatBot/conversation/create`,
         {
-          title
+          firstPrompt
         },
         {
           headers: {
@@ -130,27 +130,28 @@ export const useChatbotStore = create<ChatbotStore>((set, get) => ({
       if (!response.data.success) {
         toast.error(response.data.message || "Failed to create conversation")
         set({ isLoading: false })
-        return
+        return null
       }
       
-      // If we get here, the request was successful
+      const conversationData = response.data.datas[0]
+      const conversationId = conversationData.id
+      const conversationTitle = conversationData.title
+      
       const newConversation = {
-        id: Date.now().toString(), // Temporary ID until we fetch the list
-        title,
-        lastMessage: "",
+        id: conversationId,
+        title: conversationTitle,
+        lastMessage: firstPrompt,
         timestamp: new Date().toISOString(),
         messages: []
       }
       
-      // Add to list and fetch updated list
       set((state) => ({
         conversations: [newConversation, ...state.conversations],
-        activeConversation: newConversation.id,
+        activeConversation: conversationId,
         isLoading: false
       }))
       
-      // Fetch the updated list to get the real ID
-      get().fetchConversations()
+      return conversationId
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.data?.message) {
         toast.error(error.response.data.message)
@@ -158,6 +159,7 @@ export const useChatbotStore = create<ChatbotStore>((set, get) => ({
         toast.error("Failed to create conversation")
       }
       set({ isLoading: false })
+      return null
     }
   },
 
