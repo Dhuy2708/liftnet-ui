@@ -223,11 +223,14 @@ export function FeedPage() {
         <div className="bg-white mb-5 rounded-xl px-6 py-5 transition-all duration-200 hover:shadow-lg hover:bg-gray-50 hover:scale-[1.01]">
           {/* Post header */}
           <div className="flex items-center mb-2">
-            <div className="relative cursor-pointer mr-3" onClick={() => navigate(`/profile/${post.userOverview.id}`)}>
+            <div className="relative cursor-pointer mr-3" onClick={() => post.userOverview && navigate(`/profile/${post.userOverview.id}`)}>
               <img
                 src={
-                  post.userOverview.avatar ||
-                  `https://ui-avatars.com/api/?name=${post.userOverview.firstName}+${post.userOverview.lastName}&background=de9151&color=fff`
+                  post.userOverview?.avatar
+                    ? post.userOverview.avatar
+                    : post.userOverview
+                      ? `https://ui-avatars.com/api/?name=${post.userOverview.firstName}+${post.userOverview.lastName}&background=de9151&color=fff`
+                      : "/default-avatar.png"
                 }
                 alt="User Avatar"
                 className="h-9 w-9 rounded-full object-cover border-2 border-gray-200"

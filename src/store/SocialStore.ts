@@ -34,7 +34,22 @@ interface SocialActions {
   clearSearchResults: () => void
 }
 
-type SocialStore = SocialState & SocialActions
+export interface SuggestedFriend {
+  id: string
+  email: string
+  username: string
+  firstName: string
+  lastName: string
+  role: number
+  avatar: string
+  isDeleted: boolean
+  isSuspended: boolean
+  isFollowing: boolean
+}
+
+type SocialStore = SocialState & SocialActions & {
+  suggestFriends: () => Promise<SuggestedFriend[]>
+}
 
 export const useSocialStore = create<SocialStore>()((set) => ({
   profile: null,
@@ -190,5 +205,26 @@ export const useSocialStore = create<SocialStore>()((set) => ({
 
   clearError: () => {
     set({ error: null })
+  },
+
+  suggestFriends: async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/Social/suggestFriends`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "accept": "application/json"
+          },
+        }
+      )
+      if (response.data.success && Array.isArray(response.data.datas)) {
+        return response.data.datas
+      }
+      return []
+    } catch (error) {
+      console.error("Failed to fetch suggested friends:", error)
+      return []
+    }
   },
 })) 

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, Navigate, useSearchParams } from "react-router-dom"
 import { useSocialStore } from "@/store/SocialStore"
 import { useFeedStore } from "@/store/FeedStore"
+import { useProfileStore } from "@/store/ProfileStore"
 import { Button } from "@/components/ui/button"
 import {
   UserPlus,
@@ -45,8 +46,12 @@ export function ProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { profile, isLoading: isProfileLoading, getProfile, followUser, unfollowUser } = useSocialStore()
   const { posts, isLoading: isPostsLoading, fetchProfilePosts, reactPost } = useFeedStore()
+  const { uploadAvatar } = useProfileStore()
   const activeTab = searchParams.get("tab") || "overview"
   const [localLikes, setLocalLikes] = useState<Record<string, { isLiked: boolean; count: number }>>({})
+  const [avatarHover, setAvatarHover] = useState(false)
+  const [avatarLoading, setAvatarLoading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -162,7 +167,7 @@ export function ProfilePage() {
 
   return (
     <div className="relative bg-[#f9fafb] min-h-screen flex justify-center">
-      <AppLeftSidebar show={true} />
+      <AppLeftSidebar />
       <main className="mx-auto w-full max-w-4xl px-2 sm:px-4 py-4 z-10">
         {/* Banner Section */}
         <div className="h-48 bg-gradient-to-r from-[#de9151] to-[#e8b07f] relative overflow-hidden">
@@ -175,11 +180,50 @@ export function ProfilePage() {
           <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
             {/* Profile Header */}
             <div className="flex flex-col md:flex-row md:items-start gap-6">
-              <div className="relative group">
+              <div
+                className="relative group cursor-pointer"
+                onMouseEnter={() => setAvatarHover(true)}
+                onMouseLeave={() => setAvatarHover(false)}
+                onClick={() => !avatarLoading && fileInputRef.current?.click()}
+                style={{ pointerEvents: avatarLoading ? 'none' : undefined }}
+              >
                 <img
                   src={profile.avatar || `https://ui-avatars.com/api/?name=${profile.firstName}+${profile.lastName}&background=de9151&color=fff`}
                   alt="Profile"
-                  className="w-32 h-32 rounded-xl border-4 border-white shadow-lg object-cover transform transition group-hover:scale-105"
+                  className={"w-32 h-32 rounded-xl border-4 border-white shadow-lg object-cover transform transition " + (avatarHover && !avatarLoading ? "scale-105 brightness-90" : "")}
+                  style={{ opacity: avatarLoading ? 0.6 : 1 }}
+                />
+                {/* Overlay on hover */}
+                {avatarHover && !avatarLoading && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
+                    <span className="text-white text-sm font-semibold">Click to change</span>
+                  </div>
+                )}
+                {/* Loading spinner */}
+                {avatarLoading && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl">
+                    <span className="w-8 h-8 border-4 border-white/60 border-t-[#de9151] rounded-full animate-spin inline-block"></span>
+                  </div>
+                )}
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  disabled={avatarLoading}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setAvatarLoading(true)
+                      const success = await uploadAvatar(file)
+                      setAvatarLoading(false)
+                      if (success) {
+                        // Refresh profile info
+                        getProfile(profile.id)
+                      }
+                    }
+                  }}
                 />
                 {profile.role === 2 && (
                   <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-md">

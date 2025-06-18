@@ -1,0 +1,1 @@
+export { SuggestionsPage as default } from './SuggestionsPage' 
