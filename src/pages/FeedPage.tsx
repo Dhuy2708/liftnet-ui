@@ -14,6 +14,7 @@ import {
   Filter,
   Bookmark,
   Loader2,
+  ArrowLeft,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -23,7 +24,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
 export function FeedPage() {
-  const { isLoading, error, fetchFeedList, reactPost, posts, clearPosts, hasMore, addComment } = useFeedStore()
+  const { isLoading, error, fetchFeedList, reactPost, posts, clearPosts, hasMore, addComment, fetchFeedComments } =
+    useFeedStore()
   const [loadingMore, setLoadingMore] = useState(false)
   const [initialLoadDone, setInitialLoadDone] = useState(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
@@ -38,13 +40,38 @@ export function FeedPage() {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null)
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({})
   const [commentLoading, setCommentLoading] = useState(false)
-  const [comments, setComments] = useState<Record<string, Array<{ id: string; content: string; createdAt: string }>>>({})
+  const [comments, setComments] = useState<Record<string, Array<{ id: string; content: string; createdAt: string }>>>(
+    {},
+  )
+  const [detailPost, setDetailPost] = useState<null | (typeof posts)[0]>(null)
+  const [detailComments, setDetailComments] = useState<
+    Array<{
+      id: string
+      user: {
+        id: string
+        email: string
+        username: string
+        firstName: string
+        lastName: string
+        role: number
+        avatar: string
+        isDeleted: boolean
+        isSuspended: boolean
+        isFollowing: boolean
+      }
+      comment: string
+      createdAt: string
+      modifiedAt: string
+    }>
+  >([])
+  const [detailLoading, setDetailLoading] = useState(false)
+  const feedScrollRef = useRef<number>(0)
 
   // Update local likes when posts change
   useEffect(() => {
     // Check for duplicate IDs
     const postIds = new Set<string>()
-    const duplicates = posts.filter(post => {
+    const duplicates = posts.filter((post) => {
       if (postIds.has(post.id)) {
         return true
       }
@@ -53,7 +80,10 @@ export function FeedPage() {
     })
 
     if (duplicates.length > 0) {
-      console.warn('Duplicate post IDs found:', duplicates.map(p => p.id))
+      console.warn(
+        "Duplicate post IDs found:",
+        duplicates.map((p) => p.id),
+      )
     }
 
     const newLocalLikes: Record<string, { isLiked: boolean; count: number }> = {}
@@ -80,7 +110,7 @@ export function FeedPage() {
       setLoadingMore(false)
       fetchFeedList()
     }
-    window.addEventListener('refreshFeed', handleRefresh)
+    window.addEventListener("refreshFeed", handleRefresh)
 
     // Cleanup function to clear posts when component unmounts
     return () => {
@@ -90,7 +120,7 @@ export function FeedPage() {
       if (observerRef.current) {
         observerRef.current.disconnect()
       }
-      window.removeEventListener('refreshFeed', handleRefresh)
+      window.removeEventListener("refreshFeed", handleRefresh)
     }
   }, [clearPosts, fetchFeedList])
 
@@ -99,8 +129,8 @@ export function FeedPage() {
     if (!initialLoadDone && !isLoading && !loadingMore) {
       setLoadingMore(true)
       fetchFeedList().then(() => {
-          setLoadingMore(false)
-          setInitialLoadDone(true)
+        setLoadingMore(false)
+        setInitialLoadDone(true)
       })
     }
   }, [initialLoadDone, isLoading, loadingMore, fetchFeedList])
@@ -115,12 +145,12 @@ export function FeedPage() {
       {
         rootMargin: "500px",
         threshold: 0.1,
-      }
+      },
     )
 
     if (lastPostRef.current) {
       observerRef.current.observe(lastPostRef.current)
-            }
+    }
 
     return () => {
       if (lastPostRef.current && observerRef.current) {
@@ -178,43 +208,183 @@ export function FeedPage() {
       content: text,
       createdAt: new Date().toISOString(),
     }
-    setComments(prev => ({
+    setComments((prev) => ({
       ...prev,
       [postId]: prev[postId] ? [...prev[postId], newComment] : [newComment],
     }))
     await addComment(postId, text)
     setCommentLoading(false)
-    setCommentTexts(prev => ({ ...prev, [postId]: "" }))
+    setCommentTexts((prev) => ({ ...prev, [postId]: "" }))
     setActiveCommentPostId(null)
+  }
+
+  const handleOpenDetail = async (post: (typeof posts)[0]) => {
+    feedScrollRef.current = window.scrollY
+    setDetailPost(post)
+    setDetailLoading(true)
+    const comments = await fetchFeedComments(post.id, null)
+    setDetailComments(comments || [])
+    setDetailLoading(false)
+  }
+
+  const handleBackToFeed = () => {
+    setDetailPost(null)
+    setDetailComments([])
+    setTimeout(() => {
+      window.scrollTo({ top: feedScrollRef.current, behavior: "auto" })
+    }, 0)
   }
 
   const renderLoadingSkeleton = () => {
     return (
       <div className="space-y-3">
         {Array(3)
-      .fill(0)
-      .map((_, i) => (
-        <div
-          key={`skeleton-${i}`}
+          .fill(0)
+          .map((_, i) => (
+            <div
+              key={`skeleton-${i}`}
               className="bg-white rounded-md shadow-sm border border-gray-200 p-4 animate-pulse"
-        >
-          <div className="flex items-start space-x-3 mb-4">
-            <div className="h-10 w-10 rounded-full bg-gray-200"></div>
-            <div className="flex-1">
-              <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/5 mb-3"></div>
-              <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+            >
+              <div className="flex items-start space-x-3 mb-4">
+                <div className="h-10 w-10 rounded-full bg-gray-200"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/5 mb-3"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
           ))}
       </div>
     )
   }
 
+  const renderDetailView = () => {
+    if (!detailPost) return null
+    return (
+      <div className="flex-1 max-w-5xl">
+        <button
+          className="flex items-center gap-2 mb-6 px-4 py-2 bg-white rounded-full shadow hover:bg-gray-50 text-gray-700 transition border border-gray-200 w-fit"
+          onClick={handleBackToFeed}
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-medium">Back to Feed</span>
+        </button>
+        {/* Reuse PostContent for detail */}
+        <div className="bg-white mb-6 rounded-2xl px-8 py-7 shadow-lg border border-gray-100">
+          {/* Post header */}
+          <div className="flex items-center mb-2">
+            <div className="relative cursor-pointer mr-3">
+              <img
+                src={
+                  detailPost.userOverview?.avatar
+                    ? detailPost.userOverview.avatar
+                    : detailPost.userOverview
+                      ? `https://ui-avatars.com/api/?name=${detailPost.userOverview.firstName}+${detailPost.userOverview.lastName}&background=de9151&color=fff`
+                      : "/default-avatar.png"
+                }
+                alt="User Avatar"
+                className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-base font-semibold text-gray-900">
+                {detailPost.userOverview.firstName} {detailPost.userOverview.lastName}
+              </div>
+              <div className="flex items-center text-xs text-gray-500 mt-0.5">
+                <span
+                  className={`px-1.5 py-0.5 rounded-sm text-xs ${
+                    detailPost.userOverview.role === 2 ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {detailPost.userOverview.role === 2 ? "PT" : "User"}
+                </span>
+                <span className="mx-1">•</span>
+                <span>{formatTimeAgo(detailPost.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+          {/* Post content */}
+          <div className="py-2">
+            <p className="text-base text-gray-800 whitespace-pre-line leading-relaxed">{detailPost.content}</p>
+          </div>
+          {/* Post media */}
+          {detailPost.medias && detailPost.medias.length > 0 && (
+            <div className="mt-3">
+              {detailPost.medias.map((media, i) => (
+                <div key={i} className="relative w-full max-h-[500px] rounded-lg overflow-hidden mb-2">
+                  {/* Blurred background image */}
+                  <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                      backgroundImage: `url(${media || "/placeholder.svg"})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      filter: "blur(20px)",
+                      transform: "scale(1.1)",
+                    }}
+                  />
+                  {/* Main image */}
+                  <img
+                    src={media || "/placeholder.svg"}
+                    alt="Post media"
+                    className="relative w-full max-h-[500px] object-contain rounded-lg z-10"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="w-full flex justify-center">
+          <div className="h-px bg-gray-200 w-3/4 mb-8" />
+        </div>
+        {/* Comments */}
+        <div className="bg-gray-50 rounded-2xl px-8 py-7 border border-gray-100">
+          <h3 className="text-lg font-semibold mb-5 text-gray-900">Comments</h3>
+          {detailLoading ? (
+            <div className="text-center text-gray-400 py-8">Loading comments...</div>
+          ) : detailComments.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">No comments yet.</div>
+          ) : (
+            <div className="space-y-5">
+              {detailComments.map((c) => (
+                <div
+                  key={c.id}
+                  className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-start gap-3 shadow-sm"
+                >
+                  <img
+                    src={
+                      c.user?.avatar
+                        ? c.user.avatar
+                        : c.user
+                          ? `https://ui-avatars.com/api/?name=${c.user.firstName}+${c.user.lastName}&background=de9151&color=fff`
+                          : "/default-avatar.png"
+                    }
+                    alt="User Avatar"
+                    className="h-9 w-9 rounded-full object-cover border"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-gray-900 text-sm">
+                        {c.user?.firstName} {c.user?.lastName}
+                      </span>
+                      <span className="ml-2 text-xs text-gray-400">{formatTimeAgo(c.createdAt)}</span>
+                    </div>
+                    <div className="text-gray-800 text-sm">{c.comment}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   const renderPosts = () => {
+    if (detailPost) return renderDetailView()
     if (isLoading && !initialLoadDone) {
       return renderLoadingSkeleton()
     }
@@ -244,10 +414,16 @@ export function FeedPage() {
 
     return posts.map((post, index) => {
       const PostContent = () => (
-        <div className="bg-white mb-5 rounded-xl px-6 py-5 transition-all duration-200 hover:shadow-lg hover:bg-gray-50 hover:scale-[1.01]">
+        <div
+          className="bg-white mb-5 rounded-xl px-6 py-5 transition-all duration-200 hover:shadow-lg hover:bg-gray-50 hover:scale-[1.01] cursor-pointer"
+          onClick={() => handleOpenDetail(post)}
+        >
           {/* Post header */}
           <div className="flex items-center mb-2">
-            <div className="relative cursor-pointer mr-3" onClick={() => post.userOverview && navigate(`/profile/${post.userOverview.id}`)}>
+            <div
+              className="relative cursor-pointer mr-3"
+              onClick={() => post.userOverview && navigate(`/profile/${post.userOverview.id}`)}
+            >
               <img
                 src={
                   post.userOverview?.avatar
@@ -293,12 +469,25 @@ export function FeedPage() {
           {post.medias && post.medias.length > 0 && (
             <div className="mt-3">
               {post.medias.map((media, i) => (
-                <img
-                  key={i}
-                  src={media || "/placeholder.svg"}
-                  alt="Post media"
-                  className="w-full max-h-[500px] object-contain bg-white rounded-lg"
-                />
+                <div key={i} className="relative w-full max-h-[500px] rounded-lg overflow-hidden">
+                  {/* Blurred background image */}
+                  <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{
+                      backgroundImage: `url(${media || "/placeholder.svg"})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      filter: "blur(20px)",
+                      transform: "scale(1.1)",
+                    }}
+                  />
+                  {/* Main image */}
+                  <img
+                    src={media || "/placeholder.svg"}
+                    alt="Post media"
+                    className="relative w-full max-h-[500px] object-contain rounded-lg z-10"
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -312,7 +501,10 @@ export function FeedPage() {
                   "flex items-center justify-center w-8 h-8 rounded-full transition-colors text-base",
                   localLikes[post.id]?.isLiked ? "bg-[#de9151]/10 text-[#de9151]" : "hover:bg-gray-100",
                 )}
-                onClick={() => handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview.id)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview.id)
+                }}
               >
                 <ArrowUp
                   className={cn(
@@ -335,7 +527,10 @@ export function FeedPage() {
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors text-base"
-                onClick={() => handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview.id)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview.id)
+                }}
               >
                 <ArrowDown className="w-4 h-4 text-gray-500" />
               </motion.button>
@@ -345,10 +540,15 @@ export function FeedPage() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="flex items-center text-gray-600 hover:bg-gray-100 rounded-full px-3 py-2 mr-2 transition-colors text-sm"
-              onClick={() => setActiveCommentPostId(post.id)}
+              onClick={(e) => {
+                e.stopPropagation()
+                setActiveCommentPostId(post.id)
+              }}
             >
               <MessageCircle className="w-4 h-4 mr-1.5" />
-              <span className="font-medium">{typeof post.commentCount === 'number' ? ` ${post.commentCount}` : ''}</span>
+              <span className="font-medium">
+                {typeof post.commentCount === "number" ? ` ${post.commentCount}` : ""}
+              </span>
             </motion.button>
 
             <motion.button
@@ -367,7 +567,10 @@ export function FeedPage() {
                 "ml-auto flex items-center rounded-full px-3 py-2 transition-colors text-sm",
                 isSaved(post.id) ? "text-[#de9151] bg-[#de9151]/10" : "text-gray-600 hover:bg-gray-100",
               )}
-              onClick={() => toggleSavePost(post.id)}
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleSavePost(post.id)
+              }}
             >
               <Bookmark className={cn("w-4 h-4 mr-1.5", isSaved(post.id) ? "fill-[#de9151]" : "")} />
               <span className="font-medium">{isSaved(post.id) ? "Saved" : "Save"}</span>
@@ -390,11 +593,11 @@ export function FeedPage() {
                     type="text"
                     placeholder="Write a comment..."
                     value={commentTexts[post.id] || ""}
-                    onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                    onChange={(e) => setCommentTexts((prev) => ({ ...prev, [post.id]: e.target.value }))}
                     disabled={commentLoading}
                     autoFocus
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault()
                         handleCommentSubmit(post.id)
                       }
@@ -405,11 +608,14 @@ export function FeedPage() {
                     onClick={() => handleCommentSubmit(post.id)}
                     disabled={commentLoading || !(commentTexts[post.id] && commentTexts[post.id].trim())}
                   >
-                    {commentLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Post'}
+                    {commentLoading ? <Loader2 className="animate-spin w-4 h-4" /> : "Post"}
                   </button>
                   <button
                     className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded-md transition-colors"
-                    onClick={() => { setActiveCommentPostId(null); setCommentTexts(prev => ({ ...prev, [post.id]: "" })) }}
+                    onClick={() => {
+                      setActiveCommentPostId(null)
+                      setCommentTexts((prev) => ({ ...prev, [post.id]: "" }))
+                    }}
                     disabled={commentLoading}
                     title="Cancel"
                   >
@@ -420,7 +626,10 @@ export function FeedPage() {
                 {comments[post.id] && comments[post.id].length > 0 && (
                   <div className="mt-2 space-y-2">
                     {comments[post.id].map((c) => (
-                      <div key={c.id} className="bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-800">
+                      <div
+                        key={c.id}
+                        className="bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-800"
+                      >
                         {c.content}
                         <span className="ml-2 text-xs text-gray-400">{formatTimeAgo(c.createdAt)}</span>
                       </div>
@@ -442,12 +651,12 @@ export function FeedPage() {
         )
       }
 
-        return (
+      return (
         <div key={`${post.id}-${index}`}>
-            <PostContent />
-            <div className="h-px bg-gray-200 mx-4" />
-          </div>
-        )
+          <PostContent />
+          <div className="h-px bg-gray-200 mx-4" />
+        </div>
+      )
     })
   }
 
@@ -517,14 +726,9 @@ export function FeedPage() {
         </div>
 
         {/* Loading skeleton - always at bottom when loading more */}
-        {loadingMore && (
-          <div className="mt-4">
-            {renderLoadingSkeleton()}
-          </div>
-        )}
+        {loadingMore && <div className="mt-4">{renderLoadingSkeleton()}</div>}
       </div>
       <AppRightSidebar />
     </div>
   )
 }
-

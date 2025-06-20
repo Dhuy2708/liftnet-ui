@@ -431,7 +431,7 @@ export function ProfilePage() {
                             </button>
                             <div className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer">
                               <MessageCircle className="w-5 h-5 text-gray-400" />
-                              <span className="ml-1 text-gray-700 font-medium">0</span>
+                              <span className="ml-1 text-gray-700 font-medium">{typeof post.commentCount === 'number' ? post.commentCount : 0}</span>
                             </div>
                             <div className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer">
                               <Share2 className="w-5 h-5 text-gray-400" />
