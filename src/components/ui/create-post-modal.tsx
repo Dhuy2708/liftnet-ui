@@ -20,6 +20,7 @@ export function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Close modal when clicking outside
   useEffect(() => {
@@ -59,7 +60,9 @@ export function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
     const success = await createPost(postContent, mediaFiles)
+    setIsSubmitting(false)
     if (success) {
       onClose()
       setPostContent("")
@@ -73,11 +76,12 @@ export function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div
         ref={modalRef}
-        className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 animate-in fade-in zoom-in duration-200"
+        className={"bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 animate-in fade-in zoom-in duration-200" + (isSubmitting ? " opacity-80 pointer-events-none" : "")}
+        aria-disabled={isSubmitting}
       >
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-semibold">Create Post</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-gray-100">
+          <Button variant="ghost" size="icon" onClick={isSubmitting ? undefined : onClose} className="rounded-full hover:bg-gray-100" disabled={isSubmitting}>
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -105,6 +109,7 @@ export function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
               className="w-full p-3 min-h-[120px] border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#de9151]/50 transition-all duration-200"
               value={postContent}
               onChange={(e) => setPostContent(e.target.value)}
+              disabled={isSubmitting}
             />
 
             {mediaFiles.length > 0 && (
@@ -136,6 +141,7 @@ export function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
                 multiple
                 accept="image/*,video/*"
                 className="hidden"
+                disabled={isSubmitting}
               />
               <Button
                 type="button"
@@ -143,6 +149,7 @@ export function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
                 size="sm"
                 className="mr-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={isSubmitting}
               >
                 <ImageIcon className="h-5 w-5 mr-1" />
                 <span>Photo/Video</span>
@@ -152,6 +159,7 @@ export function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
                 variant="ghost"
                 size="sm"
                 className="rounded-lg hover:bg-gray-100 transition-colors duration-200"
+                disabled={isSubmitting}
               >
                 <Smile className="h-5 w-5 mr-1" />
                 <span>Emoji</span>
@@ -163,16 +171,20 @@ export function CreatePostModal({ isOpen, onClose }: CreatePostModalProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={isSubmitting ? undefined : onClose}
               className="mr-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={!postContent.trim()}
-              className="bg-[#de9151] hover:bg-[#c27a40] text-white rounded-lg transition-colors duration-200"
+              disabled={!postContent.trim() || isSubmitting}
+              className="bg-[#de9151] hover:bg-[#c27a40] text-white rounded-lg transition-colors duration-200 flex items-center"
             >
+              {isSubmitting && (
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+              )}
               Post
             </Button>
           </div>

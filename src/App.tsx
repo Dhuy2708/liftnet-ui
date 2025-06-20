@@ -26,6 +26,7 @@ import { TopUpPage } from "./pages/TopUpPage"
 import { WithdrawPage } from "./pages/WithdrawPage"
 import { PaymentCallbackPage } from "./pages/PaymentCallbackPage"
 import { Toaster } from "sonner"
+import SuggestionsPage from './pages/SuggestionsPage'
 
 function AppContent() {
   const location = useLocation();
@@ -270,6 +271,17 @@ function AppContent() {
             <ProtectedRoute>
               <LargeAppLayout>
                 <PaymentCallbackPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/friends/suggestions"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <SuggestionsPage />
               </LargeAppLayout>
             </ProtectedRoute>
           }

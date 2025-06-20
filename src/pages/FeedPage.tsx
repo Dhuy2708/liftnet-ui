@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Filter,
   Bookmark,
+  Loader2,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -22,7 +23,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
 export function FeedPage() {
-  const { isLoading, error, fetchFeedList, reactPost, posts, clearPosts, hasMore } = useFeedStore()
+  const { isLoading, error, fetchFeedList, reactPost, posts, clearPosts, hasMore, addComment } = useFeedStore()
   const [loadingMore, setLoadingMore] = useState(false)
   const [initialLoadDone, setInitialLoadDone] = useState(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
@@ -34,6 +35,10 @@ export function FeedPage() {
   const toggleSavePost = (postId: string) => {
     setSavedPosts((prev) => ({ ...prev, [postId]: !prev[postId] }))
   }
+  const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null)
+  const [commentTexts, setCommentTexts] = useState<Record<string, string>>({})
+  const [commentLoading, setCommentLoading] = useState(false)
+  const [comments, setComments] = useState<Record<string, Array<{ id: string; content: string; createdAt: string }>>>({})
 
   // Update local likes when posts change
   useEffect(() => {
@@ -164,6 +169,25 @@ export function FeedPage() {
     await reactPost(feedId, type, feedOwnerId)
   }
 
+  const handleCommentSubmit = async (postId: string) => {
+    const text = commentTexts[postId] || ""
+    if (!text.trim()) return
+    setCommentLoading(true)
+    const newComment = {
+      id: Math.random().toString(36).substr(2, 9),
+      content: text,
+      createdAt: new Date().toISOString(),
+    }
+    setComments(prev => ({
+      ...prev,
+      [postId]: prev[postId] ? [...prev[postId], newComment] : [newComment],
+    }))
+    await addComment(postId, text)
+    setCommentLoading(false)
+    setCommentTexts(prev => ({ ...prev, [postId]: "" }))
+    setActiveCommentPostId(null)
+  }
+
   const renderLoadingSkeleton = () => {
     return (
       <div className="space-y-3">
@@ -223,11 +247,14 @@ export function FeedPage() {
         <div className="bg-white mb-5 rounded-xl px-6 py-5 transition-all duration-200 hover:shadow-lg hover:bg-gray-50 hover:scale-[1.01]">
           {/* Post header */}
           <div className="flex items-center mb-2">
-            <div className="relative cursor-pointer mr-3" onClick={() => navigate(`/profile/${post.userOverview.id}`)}>
+            <div className="relative cursor-pointer mr-3" onClick={() => post.userOverview && navigate(`/profile/${post.userOverview.id}`)}>
               <img
                 src={
-                  post.userOverview.avatar ||
-                  `https://ui-avatars.com/api/?name=${post.userOverview.firstName}+${post.userOverview.lastName}&background=de9151&color=fff`
+                  post.userOverview?.avatar
+                    ? post.userOverview.avatar
+                    : post.userOverview
+                      ? `https://ui-avatars.com/api/?name=${post.userOverview.firstName}+${post.userOverview.lastName}&background=de9151&color=fff`
+                      : "/default-avatar.png"
                 }
                 alt="User Avatar"
                 className="h-9 w-9 rounded-full object-cover border-2 border-gray-200"
@@ -318,9 +345,10 @@ export function FeedPage() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="flex items-center text-gray-600 hover:bg-gray-100 rounded-full px-3 py-2 mr-2 transition-colors text-sm"
+              onClick={() => setActiveCommentPostId(post.id)}
             >
               <MessageCircle className="w-4 h-4 mr-1.5" />
-              <span className="font-medium">Comments</span>
+              <span className="font-medium">{typeof post.commentCount === 'number' ? ` ${post.commentCount}` : ''}</span>
             </motion.button>
 
             <motion.button
@@ -345,6 +373,63 @@ export function FeedPage() {
               <span className="font-medium">{isSaved(post.id) ? "Saved" : "Save"}</span>
             </motion.button>
           </div>
+          {/* Comment box */}
+          <AnimatePresence>
+            {activeCommentPostId === post.id && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                className="mt-4 mb-1 px-3 py-3 bg-gray-50 rounded-xl shadow flex flex-col gap-3 border border-gray-200"
+                key="comment-box"
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#de9151] bg-white placeholder-gray-400 shadow-sm transition-all"
+                    type="text"
+                    placeholder="Write a comment..."
+                    value={commentTexts[post.id] || ""}
+                    onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                    disabled={commentLoading}
+                    autoFocus
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleCommentSubmit(post.id)
+                      }
+                    }}
+                  />
+                  <button
+                    className="bg-[#de9151] text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-[#c27339] disabled:opacity-60 shadow-sm transition-colors flex items-center justify-center min-w-[64px]"
+                    onClick={() => handleCommentSubmit(post.id)}
+                    disabled={commentLoading || !(commentTexts[post.id] && commentTexts[post.id].trim())}
+                  >
+                    {commentLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Post'}
+                  </button>
+                  <button
+                    className="text-gray-400 hover:text-gray-600 px-2 py-1 rounded-md transition-colors"
+                    onClick={() => { setActiveCommentPostId(null); setCommentTexts(prev => ({ ...prev, [post.id]: "" })) }}
+                    disabled={commentLoading}
+                    title="Cancel"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {/* Show comments for this post */}
+                {comments[post.id] && comments[post.id].length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {comments[post.id].map((c) => (
+                      <div key={c.id} className="bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-800">
+                        {c.content}
+                        <span className="ml-2 text-xs text-gray-400">{formatTimeAgo(c.createdAt)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )
 

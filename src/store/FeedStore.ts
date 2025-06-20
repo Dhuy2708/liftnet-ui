@@ -12,6 +12,7 @@ export interface Post {
   medias: string[]
   likeCount: number
   isLiked: boolean
+  commentCount: number
   userOverview: {
     id: string
     email: string
@@ -60,6 +61,7 @@ type FeedActions = {
   deletePost: (postId: string) => Promise<boolean>
   clearError: () => void
   clearPosts: () => void
+  addComment: (feedId: string, comment: string, parentId?: string) => Promise<boolean>
 }
 
 // Combine state and actions
@@ -266,5 +268,41 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
 
   clearError: () => {
     set({ error: null })
+  },
+
+  addComment: async (feedId: string, comment: string, parentId?: string) => {
+    set({ isLoading: true, error: null })
+    try {
+      const token = localStorage.getItem("token")
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Feed/comment`,
+        {
+          feedId,
+          comment,
+          parentId: parentId || null,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      if (response.status === 200 && response.data.success) {
+        return true
+      } else {
+        set({ error: response.data.message || "Failed to add comment", isLoading: false })
+        return false
+      }
+    } catch (error) {
+      console.error("Failed to add comment:", error)
+      set({
+        error: error instanceof Error ? error.message : "Failed to add comment",
+        isLoading: false,
+      })
+      return false
+    } finally {
+      set({ isLoading: false })
+    }
   },
 }))

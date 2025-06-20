@@ -14,7 +14,7 @@ import {
   BarChart3,
   User,
   MessageSquare,
-  Wallet,
+  UserCircle,
 } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
@@ -94,7 +94,7 @@ export function AppLeftSidebar({
 
   const quickAccessItems = [
     { name: "Messages", icon: MessageSquare, path: "/chat" },
-    { name: "Wallet", icon: Wallet, path: "/wallet" },
+    { name: "Friends", icon: UserCircle, path: "/friends/suggestions" },
     { name: "Schedule", icon: Clock, path: "/schedule" },
     { name: "Statistics", icon: BarChart2, path: "/statistics" },
   ]

@@ -25,6 +25,13 @@ interface AddressResponse {
   }>
 }
 
+type UploadAvatarResponse = {
+  success: boolean
+  message: string
+  errors?: string[]
+  datas?: unknown
+}
+
 type ProfileState = {
   address: Address | null
   isLoading: boolean
@@ -36,7 +43,9 @@ type ProfileActions = {
   clearError: () => void
 }
 
-type ProfileStore = ProfileState & ProfileActions
+type ProfileStore = ProfileState & ProfileActions & {
+  uploadAvatar: (file: File) => Promise<boolean>
+}
 
 export const useProfileStore = create<ProfileStore>((set) => ({
   address: null,
@@ -82,5 +91,27 @@ export const useProfileStore = create<ProfileStore>((set) => ({
 
   clearError: () => {
     set({ error: null })
+  },
+
+  uploadAvatar: async (file: File) => {
+    try {
+      const token = localStorage.getItem("token")
+      const formData = new FormData()
+      formData.append("Image", file)
+      const response = await axios.post<UploadAvatarResponse>(
+        `${import.meta.env.VITE_API_URL}/api/Profile/upload/avatar`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "accept": "application/json",
+            "Content-Type": "multipart/form-data"
+          },
+        }
+      )
+      return response.data.success
+    } catch {
+      return false
+    }
   },
 })) 
