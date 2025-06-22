@@ -124,7 +124,7 @@ export function AuthPage() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-orange-200 to-orange-300 rounded-3xl blur-lg opacity-60" />
                 <div className="relative p-6 bg-white/80 backdrop-blur-sm rounded-3xl border border-orange-100 shadow-xl">
-                  <img src="/logo.png" alt="LiftNet Logo" className="h-20 w-30 object-contain" />
+                  <img src="https://res.cloudinary.com/dvwgt4tm1/image/upload/v1750584547/new_rd8xyq.png" alt="LiftNet Logo" className="h-20 object-contain" />
                 </div>
               </div>
             </div>
