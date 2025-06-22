@@ -13,6 +13,7 @@ import {
   Heart,
   Bell,
 } from "lucide-react";
+import { useNotificationStore } from "@/store/NotificationStore";
 
 interface Notification {
   title: string;
@@ -75,6 +76,7 @@ export function useNotificationHub() {
   const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
   const processedTrackIds = useRef<Set<string>>(new Set());
   const navigate = useNavigate();
+  const addNotification = useNotificationStore((state) => state.addNotification);
 
   const handleNotificationClick = (notification: Notification) => {
     // Handle appointment-related notifications
@@ -183,6 +185,20 @@ export function useNotificationHub() {
               if (exists) {
                 return prev;
               }
+              // Also push to Zustand notification store
+              addNotification({
+                id: Date.now(), // fallback id, ideally use backend id
+                recieverId: notification.recieverId,
+                senderName: notification.senderId,
+                senderType: notification.senderType,
+                senderAvatar: '',
+                recieverType: notification.recieverType,
+                title: notification.title,
+                eventType: notification.eventType,
+                body: notification.body,
+                createdAt: notification.createdAt,
+                location: notification.location,
+              });
               return [notification, ...prev];
             });
           } catch (error) {
@@ -212,7 +228,7 @@ export function useNotificationHub() {
       // Clear processed trackIds on cleanup
       processedTrackIds.current.clear();
     };
-  }, [navigate]);
+  }, [navigate, addNotification]);
 
   return { notifications, connection };
 }

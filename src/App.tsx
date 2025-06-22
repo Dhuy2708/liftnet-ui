@@ -27,11 +27,13 @@ import { WithdrawPage } from "./pages/WithdrawPage"
 import { PaymentCallbackPage } from "./pages/PaymentCallbackPage"
 import { Toaster } from "sonner"
 import SuggestionsPage from './pages/SuggestionsPage'
+import { useNotificationHub } from "./hooks/useNotificationHub"
 
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === "/auth";
   const { basicInfo } = useAuthStore();
+  useNotificationHub();
 
   useEffect(() => {
     if (basicInfo) {
