@@ -37,6 +37,7 @@ interface NotificationStore {
   hasMore: boolean
   fetchNotifications: (pageNumber: number, pageSize: number) => Promise<void>
   clearNotifications: () => void
+  addNotification: (notification: Notification) => void
 }
 
 export const useNotificationStore = create<NotificationStore>((set) => ({
@@ -92,5 +93,11 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
       hasMore: true,
       error: null
     })
-  }
+  },
+
+  addNotification: (notification) => {
+    set((state) => ({
+      notifications: [notification, ...state.notifications],
+    }))
+  },
 })) 
