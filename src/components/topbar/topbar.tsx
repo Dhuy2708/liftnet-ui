@@ -179,7 +179,7 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
 
             <Link to="/" className="flex items-center hover:opacity-80 transition-all duration-200">
               <div className="relative">
-                <img src="/logo.png" alt="LiftNet Logo" className="h-8 w-16 full" />
+                <img src="https://res.cloudinary.com/dvwgt4tm1/image/upload/v1750584547/new_rd8xyq.png" alt="LiftNet Logo" className="h-8 object-contain" />
               </div>
             </Link>
           </div>
