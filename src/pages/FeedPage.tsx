@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useFeedStore } from "@/store/FeedStore"
+import { useAuthStore } from "@/store/AuthStore"
 import {
   MessageCircle,
   Share2,
   MoreHorizontal,
-  ArrowUp,
-  ArrowDown,
+  ArrowBigUp,
+  ArrowBigDown,
   Flame,
   Clock,
   TrendingUp,
@@ -15,6 +16,7 @@ import {
   Bookmark,
   Loader2,
   ArrowLeft,
+  Send,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -26,11 +28,12 @@ import { cn } from "@/lib/utils"
 export function FeedPage() {
   const { isLoading, error, fetchFeedList, reactPost, posts, clearPosts, hasMore, addComment, fetchFeedComments } =
     useFeedStore()
+  const basicInfo = useAuthStore((state) => state.basicInfo)
   const [loadingMore, setLoadingMore] = useState(false)
   const [initialLoadDone, setInitialLoadDone] = useState(false)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const navigate = useNavigate()
-  const [localLikes, setLocalLikes] = useState<Record<string, { isLiked: boolean; count: number }>>({})
+  const [localLikes, setLocalLikes] = useState<Record<string, { isLiked: boolean; isDisliked: boolean; count: number }>>({})
   const [sortBy, setSortBy] = useState("best")
   const [savedPosts, setSavedPosts] = useState<Record<string, boolean>>({})
   const isSaved = (postId: string) => !!savedPosts[postId]
@@ -40,9 +43,6 @@ export function FeedPage() {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null)
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({})
   const [commentLoading, setCommentLoading] = useState(false)
-  const [comments, setComments] = useState<Record<string, Array<{ id: string; content: string; createdAt: string }>>>(
-    {},
-  )
   const [detailPost, setDetailPost] = useState<null | (typeof posts)[0]>(null)
   const [detailComments, setDetailComments] = useState<
     Array<{
@@ -86,10 +86,11 @@ export function FeedPage() {
       )
     }
 
-    const newLocalLikes: Record<string, { isLiked: boolean; count: number }> = {}
+    const newLocalLikes: Record<string, { isLiked: boolean; isDisliked: boolean; count: number }> = {}
     posts.forEach((post) => {
       newLocalLikes[post.id] = {
         isLiked: post.isLiked,
+        isDisliked: false,
         count: post.likeCount,
       }
     })
@@ -184,13 +185,25 @@ export function FeedPage() {
   const handleReact = async (feedId: string, type: number, feedOwnerId: string) => {
     // Update local state immediately
     setLocalLikes((prev) => {
-      const current = prev[feedId]
-      const newIsLiked = type === 1
+      const current = prev[feedId] || { isLiked: false, isDisliked: false, count: 0 }
+      let newIsLiked = current.isLiked
+      let newIsDisliked = current.isDisliked
+      let newCount = current.count
+      if (type === 1) {
+        newIsLiked = true
+        newIsDisliked = false
+        newCount = current.isLiked ? current.count : current.count + 1
+      } else if (type === 2) {
+        newIsLiked = false
+        newIsDisliked = true
+        newCount = current.isDisliked ? current.count : current.count - 1
+      }
       return {
         ...prev,
         [feedId]: {
           isLiked: newIsLiked,
-          count: current.count + (newIsLiked ? 1 : -1),
+          isDisliked: newIsDisliked,
+          count: newCount,
         },
       }
     })
@@ -203,18 +216,45 @@ export function FeedPage() {
     const text = commentTexts[postId] || ""
     if (!text.trim()) return
     setCommentLoading(true)
-    const newComment = {
-      id: Math.random().toString(36).substr(2, 9),
-      content: text,
-      createdAt: new Date().toISOString(),
+    if (!basicInfo) {
+      setCommentLoading(false)
+      return
     }
-    setComments((prev) => ({
+    // Optimistically increase comment count in overview
+    setLocalLikes((likes) => ({ ...likes })) // force rerender if needed
+    const postIndex = posts.findIndex((p) => p.id === postId)
+    if (postIndex !== -1) {
+      posts[postIndex].commentCount = (posts[postIndex].commentCount || 0) + 1
+    }
+    // Optimistically add comment to top
+    setDetailComments((prev) => [
+      {
+        id: Math.random().toString(36).substr(2, 9),
+        user: {
+          id: basicInfo.id,
+          email: '',
+          username: basicInfo.username,
+          firstName: basicInfo.firstName,
+          lastName: basicInfo.lastName,
+          role: basicInfo.role,
+          avatar: basicInfo.avatar,
+          isDeleted: false,
+          isSuspended: false,
+          isFollowing: false,
+        },
+        comment: text,
+        createdAt: new Date().toISOString(),
+        modifiedAt: new Date().toISOString(),
+      },
       ...prev,
-      [postId]: prev[postId] ? [...prev[postId], newComment] : [newComment],
-    }))
+    ])
+    // Optimistically increase comment count
+    setDetailPost((prev) => prev ? { ...prev, commentCount: (prev.commentCount || 0) + 1 } : prev)
+    // Also update the commentCount in the posts array
+    setLocalLikes((likes) => ({ ...likes })) // force rerender if needed
+    setCommentTexts((prev) => ({ ...prev, [postId]: "" }))
     await addComment(postId, text)
     setCommentLoading(false)
-    setCommentTexts((prev) => ({ ...prev, [postId]: "" }))
     setActiveCommentPostId(null)
   }
 
@@ -286,7 +326,7 @@ export function FeedPage() {
                       : "/default-avatar.png"
                 }
                 alt="User Avatar"
-                className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
+                className="h-12 w-12 rounded-full object-cover border-2 border-gray-200"
               />
             </div>
             <div className="flex-1 min-w-0">
@@ -336,13 +376,134 @@ export function FeedPage() {
               ))}
             </div>
           )}
+          {/* Reaction bar and comment input for detail view */}
+          {detailPost && (
+            <div className="flex flex-col gap-4 ">
+              {/* Reaction bar */}
+              <div className="flex items-center pt-4 gap-2">
+                <div className="flex items-center mr-4 bg-gray-50 rounded-full p-1">
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    className={cn(
+                      "flex items-center justify-center w-8 h-8 rounded-full transition-colors text-base",
+                      localLikes[detailPost.id]?.isLiked ? "bg-[#de9151]/10 text-[#de9151]" : "hover:bg-gray-100",
+                    )}
+                    onClick={() => handleReact(detailPost.id, localLikes[detailPost.id]?.isLiked ? 2 : 1, detailPost.userOverview.id)}
+                  >
+                    <ArrowBigUp
+                      className={cn(
+                        "w-6 h-6",
+                        localLikes[detailPost.id]?.isLiked ? "text-[#de9151] stroke-[#de9151]" : "text-white stroke-gray-300",
+                        "transition-colors"
+                      )}
+                      fill={localLikes[detailPost.id]?.isLiked ? "#de9151" : "none"}
+                      strokeWidth={2}
+                    />
+                  </motion.button>
+                  <AnimatePresence mode="wait">
+                    <motion.span
+                      key={localLikes[detailPost.id]?.count || detailPost.likeCount}
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 5 }}
+                      className="mx-1 text-sm font-medium text-gray-700 min-w-[20px] text-center"
+                    >
+                      {localLikes[detailPost.id]?.count || detailPost.likeCount}
+                    </motion.span>
+                  </AnimatePresence>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors text-base"
+                    onClick={() => handleReact(detailPost.id, localLikes[detailPost.id]?.isLiked ? 2 : 1, detailPost.userOverview.id)}
+                  >
+                    <ArrowBigDown
+                      className={cn(
+                        "w-6 h-6",
+                        localLikes[detailPost.id]?.isDisliked ? "text-[#7c3aed] stroke-[#7c3aed]" : "text-white stroke-gray-300",
+                        "transition-colors"
+                      )}
+                      fill={localLikes[detailPost.id]?.isDisliked ? "#7c3aed" : "none"}
+                      strokeWidth={2}
+                    />
+                  </motion.button>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center text-gray-600 hover:bg-gray-100 rounded-full px-3 py-2 mr-2 transition-colors text-sm"
+                  onClick={() => {
+                    setActiveCommentPostId(detailPost.id)
+                    setTimeout(() => {
+                      const input = document.getElementById('detail-comment-input') as HTMLInputElement
+                      if (input) input.focus()
+                    }, 100)
+                  }}
+                >
+                  <MessageCircle className="w-4 h-4 mr-1.5" />
+                  <span className="font-medium">
+                    {typeof detailPost.commentCount === "number" ? ` ${detailPost.commentCount}` : ""}
+                  </span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center text-gray-600 hover:bg-gray-100 rounded-full px-3 py-2 transition-colors text-sm"
+                >
+                  <Share2 className="w-4 h-4 mr-1.5" />
+                  <span className="font-medium">Share</span>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={cn(
+                    "ml-auto flex items-center rounded-full px-3 py-2 transition-colors text-sm",
+                    isSaved(detailPost.id) ? "text-[#de9151] bg-[#de9151]/10" : "text-gray-600 hover:bg-gray-100",
+                  )}
+                  onClick={() => toggleSavePost(detailPost.id)}
+                >
+                  <Bookmark className={cn("w-4 h-4 mr-1.5", isSaved(detailPost.id) ? "fill-[#de9151]" : "")}/>
+                  <span className="font-medium">{isSaved(detailPost.id) ? "Saved" : "Save"}</span>
+                </motion.button>
+              </div>
+              
+            </div>
+          )}
         </div>
         <div className="w-full flex justify-center">
           <div className="h-px bg-gray-200 w-3/4 mb-8" />
         </div>
-        {/* Comments */}
-        <div className="bg-gray-50 rounded-2xl px-8 py-7 border border-gray-100">
-          <h3 className="text-lg font-semibold mb-5 text-gray-900">Comments</h3>
+        {/* Comments section with add comment field at the top */}
+        <div className="px-0 py-0 mb-12">
+          {/* Add comment field box */}
+          {detailPost && (
+            <div className="flex items-center gap-2 mb-6">
+              <input
+                id="detail-comment-input"
+                className="flex-1 border border-gray-300 rounded-full px-5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#de9151] bg-white placeholder-gray-400 shadow-sm transition-all h-11"
+                type="text"
+                placeholder="Write a comment..."
+                value={commentTexts[detailPost.id] || ""}
+                onChange={(e) => setCommentTexts((prev) => ({ ...prev, [detailPost.id]: e.target.value }))}
+                disabled={commentLoading}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleCommentSubmit(detailPost.id)
+                  }
+                }}
+              />
+              <button
+                className="flex items-center justify-center bg-[#de9151] hover:bg-[#c27339] text-white rounded-full w-10 h-10 transition-colors disabled:opacity-60 shadow-sm"
+                onClick={() => handleCommentSubmit(detailPost.id)}
+                disabled={commentLoading || !(commentTexts[detailPost.id] && commentTexts[detailPost.id].trim())}
+                aria-label="Send comment"
+                type="button"
+              >
+                {commentLoading ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
+              </button>
+            </div>
+          )}
+          <h3 className="text-xl font-bold mb-5 text-gray-900">Comments</h3>
           {detailLoading ? (
             <div className="text-center text-gray-400 py-8">Loading comments...</div>
           ) : detailComments.length === 0 ? (
@@ -352,7 +513,7 @@ export function FeedPage() {
               {detailComments.map((c) => (
                 <div
                   key={c.id}
-                  className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-start gap-3 shadow-sm"
+                  className="flex items-start gap-3 px-0 py-0"
                 >
                   <img
                     src={
@@ -363,16 +524,16 @@ export function FeedPage() {
                           : "/default-avatar.png"
                     }
                     alt="User Avatar"
-                    className="h-9 w-9 rounded-full object-cover border"
+                    className="h-12 w-12 rounded-full object-cover border"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-gray-900 text-sm">
+                      <span className="font-semibold text-gray-900 text-base">
                         {c.user?.firstName} {c.user?.lastName}
                       </span>
                       <span className="ml-2 text-xs text-gray-400">{formatTimeAgo(c.createdAt)}</span>
                     </div>
-                    <div className="text-gray-800 text-sm">{c.comment}</div>
+                    <div className="text-gray-800 text-sm leading-relaxed">{c.comment}</div>
                   </div>
                 </div>
               ))}
@@ -433,7 +594,7 @@ export function FeedPage() {
                       : "/default-avatar.png"
                 }
                 alt="User Avatar"
-                className="h-9 w-9 rounded-full object-cover border-2 border-gray-200"
+                className="h-12 w-12 rounded-full object-cover border-2 border-gray-200"
               />
             </div>
             <div className="flex-1 min-w-0">
@@ -506,11 +667,14 @@ export function FeedPage() {
                   handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview.id)
                 }}
               >
-                <ArrowUp
+                <ArrowBigUp
                   className={cn(
-                    "w-4 h-4",
-                    localLikes[post.id]?.isLiked ? "text-[#de9151] fill-[#de9151]" : "text-gray-500",
+                    "w-6 h-6",
+                    localLikes[post.id]?.isLiked ? "text-[#de9151] stroke-[#de9151]" : "text-white stroke-gray-300",
+                    "transition-colors"
                   )}
+                  fill={localLikes[post.id]?.isLiked ? "#de9151" : "none"}
+                  strokeWidth={2}
                 />
               </motion.button>
               <AnimatePresence mode="wait">
@@ -532,7 +696,15 @@ export function FeedPage() {
                   handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview.id)
                 }}
               >
-                <ArrowDown className="w-4 h-4 text-gray-500" />
+                <ArrowBigDown
+                  className={cn(
+                    "w-6 h-6",
+                    localLikes[post.id]?.isDisliked ? "text-[#7c3aed] stroke-[#7c3aed]" : "text-white stroke-gray-300",
+                    "transition-colors"
+                  )}
+                  fill={localLikes[post.id]?.isDisliked ? "#7c3aed" : "none"}
+                  strokeWidth={2}
+                />
               </motion.button>
             </div>
 
@@ -622,20 +794,6 @@ export function FeedPage() {
                     Cancel
                   </button>
                 </div>
-                {/* Show comments for this post */}
-                {comments[post.id] && comments[post.id].length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    {comments[post.id].map((c) => (
-                      <div
-                        key={c.id}
-                        className="bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-800"
-                      >
-                        {c.content}
-                        <span className="ml-2 text-xs text-gray-400">{formatTimeAgo(c.createdAt)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </motion.div>
             )}
           </AnimatePresence>
