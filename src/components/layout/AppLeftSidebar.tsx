@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
+import { useMediaQuery } from "@/hooks/use-mobile"
 
 export function AppLeftSidebar({
   onToggle,
@@ -28,6 +29,7 @@ export function AppLeftSidebar({
   const [role, setRole] = useState<number | null>(null)
   const [show, setShow] = useState(true)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const isLargeScreen = useMediaQuery("(min-width: 1350px)")
 
   useEffect(() => {
     const updateRole = () => {
@@ -57,6 +59,17 @@ export function AppLeftSidebar({
       setOpenDropdown("ai")
     }
   }, [location.pathname])
+
+  // Auto-hide sidebar on small screens
+  useEffect(() => {
+    if (!isLargeScreen) {
+      setShow(false)
+    } else {
+      // Restore sidebar state from localStorage or default to true
+      const sidebarState = localStorage.getItem("sidebarShow")
+      setShow(sidebarState === null ? true : sidebarState === "true")
+    }
+  }, [isLargeScreen])
 
   const handleToggle = () => {
     const newShow = !show

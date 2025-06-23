@@ -23,7 +23,9 @@ interface User {
 
 export interface Appointment {
   id: string;
+  editable: boolean;
   booker: User;
+  otherParticipants: User[];
   participantCount: number;
   name: string;
   description: string;
@@ -34,6 +36,24 @@ export interface Appointment {
   repeatingType: number;
   created: string;
   modified: string;
+  notiCount: number;
+  price: number;
+  confirmationRequest: {
+    id: number;
+    img: string;
+    content: string;
+    status: number;
+    createdAt: string;
+    modifiedAt: string;
+    expiresdAt: string;
+  } | null;
+  feedbacks?: Array<{
+    id: number;
+    user: User;
+    star: number;
+    medias: string[];
+    content: string;
+  }>;
 }
 
 interface AppointmentResponse {
@@ -45,7 +65,7 @@ interface AppointmentResponse {
   success: boolean;
   message: string | null;
   errors: string[];
-  validationFailure: any;
+  validationFailure: unknown;
 }
 
 interface AppointmentStore {
@@ -62,6 +82,7 @@ interface AppointmentStore {
   deleteAppointment: (id: string) => Promise<{ success: boolean; message: string }>;
   sendConfirmationRequest: (appointmentId: string, data: { content?: string; image?: File }) => Promise<{ success: boolean; message: string }>;
   confirmRequest: (confirmationId: number) => Promise<{ success: boolean; message: string }>;
+  sendFeedback: (data: { appointmentId: string; coachId: string; content: string; star: number; medias?: File[] }) => Promise<{ success: boolean; message: string }>;
 }
 
 export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
@@ -113,7 +134,7 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
         });
       }
 
-      const requestBody: any = {
+      const requestBody: Record<string, unknown> = {
         conditionItems,
         pageNumber,
         pageSize
@@ -261,6 +282,41 @@ export const useAppointmentStore = create<AppointmentStore>((set, get) => ({
       return { 
         success: false, 
         message: error instanceof Error ? error.message : "Failed to confirm request" 
+      };
+    }
+  },
+
+  sendFeedback: async (data: { appointmentId: string; coachId: string; content: string; star: number; medias?: File[] }) => {
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("AppointmentId", data.appointmentId);
+      formData.append("CoachId", data.coachId);
+      formData.append("Content", data.content);
+      formData.append("Star", data.star.toString());
+      if (data.medias && data.medias.length > 0) {
+        data.medias.forEach((file) => {
+          formData.append("Medias", file);
+        });
+      }
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Appointment/feedback`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        }
+      );
+      if (response.data.success) {
+        return { success: true, message: "Feedback sent successfully" };
+      }
+      return { success: false, message: response.data.message || "Failed to send feedback" };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to send feedback"
       };
     }
   }

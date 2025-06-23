@@ -27,6 +27,26 @@ export interface Post {
   }
 }
 
+// Define the Comment type
+export interface Comment {
+  id: string
+  user: {
+    id: string
+    email: string
+    username: string
+    firstName: string
+    lastName: string
+    role: number
+    avatar: string
+    isDeleted: boolean
+    isSuspended: boolean
+    isFollowing: boolean
+  }
+  comment: string
+  createdAt: string
+  modifiedAt: string
+}
+
 // Define the API response type
 interface FeedResponse {
   success: boolean
@@ -62,6 +82,7 @@ type FeedActions = {
   clearError: () => void
   clearPosts: () => void
   addComment: (feedId: string, comment: string, parentId?: string) => Promise<boolean>
+  fetchFeedComments: (feedId: string, parentId: string | null) => Promise<Comment[]>
 }
 
 // Combine state and actions
@@ -303,6 +324,30 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
       return false
     } finally {
       set({ isLoading: false })
+    }
+  },
+
+  fetchFeedComments: async (feedId: string, parentId: string | null) => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/Feed/comments`,
+        {
+          params: { feedId, parentId },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      )
+      if (response.status === 200 && response.data.success && Array.isArray(response.data.datas)) {
+        return response.data.datas as Comment[]
+      } else {
+        return []
+      }
+    } catch (error) {
+      console.error("Failed to fetch comments:", error)
+      return []
     }
   },
 }))
