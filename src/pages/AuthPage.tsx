@@ -33,7 +33,14 @@ const floatingIconColors = [
   "text-cyan-400/70",
 ]
 
-const FloatingIcon = ({ icon: Icon, delay = 0, duration = 4, className = "", size = 36, colorIndex = 0 }) => (
+const FloatingIcon = ({ icon: Icon, delay = 0, duration = 4, className = "", size = 36, colorIndex = 0 }: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  delay?: number;
+  duration?: number;
+  className?: string;
+  size?: number;
+  colorIndex?: number;
+}) => (
   <motion.div
     initial={{ y: 0, x: 0, opacity: 0.3 }}
     animate={{
@@ -144,7 +151,7 @@ export function AuthPage() {
             </div>
 
             {/* Feature Cards */}
-            <div className="grid grid-cols-2 gap-4 max-w-sm">
+            <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

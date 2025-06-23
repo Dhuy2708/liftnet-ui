@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import {
   Home,
   Clock,
@@ -29,6 +30,9 @@ export function AppLeftSidebar({
   const [role, setRole] = useState<number | null>(null)
   const [show, setShow] = useState(true)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [showPopupDropdown, setShowPopupDropdown] = useState(false)
+  const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0 })
+  const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null)
   const isLargeScreen = useMediaQuery("(min-width: 1350px)")
 
   useEffect(() => {
@@ -43,14 +47,19 @@ export function AppLeftSidebar({
         }
       }
     }
+    const updateSidebarShow = () => {
+      const sidebarState = localStorage.getItem("sidebarShow")
+      setShow(sidebarState === null ? true : sidebarState === "true")
+    }
     updateRole()
-    const sidebarState = localStorage.getItem("sidebarShow")
-    setShow(sidebarState === null ? true : sidebarState === "true")
+    updateSidebarShow()
     window.addEventListener("basicInfoChanged", updateRole)
     window.addEventListener("storage", updateRole)
+    window.addEventListener("sidebarToggled", updateSidebarShow)
     return () => {
       window.removeEventListener("basicInfoChanged", updateRole)
       window.removeEventListener("storage", updateRole)
+      window.removeEventListener("sidebarToggled", updateSidebarShow)
     }
   }, [])
 
@@ -113,8 +122,43 @@ export function AppLeftSidebar({
   ]
 
   const handleDropdownToggle = (name: string) => {
-    setOpenDropdown(openDropdown === name ? null : name)
+    if (!show && name === "ai") {
+      // When sidebar is collapsed, show popup dropdown
+      setShowPopupDropdown(!showPopupDropdown)
+      setOpenDropdown(openDropdown === name ? null : name)
+      // Update button position for popup positioning
+      if (buttonRef) {
+        const rect = buttonRef.getBoundingClientRect()
+        setButtonPosition({ top: rect.bottom + 8, left: rect.left })
+      }
+    } else {
+      // Normal dropdown behavior when sidebar is expanded
+      setOpenDropdown(openDropdown === name ? null : name)
+      setShowPopupDropdown(false)
+    }
   }
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      // Check if click is outside both the button and the popup dropdown
+      const isClickInButton = target.closest('.ai-dropdown-container')
+      const isClickInPopup = target.closest('.ai-popup-dropdown')
+      
+      if (!isClickInButton && !isClickInPopup) {
+        setShowPopupDropdown(false)
+      }
+    }
+
+    if (showPopupDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showPopupDropdown])
 
   return (
     <aside
@@ -195,8 +239,9 @@ export function AppLeftSidebar({
               })}
 
               {/* AI Assistant Dropdown */}
-              <li>
-              <button
+              <li className="ai-dropdown-container relative">
+                <button
+                  ref={setButtonRef}
                   onClick={() => handleDropdownToggle("ai")}
                   className={cn(
                     "w-full flex items-center rounded-xl transition-all duration-200 group",
@@ -362,24 +407,6 @@ export function AppLeftSidebar({
             </ul>
           </div>
 
-          {/* Elegant Divider */}
-          {/* <div
-            className={cn(
-              "relative my-6",
-              !show && "mx-auto w-4",
-              !show && "opacity-0 h-0 overflow-hidden lg:opacity-100 lg:h-auto",
-            )}
-          >
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gradient-to-r from-transparent via-gray-300/50 to-transparent"></div>
-            </div>
-            <div className="relative flex justify-center">
-              <div className="bg-gradient-to-r from-white to-gray-50 px-3">
-                <div className="w-2 h-2 rounded-full bg-gradient-to-r from-[#DE9151]/30 to-purple-300/30"></div>
-              </div>
-            </div>
-          </div> */}
-
           {/* Enhanced Leaderboard Section */}
           {/* <div className={cn("relative", !show && "opacity-0 h-0 overflow-hidden lg:hidden")}>
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 px-4 bg-gradient-to-r from-gray-600 to-gray-500 bg-clip-text text-transparent">
@@ -425,6 +452,63 @@ export function AppLeftSidebar({
           </div> */}
         </nav>
       </div>
+
+      {/* Portal for popup dropdown */}
+      {!show && showPopupDropdown && createPortal(
+        <div 
+          className="fixed z-[100] ai-popup-dropdown"
+          style={{ 
+            top: `${buttonPosition.top}px`, 
+            left: `${buttonPosition.left}px` 
+          }}
+        >
+          <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-2 min-w-[200px]">
+            <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 px-2">
+              Plan & AI
+            </div>
+            <ul className="space-y-1">
+              {aiSubItems.map((item) => {
+                const isActive = location.pathname === item.path
+                return (
+                  <li key={item.name}>
+                    <Link
+                      to={item.path}
+                      onClick={() => {
+                        setShowPopupDropdown(false)
+                        setOpenDropdown('ai')
+                      }}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-sm",
+                        isActive
+                          ? "bg-gradient-to-r from-purple-100/80 to-purple-50/80 text-purple-700 shadow-sm border border-purple-200/50"
+                          : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100/50 hover:text-gray-900",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "p-1.5 rounded-md transition-all duration-200",
+                          isActive ? "bg-purple-100/80 shadow-sm" : "bg-gray-100/30 group-hover:bg-purple-50/50",
+                        )}
+                      >
+                        <item.icon
+                          className={cn(
+                            "w-4 h-4 shrink-0",
+                            isActive ? "text-purple-600" : "text-gray-500 group-hover:text-purple-600",
+                          )}
+                        />
+                      </div>
+                      <span className={cn("text-sm font-medium", isActive && "text-purple-700")}>
+                        {item.name}
+                      </span>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </div>,
+        document.body
+      )}
     </aside>
   )
 }
