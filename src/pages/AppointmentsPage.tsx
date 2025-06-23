@@ -1,80 +1,71 @@
-import { MapPin, Users, Calendar, Clock, Search, Filter, ArrowUpDown, Edit, Trash2, Plus, X, CalendarClock, Clock4, History, Coins, CheckCircle } from "lucide-react"
-import { formatInTimeZone } from "date-fns-tz"
-import { useState, useRef, useEffect } from "react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import {
+  MapPin,
+  Users,
+  Calendar,
+  Clock,
+  Search,
+  Filter,
+  ArrowUpDown,
+  Edit,
+  Trash2,
+  Plus,
+  X,
+  CalendarClock,
+  Clock4,
+  History,
+  Coins,
+  Star,
+} from "lucide-react";
+import { formatInTimeZone } from "date-fns-tz";
+import { useState, useRef, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useNavigate, useParams } from "react-router-dom"
-import { useAppointmentStore } from "@/store/AppointmentStore"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { useSocialStore } from "@/store/SocialStore"
-import { GeoStore } from "@/store/GeoStore"
-import { AppLeftSidebar } from "@/components/layout/AppLeftSidebar"
-import axios from "axios"
-import { toast, ToastContainer } from "react-toastify"
-import { cn } from "@/lib/utils"
-import { useWalletStore } from "@/store/WalletStore"
-import "react-toastify/dist/ReactToastify.css"
-import { useAuthStore } from "@/store/AuthStore"
+} from "@/components/ui/dropdown-menu";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAppointmentStore } from "@/store/AppointmentStore";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useSocialStore } from "@/store/SocialStore";
+import { GeoStore } from "@/store/GeoStore";
+import { AppLeftSidebar } from "@/components/layout/AppLeftSidebar";
+import axios from "axios";
+import { ToastContainer } from "react-toastify";
+import { cn } from "@/lib/utils";
+import { useWalletStore } from "@/store/WalletStore";
+import "react-toastify/dist/ReactToastify.css";
+import { useAuthStore } from "@/store/AuthStore";
+import React from "react";
+import type { Appointment } from "@/store/AppointmentStore";
 
 interface Location {
-  placeName: string
-  placeId: string
-  latitude: number
-  longitude: number
-  formattedAddress: string
+  placeName: string;
+  placeId: string;
+  latitude: number;
+  longitude: number;
+  formattedAddress: string;
 }
 
 interface User {
-  id: string
-  email: string
-  username: string
-  firstName: string
-  lastName: string
-  role: number
-  avatar: string
-  isDeleted: boolean
-  isSuspended: boolean
-  status?: number
-}
-
-interface Appointment {
-  id: string
-  editable: boolean
-  booker: User
-  otherParticipants: User[]
-  name: string
-  description: string
-  location: Location
-  startTime: string
-  endTime: string
-  status: number
-  repeatingType: number
-  created: string
-  modified: string
-  participantCount: number
-  notiCount: number
-  price: number
-  confirmationRequest: {
-    id: number
-    img: string
-    content: string
-    status: number
-    createdAt: string
-    modifiedAt: string
-    expiresdAt: string
-  } | null
+  id: string;
+  email: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  role: number;
+  avatar: string;
+  isDeleted: boolean;
+  isSuspended: boolean;
+  status?: number;
 }
 
 interface BasicInfo {
-  id: string
-  role: number
+  id: string;
+  role: number;
 }
 
 // Add these styles at the top of the file, after the imports
@@ -110,204 +101,284 @@ styleSheet.textContent = styles;
 document.head.appendChild(styleSheet);
 
 export function AppointmentsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<number | null>(null)
-  const [sortBy, setSortBy] = useState<"starttime" | "endtime" | undefined>(undefined)
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | undefined>(undefined)
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
-  const [showBookingForm, setShowBookingForm] = useState(false)
-  const [hoveredBooker, setHoveredBooker] = useState<{id: string, elementId: string} | null>(null)
-  const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
-  const navigate = useNavigate()
-  const { appointmentId } = useParams<{ appointmentId?: string }>()
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<"starttime" | "endtime" | undefined>(
+    undefined
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | undefined>(
+    undefined
+  );
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<Appointment | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [hoveredBooker, setHoveredBooker] = useState<{
+    id: string;
+    elementId: string;
+  } | null>(null);
+  const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
+  const navigate = useNavigate();
+  const { appointmentId } = useParams<{ appointmentId?: string }>();
   const [bookingStart, setBookingStart] = useState(() => {
-    const now = new Date()
-    now.setHours(now.getHours() + 1)
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    return formatInTimeZone(now, timeZone, "yyyy-MM-dd'T'HH:mm")
-  })
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return formatInTimeZone(now, timeZone, "yyyy-MM-dd'T'HH:mm");
+  });
   const [bookingEnd, setBookingEnd] = useState(() => {
-    const now = new Date()
-    now.setHours(now.getHours() + 2)
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    return formatInTimeZone(now, timeZone, "yyyy-MM-dd'T'HH:mm")
-  })
-  const [selectedParticipants, setSelectedParticipants] = useState<any[]>([])
-  const [participantSearch, setParticipantSearch] = useState("")
-  const [participantResults, setParticipantResults] = useState<any[]>([])
-  const [isSearchingParticipants, setIsSearchingParticipants] = useState(false)
-  const searchFollowedUsers = useSocialStore((s) => s.searchFollowedUsers)
-  const searchTimeout = useRef<NodeJS.Timeout | null>(null)
-  const [locationSearch, setLocationSearch] = useState("")
-  const [locationResults, setLocationResults] = useState<{ description: string; placeId: string }[]>([])
-  const [selectedLocation, setSelectedLocation] = useState<{ description: string; placeId: string } | null>(null)
-  const [isSearchingLocation, setIsSearchingLocation] = useState(false)
-  const geoStore = GeoStore()
-  const locationTimeout = useRef<NodeJS.Timeout | null>(null)
-  const [repeatingType, setRepeatingType] = useState<number>(0)
-  const participantDropdownRef = useRef<HTMLDivElement>(null)
-  const locationDropdownRef = useRef<HTMLDivElement>(null)
-  const [formErrors, setFormErrors] = useState<{name?: string, start?: string, end?: string}>({})
-  const [isBooking, setIsBooking] = useState(false)
-  const [bookingMessage, setBookingMessage] = useState<{text: string, success: boolean} | null>(null)
+    const now = new Date();
+    now.setHours(now.getHours() + 2);
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return formatInTimeZone(now, timeZone, "yyyy-MM-dd'T'HH:mm");
+  });
+  const [selectedParticipants, setSelectedParticipants] = useState<User[]>([]);
+  const [participantSearch, setParticipantSearch] = useState("");
+  const [participantResults, setParticipantResults] = useState<User[]>([]);
+  const [isSearchingParticipants, setIsSearchingParticipants] = useState(false);
+  const searchFollowedUsers = useSocialStore((s) => s.searchFollowedUsers);
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [locationSearch, setLocationSearch] = useState("");
+  const [locationResults, setLocationResults] = useState<
+    { description: string; placeId: string }[]
+  >([]);
+  const [selectedLocation, setSelectedLocation] = useState<{
+    description: string;
+    placeId: string;
+  } | null>(null);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const geoStore = GeoStore();
+  const locationTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [repeatingType, setRepeatingType] = useState<number>(0);
+  const participantDropdownRef = useRef<HTMLDivElement>(null);
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
+  const [formErrors, setFormErrors] = useState<{
+    name?: string;
+    start?: string;
+    end?: string;
+  }>({});
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingMessage, setBookingMessage] = useState<{
+    text: string;
+    success: boolean;
+  } | null>(null);
   const [showSidebars, setShowSidebars] = useState(() => {
-    const sidebarState = localStorage.getItem("sidebarShow")
-    return sidebarState === null ? true : sidebarState === "true"
-  })
-  const [appointmentStatus, setAppointmentStatus] = useState<number>(1) // 1: upcoming, 2: in progress, 3: expired
-  const [viewedNotifications, setViewedNotifications] = useState<Set<string>>(new Set())
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<() => void>(() => {})
-  const [confirmMessage, setConfirmMessage] = useState("")
-  const [isConfirmLoading, setIsConfirmLoading] = useState(false)
-  const [confirmStatus, setConfirmStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-  const [confirmError, setConfirmError] = useState("")
-  const [confirmButtonText, setConfirmButtonText] = useState<React.ReactNode>("Confirm")
-  const [showConfirmationForm, setShowConfirmationForm] = useState(false)
-  const [confirmationMessage, setConfirmationMessage] = useState("")
-  const [confirmationImage, setConfirmationImage] = useState<File | null>(null)
-  const [isSendingConfirmation, setIsSendingConfirmation] = useState(false)
-  const [showConfirmationRequestForm, setShowConfirmationRequestForm] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [showConfirmationDetails, setShowConfirmationDetails] = useState(false)
-  const [progress, setProgress] = useState<{[key: string]: number}>({})
+    const sidebarState = localStorage.getItem("sidebarShow");
+    return sidebarState === null ? true : sidebarState === "true";
+  });
+  const [appointmentStatus, setAppointmentStatus] = useState<number>(1); // 1: upcoming, 2: in progress, 3: expired
+  const [viewedNotifications, setViewedNotifications] = useState<Set<string>>(
+    new Set()
+  );
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [isConfirmLoading, setIsConfirmLoading] = useState(false);
+  const [confirmStatus, setConfirmStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
+  const [confirmError, setConfirmError] = useState("");
+  const [confirmButtonText, setConfirmButtonText] =
+    useState<React.ReactNode>("Confirm");
+  const [showConfirmationForm, setShowConfirmationForm] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
+  const [confirmationImage, setConfirmationImage] = useState<File | null>(null);
+  const [isSendingConfirmation, setIsSendingConfirmation] = useState(false);
+  const [showConfirmationRequestForm, setShowConfirmationRequestForm] =
+    useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showConfirmationDetails, setShowConfirmationDetails] = useState(false);
+  const [progress, setProgress] = useState<{ [key: string]: number }>({});
+  const { sendFeedback } = useAppointmentStore();
+  // Feedback modal state
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [feedbackContent, setFeedbackContent] = useState("");
+  const [feedbackStar, setFeedbackStar] = useState(5);
+  const [feedbackImages, setFeedbackImages] = useState<File[]>([]);
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; success: boolean } | null>(null);
 
-  const { appointments, isLoading, error, fetchAppointments, fetchAppointmentById, totalCount, pageNumber, setPageNumber, setPageSize, deleteAppointment, sendConfirmationRequest, confirmRequest } = useAppointmentStore()
-  const { getBalance } = useWalletStore()
-  const { basicInfo } = useAuthStore()
+  const {
+    appointments,
+    fetchAppointments,
+    fetchAppointmentById,
+    totalCount,
+    pageNumber,
+    setPageNumber,
+    setPageSize,
+    deleteAppointment,
+    sendConfirmationRequest,
+    confirmRequest,
+  } = useAppointmentStore();
+  const { getBalance } = useWalletStore();
 
   useEffect(() => {
-    setPageSize(10)
+    setPageSize(10);
     const loadData = async () => {
-      await fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
-      
-      if (appointmentId && (!selectedAppointment || selectedAppointment.id !== appointmentId)) {
-        setIsLoadingDetails(true)
-        const appointment = await fetchAppointmentById(appointmentId)
+      await fetchAppointments(
+        searchQuery,
+        sortBy,
+        sortOrder,
+        statusFilter,
+        appointmentStatus
+      );
+
+      if (
+        appointmentId &&
+        (!selectedAppointment || selectedAppointment.id !== appointmentId)
+      ) {
+        setIsLoadingDetails(true);
+        const appointment = await fetchAppointmentById(appointmentId);
         if (appointment) {
-          setSelectedAppointment(appointment)
+          setSelectedAppointment(appointment);
         }
-        setIsLoadingDetails(false)
+        setIsLoadingDetails(false);
       }
-    }
-    loadData()
-  }, [appointmentId, appointmentStatus])
+    };
+    loadData();
+  }, [appointmentId, appointmentStatus]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
+    const params = new URLSearchParams(window.location.search);
     if (params.toString()) {
-      setShowBookingForm(true)
-      const name = params.get('name')
-      const description = params.get('description')
-      const posterId = params.get('posterId')
-      const startTime = params.get('startTime')
-      const endTime = params.get('endTime')
-      const location = params.get('location')
-      const placeId = params.get('placeId')
-      const lat = params.get('lat')
-      const lng = params.get('lng')
-      const formattedAddress = params.get('formattedAddress')
+      setShowBookingForm(true);
+      const name = params.get("name");
+      const description = params.get("description");
+      const posterId = params.get("posterId");
+      const startTime = params.get("startTime");
+      const endTime = params.get("endTime");
+      const location = params.get("location");
+      const placeId = params.get("placeId");
 
       if (name) {
-        const nameInput = document.getElementById('appointment-name') as HTMLInputElement
-        if (nameInput) nameInput.value = name
+        const nameInput = document.getElementById(
+          "appointment-name"
+        ) as HTMLInputElement;
+        if (nameInput) nameInput.value = name;
       }
       if (description) {
-        const descInput = document.getElementById('appointment-description') as HTMLTextAreaElement
-        if (descInput) descInput.value = description
+        const descInput = document.getElementById(
+          "appointment-description"
+        ) as HTMLTextAreaElement;
+        if (descInput) descInput.value = description;
       }
       if (startTime) {
-        const date = new Date(startTime)
-        setBookingStart(date.toISOString().slice(0, 16))
+        const date = new Date(startTime);
+        setBookingStart(date.toISOString().slice(0, 16));
       }
       if (endTime) {
-        const date = new Date(endTime)
-        setBookingEnd(date.toISOString().slice(0, 16))
+        const date = new Date(endTime);
+        setBookingEnd(date.toISOString().slice(0, 16));
       }
       if (location && placeId) {
-        setSelectedLocation({ description: location, placeId })
-        setLocationSearch(location)
+        setSelectedLocation({ description: location, placeId });
+        setLocationSearch(location);
       }
       if (posterId) {
-        searchFollowedUsers(posterId).then(results => {
+        searchFollowedUsers(posterId).then((results) => {
           if (results.length > 0) {
-            setSelectedParticipants([results[0]])
+            setSelectedParticipants([
+              {
+                id: results[0].id,
+                email: results[0].email,
+                username: results[0].userName || "",
+                firstName: results[0].firstName,
+                lastName: results[0].lastName,
+                role: results[0].role,
+                avatar: results[0].avatar,
+                isDeleted: false,
+                isSuspended: false,
+              },
+            ]);
           }
-        })
+        });
       }
     }
-  }, [])
+  }, []);
 
   const handleSearch = () => {
-    setPageNumber(1)
-    setSelectedAppointment(null)
-    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
-  }
+    setPageNumber(1);
+    setSelectedAppointment(null);
+    fetchAppointments(
+      searchQuery,
+      sortBy,
+      sortOrder,
+      statusFilter,
+      appointmentStatus
+    );
+  };
 
   const handleStatusFilter = (status: number | null) => {
-    setStatusFilter(status)
-    setPageNumber(1)
-    setSelectedAppointment(null)
-    fetchAppointments(searchQuery, sortBy, sortOrder, status, appointmentStatus)
-  }
+    setStatusFilter(status);
+    setPageNumber(1);
+    setSelectedAppointment(null);
+    fetchAppointments(
+      searchQuery,
+      sortBy,
+      sortOrder,
+      status,
+      appointmentStatus
+    );
+  };
 
   const handleAppointmentStatusChange = (status: number) => {
-    setAppointmentStatus(status)
-    setPageNumber(1)
-    setSelectedAppointment(null)
-    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, status)
-  }
+    setAppointmentStatus(status);
+    setPageNumber(1);
+    setSelectedAppointment(null);
+    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, status);
+  };
 
   const getStatusColor = (status: number) => {
     switch (status) {
       case 0:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
       case 1:
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case 2:
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case 3:
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case 4:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getAppointmentTimeStatus = (startTime: string, endTime: string) => {
-    const now = new Date()
-    const start = new Date(startTime)
-    const end = new Date(endTime)
-    
-    if (now > end) return { status: 'expired', color: 'bg-gray-100 text-gray-800' }
-    if (now >= start && now <= end) return { status: 'in-progress', color: 'bg-blue-100 text-blue-800' }
-    return { status: 'upcoming', color: 'bg-green-100 text-green-800' }
-  }
+    const now = new Date();
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (now > end)
+      return { status: "expired", color: "bg-gray-100 text-gray-800" };
+    if (now >= start && now <= end)
+      return { status: "in-progress", color: "bg-blue-100 text-blue-800" };
+    return { status: "upcoming", color: "bg-green-100 text-green-800" };
+  };
 
   const getStatusText = (status: number) => {
     switch (status) {
       case 0:
-        return "None"
+        return "None";
       case 1:
-        return "Pending"
+        return "Pending";
       case 2:
-        return "Accepted"
+        return "Accepted";
       case 3:
-        return "Rejected"
+        return "Rejected";
       case 4:
-        return "Finished"
+        return "Finished";
       default:
-        return "Unknown"
+        return "Unknown";
     }
-  }
+  };
 
   const getRoleText = (role: number) => {
-    if (role === 1) return "Seeker"
-    if (role === 2) return "Personal Trainer"
-    return "User"
-  }
+    if (role === 1) return "Seeker";
+    if (role === 2) return "Personal Trainer";
+    return "User";
+  };
 
   const getRoleLabel = (role: number) => {
     if (role === 1) return "Seeker";
@@ -317,124 +388,164 @@ export function AppointmentsPage() {
 
   const getRepeatingTypeLabel = (type: number) => {
     switch (type) {
-      case 1: return "Daily";
-      case 2: return "Weekly";
-      case 3: return "Monthly";
-      case 4: return "Yearly";
-      default: return null;
+      case 1:
+        return "Daily";
+      case 2:
+        return "Weekly";
+      case 3:
+        return "Monthly";
+      case 4:
+        return "Yearly";
+      default:
+        return null;
     }
   };
 
-  const filteredAppointments = appointments
-    .filter((appointment) => {
-      const matchesStatus = statusFilter === null || appointment.status === statusFilter
-      return matchesStatus
-    })
+  const filteredAppointments = appointments.filter((appointment) => {
+    const matchesStatus =
+      statusFilter === null || appointment.status === statusFilter;
+    return matchesStatus;
+  });
 
   const handleAppointmentClick = async (appointment: Appointment) => {
-    setIsLoadingDetails(true)
-    const freshAppointment = await fetchAppointmentById(appointment.id)
+    setIsLoadingDetails(true);
+    const freshAppointment = await fetchAppointmentById(appointment.id);
     if (freshAppointment) {
-      setSelectedAppointment(freshAppointment)
+      setSelectedAppointment(freshAppointment);
       if (appointment.notiCount > 0) {
-        setViewedNotifications(prev => new Set([...prev, appointment.id]))
+        setViewedNotifications((prev) => new Set([...prev, appointment.id]));
       }
     }
-    setIsLoadingDetails(false)
-    navigate(`/appointments/${appointment.id}`)
-  }
+    setIsLoadingDetails(false);
+    navigate(`/appointments/${appointment.id}`);
+  };
 
   const formatLocalTime = (utcTime: string) => {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const date = new Date(utcTime)
-    const localTime = formatInTimeZone(date, timeZone, "MMM d, yyyy h:mm a")
-    return localTime
-  }
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const date = new Date(utcTime);
+    const localTime = formatInTimeZone(date, timeZone, "MMM d, yyyy h:mm a");
+    return localTime;
+  };
   
   const formatLocalDate = (utcTime: string) => {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const date = new Date(utcTime)
-    return formatInTimeZone(date, timeZone, "MMM d, yyyy")
-  }
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const date = new Date(utcTime);
+    return formatInTimeZone(date, timeZone, "MMM d, yyyy");
+  };
   
   const formatLocalTimeOnly = (utcTime: string) => {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const date = new Date(utcTime)
-    return formatInTimeZone(date, timeZone, "h:mm a")
-  }
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const date = new Date(utcTime);
+    return formatInTimeZone(date, timeZone, "h:mm a");
+  };
 
   // Debounced participant search
   useEffect(() => {
     if (!participantSearch) {
-      setParticipantResults([])
-      return
+      setParticipantResults([]);
+      return;
     }
-    setIsSearchingParticipants(true)
-    if (searchTimeout.current) clearTimeout(searchTimeout.current)
+    setIsSearchingParticipants(true);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(async () => {
-      const results = await searchFollowedUsers(participantSearch)
-      setParticipantResults(results.filter(u => !selectedParticipants.some(p => p.id === u.id)))
-      setIsSearchingParticipants(false)
-    }, 500)
+      const results = await searchFollowedUsers(participantSearch);
+      const mapped = results.map((u) => ({
+        id: u.id,
+        email: u.email,
+        username: u.userName || "",
+        firstName: u.firstName,
+        lastName: u.lastName,
+        role: u.role,
+        avatar: u.avatar,
+        isDeleted: false,
+        isSuspended: false,
+      }));
+      setParticipantResults(
+        mapped.filter((u) => !selectedParticipants.some((p) => p.id === u.id))
+      );
+      setIsSearchingParticipants(false);
+    }, 500);
     // eslint-disable-next-line
-  }, [participantSearch])
+  }, [participantSearch]);
 
   // Debounced location search
   useEffect(() => {
     if (!locationSearch) {
-      setLocationResults([])
-      return
+      setLocationResults([]);
+      return;
     }
-    setIsSearchingLocation(true)
-    if (locationTimeout.current) clearTimeout(locationTimeout.current)
+    setIsSearchingLocation(true);
+    if (locationTimeout.current) clearTimeout(locationTimeout.current);
     locationTimeout.current = setTimeout(async () => {
-      const results = await geoStore.searchLocations(locationSearch)
-      setLocationResults(results)
-      setIsSearchingLocation(false)
-    }, 500)
+      const results = await geoStore.searchLocations(locationSearch);
+      setLocationResults(results);
+      setIsSearchingLocation(false);
+    }, 500);
     // eslint-disable-next-line
-  }, [locationSearch])
+  }, [locationSearch]);
 
   const handleCreateAppointment = async () => {
-    const name = (document.getElementById('appointment-name') as HTMLInputElement)?.value || ""
-    let errors: {name?: string, start?: string, end?: string} = {}
-    if (!name.trim()) errors.name = 'Name is required'
-    if (!bookingStart) errors.start = 'Start time is required'
-    if (!bookingEnd) errors.end = 'End time is required'
-    setFormErrors(errors)
-    if (Object.keys(errors).length > 0) return
-    setIsBooking(true)
-    setBookingMessage(null)
+    const name =
+      (document.getElementById("appointment-name") as HTMLInputElement)
+        ?.value || "";
+    const errors: { name?: string; start?: string; end?: string } = {};
+    if (!name.trim()) errors.name = "Name is required";
+    if (!bookingStart) errors.start = "Start time is required";
+    if (!bookingEnd) errors.end = "End time is required";
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    setIsBooking(true);
+    setBookingMessage(null);
     const toUTCISOString = (local: string) => {
-      const date = new Date(local + ':00');
+      const date = new Date(local + ":00");
       return date.toISOString();
     };
-    const price = (document.getElementById('appointment-price') as HTMLInputElement)?.value || "0"
+    const price =
+      (document.getElementById("appointment-price") as HTMLInputElement)
+        ?.value || "0";
     const body = {
-      participantIds: selectedParticipants.map(u => u.id),
+      participantIds: selectedParticipants.map((u) => u.id),
       name,
-      description: (document.getElementById('appointment-description') as HTMLTextAreaElement)?.value || "",
+      description:
+        (
+          document.getElementById(
+            "appointment-description"
+          ) as HTMLTextAreaElement
+        )?.value || "",
       placeId: selectedLocation?.placeId,
       startTime: toUTCISOString(bookingStart),
       endTime: toUTCISOString(bookingEnd),
       repeatingType: repeatingType,
-      price: Number(price)
+      price: Number(price),
     };
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/Appointment/book`, body, {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/Appointment/book`,
+        body,
+        {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json"
+            "Content-Type": "application/json",
+          },
         }
-      });
+      );
       setTimeout(() => {
-        setShowBookingForm(false)
-        fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
-      }, 1200)
+        setShowBookingForm(false);
+        fetchAppointments(
+          searchQuery,
+          sortBy,
+          sortOrder,
+          statusFilter,
+          appointmentStatus
+        );
+      }, 1200);
     } catch (err: any) {
-      setBookingMessage({text: err?.response?.data?.message || 'Error', success: false})
+      setBookingMessage({
+        text: err?.response?.data?.message || "Error",
+        success: false,
+      });
     } finally {
-      setIsBooking(false)
+      setIsBooking(false);
     }
   };
 
@@ -444,85 +555,92 @@ export function AppointmentsPage() {
         participantDropdownRef.current &&
         !participantDropdownRef.current.contains(event.target as Node)
       ) {
-        setParticipantResults([])
+        setParticipantResults([]);
       }
       if (
         locationDropdownRef.current &&
         !locationDropdownRef.current.contains(event.target as Node)
       ) {
-        setLocationResults([])
+        setLocationResults([]);
       }
     }
     if (showBookingForm) {
-      document.addEventListener("mousedown", handleClickOutside)
+      document.addEventListener("mousedown", handleClickOutside);
     }
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [showBookingForm])
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showBookingForm]);
 
   const handlePageChange = (newPage: number) => {
-    setPageNumber(newPage)
-    fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
-  }
+    setPageNumber(newPage);
+    fetchAppointments(
+      searchQuery,
+      sortBy,
+      sortOrder,
+      statusFilter,
+      appointmentStatus
+    );
+  };
 
-  const totalPages = Math.ceil(totalCount / 10)
+  const totalPages = Math.ceil(totalCount / 10);
 
   const getParticipantStatusColor = (status: number) => {
     switch (status) {
       case 0:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
       case 1:
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case 2:
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case 3:
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       case 4:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getParticipantStatusText = (status: number) => {
     switch (status) {
       case 0:
-        return "None"
+        return "None";
       case 1:
-        return "Pending"
+        return "Pending";
       case 2:
-        return "Accepted"
+        return "Accepted";
       case 3:
-        return "Rejected"
+        return "Rejected";
       case 4:
-        return "Canceled"
+        return "Canceled";
       default:
-        return "Unknown"
+        return "Unknown";
     }
-  }
+  };
 
   const handleStatusChange = async (newStatus: number) => {
-    if (!selectedAppointment) return
+    if (!selectedAppointment) return;
 
     const actionMap = {
-      2: 'accept',
-      3: 'decline',
-      4: 'cancel'
-    }
+      2: "accept",
+      3: "decline",
+      4: "cancel",
+    };
 
-    const action = actionMap[newStatus as keyof typeof actionMap]
-    if (!action) return
+    const action = actionMap[newStatus as keyof typeof actionMap];
+    if (!action) return;
 
     // Reset states
-    setConfirmStatus('idle')
-    setConfirmError("")
-    setConfirmButtonText("Confirm")
+    setConfirmStatus("idle");
+    setConfirmError("");
+    setConfirmButtonText("Confirm");
     
     // Prepare message based on action and price
-    let message = `Are you sure you want to ${action} this appointment?`
-    if (action === 'accept' && selectedAppointment.price > 0) {
-      message = "You are about to accept this appointment. Are you sure you want to proceed?"
+    let message = `Are you sure you want to ${action} this appointment?`;
+    if (action === "accept" && selectedAppointment.price > 0) {
+      message =
+        "You are about to accept this appointment. Are you sure you want to proceed?";
       setConfirmButtonText(
         <div className="flex items-center gap-1.5">
           <span>Accept and pay</span>
@@ -531,173 +649,207 @@ export function AppointmentsPage() {
             {selectedAppointment.price}
           </div>
         </div>
-      )
+      );
     }
 
-    setConfirmMessage(message)
+    setConfirmMessage(message);
     setConfirmAction(() => async () => {
-      setIsConfirmLoading(true)
-      setConfirmStatus('loading')
+      setIsConfirmLoading(true);
+      setConfirmStatus("loading");
       try {
         if (selectedAppointment.confirmationRequest && newStatus === 2) {
-          const result = await confirmRequest(selectedAppointment.confirmationRequest.id)
+          const result = await confirmRequest(
+            selectedAppointment.confirmationRequest.id
+          );
           if (result.success) {
-            setConfirmStatus('success')
+            setConfirmStatus("success");
             setTimeout(() => {
-              if (selectedAppointment && selectedAppointment.confirmationRequest) {
+              if (
+                selectedAppointment &&
+                selectedAppointment.confirmationRequest
+              ) {
                 const updatedConfirmationRequest = {
                   ...selectedAppointment.confirmationRequest,
-                  status: 2
-                }
+                  status: 2,
+                };
                 setSelectedAppointment({
                   ...selectedAppointment,
-                  confirmationRequest: updatedConfirmationRequest
-                })
-                getBalance()
+                  confirmationRequest: updatedConfirmationRequest,
+                });
+                getBalance();
               }
-              fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
-              setShowConfirmDialog(false)
-            }, 1500)
+              fetchAppointments(
+                searchQuery,
+                sortBy,
+                sortOrder,
+                statusFilter,
+                appointmentStatus
+              );
+              setShowConfirmDialog(false);
+            }, 1500);
           } else {
-            setConfirmStatus('error')
-            setConfirmError(result.message)
+            setConfirmStatus("error");
+            setConfirmError(result.message);
           }
         } else {
         const response = await axios.post(
           `${import.meta.env.VITE_API_URL}/api/Appointment/actionRequest`,
           {
             appointmentId: selectedAppointment.id,
-            action: newStatus === 2 ? 1 : newStatus === 3 ? 2 : 3
+              action: newStatus === 2 ? 1 : newStatus === 3 ? 2 : 3,
           },
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
-              "Content-Type": "application/json"
+                "Content-Type": "application/json",
+              },
             }
-          }
-        )
+          );
 
         if (response.data.success) {
-          setConfirmStatus('success')
+            setConfirmStatus("success");
           setTimeout(() => {
             if (selectedAppointment) {
-              setSelectedAppointment({...selectedAppointment, status: newStatus})
-              getBalance()
-            }
-            fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
-            setShowConfirmDialog(false)
-          }, 1500)
+                setSelectedAppointment({
+                  ...selectedAppointment,
+                  status: newStatus,
+                });
+                getBalance();
+              }
+              fetchAppointments(
+                searchQuery,
+                sortBy,
+                sortOrder,
+                statusFilter,
+                appointmentStatus
+              );
+              setShowConfirmDialog(false);
+            }, 1500);
         } else {
-          setConfirmStatus('error')
-          setConfirmError(response.data.message || 'Action failed')
+            setConfirmStatus("error");
+            setConfirmError(response.data.message || "Action failed");
           }
         }
       } catch (err: any) {
-        setConfirmStatus('error')
-        setConfirmError(err?.response?.data?.message || 'Action failed')
+        setConfirmStatus("error");
+        setConfirmError(err?.response?.data?.message || "Action failed");
       } finally {
-        setIsConfirmLoading(false)
+        setIsConfirmLoading(false);
       }
-    })
-    setShowConfirmDialog(true)
-  }
+    });
+    setShowConfirmDialog(true);
+  };
 
   const handleDeleteAppointment = async () => {
-    if (!selectedAppointment) return
+    if (!selectedAppointment) return;
 
-    setConfirmStatus('idle')
-    setConfirmError("")
+    setConfirmStatus("idle");
+    setConfirmError("");
     setConfirmButtonText(
       <div className="flex items-center gap-1.5 text-white">
         <Trash2 className="h-4 w-4" />
         <span>Delete</span>
       </div>
-    )
-    setConfirmMessage("Are you sure you want to delete this appointment? This action cannot be undone.")
+    );
+    setConfirmMessage(
+      "Are you sure you want to delete this appointment? This action cannot be undone."
+    );
     setConfirmAction(() => async () => {
-      setIsConfirmLoading(true)
-      setConfirmStatus('loading')
+      setIsConfirmLoading(true);
+      setConfirmStatus("loading");
       try {
-        const result = await deleteAppointment(selectedAppointment.id)
+        const result = await deleteAppointment(selectedAppointment.id);
         if (result.success) {
-          setConfirmStatus('success')
+          setConfirmStatus("success");
           setTimeout(() => {
-            setSelectedAppointment(null)
-            fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
-            setShowConfirmDialog(false)
-          }, 1500)
+            setSelectedAppointment(null);
+            fetchAppointments(
+              searchQuery,
+              sortBy,
+              sortOrder,
+              statusFilter,
+              appointmentStatus
+            );
+            setShowConfirmDialog(false);
+          }, 1500);
         } else {
-          setConfirmStatus('error')
-          setConfirmError(result.message)
+          setConfirmStatus("error");
+          setConfirmError(result.message);
         }
       } catch (err) {
-        setConfirmStatus('error')
-        setConfirmError('Failed to delete appointment')
+        setConfirmStatus("error");
+        setConfirmError("Failed to delete appointment");
       } finally {
-        setIsConfirmLoading(false)
+        setIsConfirmLoading(false);
       }
-    })
-    setShowConfirmDialog(true)
-  }
+    });
+    setShowConfirmDialog(true);
+  };
 
   const handleSendConfirmation = async () => {
-    if (!selectedAppointment) return
-    setIsSendingConfirmation(true)
+    if (!selectedAppointment) return;
+    setIsSendingConfirmation(true);
     try {
       const result = await sendConfirmationRequest(selectedAppointment.id, {
         content: confirmationMessage || undefined,
-        image: confirmationImage || undefined
-      })
+        image: confirmationImage || undefined,
+      });
       if (result.success) {
-        setShowConfirmationForm(false)
-        setConfirmationMessage("")
-        setConfirmationImage(null)
-        if (fileInputRef.current) fileInputRef.current.value = ""
+        setShowConfirmationForm(false);
+        setConfirmationMessage("");
+        setConfirmationImage(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         // Refresh appointment data
-        const freshAppointment = await fetchAppointmentById(selectedAppointment.id)
+        const freshAppointment = await fetchAppointmentById(
+          selectedAppointment.id
+        );
         if (freshAppointment) {
-          setSelectedAppointment(freshAppointment)
+          setSelectedAppointment(freshAppointment);
         }
       }
     } finally {
-      setIsSendingConfirmation(false)
+      setIsSendingConfirmation(false);
     }
-  }
+  };
 
   // Calculate progress for an appointment
   const calculateProgress = (startTime: string, endTime: string) => {
-    const now = new Date().getTime()
-    const start = new Date(startTime).getTime()
-    const end = new Date(endTime).getTime()
-    const total = end - start
-    const elapsed = now - start
-    return Math.min(Math.max((elapsed / total) * 100, 0), 100)
-  }
+    const now = new Date().getTime();
+    const start = new Date(startTime).getTime();
+    const end = new Date(endTime).getTime();
+    const total = end - start;
+    const elapsed = now - start;
+    return Math.min(Math.max((elapsed / total) * 100, 0), 100);
+  };
 
   // Update progress for in-progress appointments
   useEffect(() => {
     const interval = setInterval(() => {
-      const newProgress: {[key: string]: number} = {}
-      appointments.forEach(appointment => {
-        if (appointment.status === 1) { // In progress
-          newProgress[appointment.id] = calculateProgress(appointment.startTime, appointment.endTime)
+      const newProgress: { [key: string]: number } = {};
+      appointments.forEach((appointment) => {
+        if (appointment.status === 1) {
+          // In progress
+          newProgress[appointment.id] = calculateProgress(
+            appointment.startTime,
+            appointment.endTime
+          );
         }
-      })
-      setProgress(newProgress)
-    }, 1000) // Update every second
+      });
+      setProgress(newProgress);
+    }, 1000); // Update every second
 
-    return () => clearInterval(interval)
-  }, [appointments])
+    return () => clearInterval(interval);
+  }, [appointments]);
 
   // Add this function to check if user is both coach and booker
   const isCoachAndBooker = (appointment: Appointment) => {
-    const storedBasicInfo = localStorage.getItem('basicInfo')
+    const storedBasicInfo = localStorage.getItem("basicInfo");
     if (storedBasicInfo) {
-      const info = JSON.parse(storedBasicInfo) as BasicInfo
-      return info.role === 2 && appointment.booker.id === info.id
+      const info = JSON.parse(storedBasicInfo) as BasicInfo;
+      return info.role === 2 && appointment.booker.id === info.id;
     }
-    return false
-  }
+    return false;
+  };
 
   return (
     <div className="relative bg-[#f9fafb] h-[calc(100vh-3.8rem)]">
@@ -714,16 +866,20 @@ export function AppointmentsPage() {
         theme="light"
         style={{ top: "3.5rem" }}
       />
-      <AppLeftSidebar onToggle={() => {
-        const newShow = !showSidebars
-        setShowSidebars(newShow)
-        localStorage.setItem("sidebarShow", String(newShow))
-      }} />
-      
-      <div className={cn(
+      <AppLeftSidebar
+        onToggle={() => {
+          const newShow = !showSidebars;
+          setShowSidebars(newShow);
+          localStorage.setItem("sidebarShow", String(newShow));
+        }}
+      />
+
+      <div
+        className={cn(
         "p-8 h-[calc(100vh-4rem)] transition-all duration-500",
         showSidebars ? "lg:pl-72" : "lg:pl-24"
-      )}>
+        )}
+      >
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -735,18 +891,24 @@ export function AppointmentsPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSearch()
+                    if (e.key === "Enter") {
+                      handleSearch();
                     }
                   }}
                 />
               </div>
-              <Button onClick={handleSearch} className="bg-[#de9151] hover:bg-[#de9151]/90">
+              <Button
+                onClick={handleSearch}
+                className="bg-[#de9151] hover:bg-[#de9151]/90"
+              >
                 Search
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2 bg-white">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2 bg-white"
+                  >
                     <Filter className="h-4 w-4" />
                     Filter
                   </Button>
@@ -774,38 +936,73 @@ export function AppointmentsPage() {
               </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2 bg-white">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2 bg-white"
+                  >
                     <ArrowUpDown className="h-4 w-4" />
                     Sort
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => {
-                    setSortBy("starttime")
-                    setSortOrder("asc")
-                    fetchAppointments(searchQuery, "starttime", "asc", statusFilter, appointmentStatus)
-                  }}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortBy("starttime");
+                      setSortOrder("asc");
+                      fetchAppointments(
+                        searchQuery,
+                        "starttime",
+                        "asc",
+                        statusFilter,
+                        appointmentStatus
+                      );
+                    }}
+                  >
                     Start Time (Oldest First)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSortBy("starttime")
-                    setSortOrder("desc")
-                    fetchAppointments(searchQuery, "starttime", "desc", statusFilter, appointmentStatus)
-                  }}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortBy("starttime");
+                      setSortOrder("desc");
+                      fetchAppointments(
+                        searchQuery,
+                        "starttime",
+                        "desc",
+                        statusFilter,
+                        appointmentStatus
+                      );
+                    }}
+                  >
                     Start Time (Newest First)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSortBy("endtime")
-                    setSortOrder("asc")
-                    fetchAppointments(searchQuery, "endtime", "asc", statusFilter, appointmentStatus)
-                  }}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortBy("endtime");
+                      setSortOrder("asc");
+                      fetchAppointments(
+                        searchQuery,
+                        "endtime",
+                        "asc",
+                        statusFilter,
+                        appointmentStatus
+                      );
+                    }}
+                  >
                     End Time (Oldest First)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSortBy("endtime")
-                    setSortOrder("desc")
-                    fetchAppointments(searchQuery, "endtime", "desc", statusFilter, appointmentStatus)
-                  }}>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setSortBy("endtime");
+                      setSortOrder("desc");
+                      fetchAppointments(
+                        searchQuery,
+                        "endtime",
+                        "desc",
+                        statusFilter,
+                        appointmentStatus
+                      );
+                    }}
+                  >
                     End Time (Newest First)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -823,10 +1020,12 @@ export function AppointmentsPage() {
           {/* Content Section - Split View */}
           <div className="flex flex-1 gap-2 min-h-0">
             {/* Left Side - List */}
-            <div className={cn(
+            <div
+              className={cn(
               "flex flex-col h-full transition-all duration-500",
               showSidebars ? "w-[30%]" : "w-[35%]"
-            )}>
+              )}
+            >
               {/* Appointment Status Tabs */}
               <div className="flex gap-2 mb-4">
                 <Button
@@ -884,7 +1083,9 @@ export function AppointmentsPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto pr-2">
-                <div className="text-sm text-gray-500 mb-2">Total count: {totalCount}</div>
+                <div className="text-sm text-gray-500 mb-2">
+                  Total count: {totalCount}
+                </div>
                 {filteredAppointments.length === 0 ? (
                   <div className="text-center py-12 bg-white rounded-lg shadow-sm">
                     <p className="text-gray-500">No appointments found</p>
@@ -904,8 +1105,11 @@ export function AppointmentsPage() {
                         >
                           <div className="flex justify-between items-center mb-1 gap-2">
                             <div className="flex items-center gap-2 min-w-0">
-                              <h2 className="text-lg font-semibold truncate">{appointment.name}</h2>
-                              {appointment.notiCount > 0 && !viewedNotifications.has(appointment.id) && (
+                              <h2 className="text-lg font-semibold truncate">
+                                {appointment.name}
+                              </h2>
+                              {appointment.notiCount > 0 &&
+                                !viewedNotifications.has(appointment.id) && (
                                 <span className="flex items-center justify-center w-5 h-5 text-xs font-medium text-white bg-red-500 rounded-full">
                                   {appointment.notiCount}
                                 </span>
@@ -915,12 +1119,16 @@ export function AppointmentsPage() {
                                 className="relative flex items-center group"
                                 onMouseEnter={() => {
                                   hoverTimeout.current = setTimeout(() => {
-                                    setHoveredBooker({id: appointment.booker.id, elementId: `booker-${appointment.id}`})
-                                  }, 300)
+                                    setHoveredBooker({
+                                      id: appointment.booker.id,
+                                      elementId: `booker-${appointment.id}`,
+                                    });
+                                  }, 300);
                                 }}
                                 onMouseLeave={() => {
-                                  if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
-                                  setHoveredBooker(null)
+                                  if (hoverTimeout.current)
+                                    clearTimeout(hoverTimeout.current);
+                                  setHoveredBooker(null);
                                 }}
                               >
                                 <img
@@ -929,12 +1137,13 @@ export function AppointmentsPage() {
                                   className="w-6 h-6 rounded-full ml-2 mr-1"
                                 />
                                 <span className="text-sm text-gray-600 truncate">
-                                  {appointment.booker.firstName} {appointment.booker.lastName}
+                                  {appointment.booker.firstName}{" "}
+                                  {appointment.booker.lastName}
                                 </span>
-                                {hoveredBooker?.id === appointment.booker.id && hoveredBooker.elementId === `booker-${appointment.id}` && (
-                                  <div
-                                    className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white p-4 shadow-lg border text-sm text-gray-800 whitespace-normal"
-                                  >
+                                {hoveredBooker?.id === appointment.booker.id &&
+                                  hoveredBooker.elementId ===
+                                    `booker-${appointment.id}` && (
+                                    <div className="absolute left-1/2 top-full z-50 mt-2 w-64 -translate-x-1/2 rounded-lg bg-white p-4 shadow-lg border text-sm text-gray-800 whitespace-normal">
                                     <div className="flex items-center mb-2">
                                       <img
                                         src={appointment.booker.avatar}
@@ -944,14 +1153,27 @@ export function AppointmentsPage() {
                                       <div>
                                         <button
                                           className="font-semibold flex items-center hover:underline focus:outline-none"
-                                          onClick={() => navigate(`/profile/${appointment.booker.id}`)}
-                                        >
-                                          {appointment.booker.firstName} {appointment.booker.lastName}
-                                          <span className="text-xs text-gray-400 ml-2">{getRoleText(appointment.booker.role)}</span>
+                                            onClick={() =>
+                                              navigate(
+                                                `/profile/${appointment.booker.id}`
+                                              )
+                                            }
+                                          >
+                                            {appointment.booker.firstName}{" "}
+                                            {appointment.booker.lastName}
+                                            <span className="text-xs text-gray-400 ml-2">
+                                              {getRoleText(
+                                                appointment.booker.role
+                                              )}
+                                            </span>
                                         </button>
                                         <button
                                           className="text-xs text-blue-500 hover:underline focus:outline-none text-left"
-                                          onClick={() => navigate(`/profile/${appointment.booker.id}`)}
+                                            onClick={() =>
+                                              navigate(
+                                                `/profile/${appointment.booker.id}`
+                                              )
+                                            }
                                         >
                                           {appointment.booker.username}
                                         </button>
@@ -962,12 +1184,20 @@ export function AppointmentsPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              {getRepeatingTypeLabel(appointment.repeatingType) && (
+                              {getRepeatingTypeLabel(
+                                appointment.repeatingType
+                              ) && (
                                 <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                  {getRepeatingTypeLabel(appointment.repeatingType)}
+                                  {getRepeatingTypeLabel(
+                                    appointment.repeatingType
+                                  )}
                                 </span>
                               )}
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                                  appointment.status
+                                )}`}
+                              >
                                 {getStatusText(appointment.status)}
                               </span>
                             </div>
@@ -976,22 +1206,31 @@ export function AppointmentsPage() {
                           <div className="grid grid-cols-2 gap-2 mb-2">
                             <div className="flex items-center text-gray-600 text-sm">
                               <MapPin className="h-4 w-4 mr-1.5" />
-                              <span className="truncate">{appointment.location?.formattedAddress || 'No location'}</span>
+                              <span className="truncate">
+                                {appointment.location?.formattedAddress ||
+                                  "No location"}
+                              </span>
                             </div>
                             <div className="flex items-center text-gray-600 text-sm">
                               <Users className="h-4 w-4 mr-1.5" />
-                              <span>{appointment.participantCount ?? 1} participants</span>
+                              <span>
+                                {appointment.participantCount ?? 1} participants
+                              </span>
                             </div>
-                            {formatLocalDate(appointment.startTime) === formatLocalDate(appointment.endTime) ? (
+                            {formatLocalDate(appointment.startTime) ===
+                            formatLocalDate(appointment.endTime) ? (
                               <>
                                 <div className="flex items-center text-gray-600 text-sm">
                                   <Calendar className="h-4 w-4 mr-1.5" />
-                                  <span>{formatLocalDate(appointment.startTime)}</span>
+                                  <span>
+                                    {formatLocalDate(appointment.startTime)}
+                                  </span>
                                 </div>
                                 <div className="flex items-center text-gray-600 text-sm">
                                   <Clock className="h-4 w-4 mr-1.5" />
                                   <span>
-                                    {formatLocalTimeOnly(appointment.startTime)} - {formatLocalTimeOnly(appointment.endTime)}
+                                    {formatLocalTimeOnly(appointment.startTime)}{" "}
+                                    - {formatLocalTimeOnly(appointment.endTime)}
                                   </span>
                                 </div>
                               </>
@@ -999,13 +1238,18 @@ export function AppointmentsPage() {
                               <div className="flex items-center text-gray-600 text-sm col-span-2">
                                 <Clock className="h-4 w-4 mr-1.5" />
                                 <span>
-                                  {formatLocalTime(appointment.startTime)} - {formatLocalTime(appointment.endTime)}
+                                  {formatLocalTime(appointment.startTime)} -{" "}
+                                  {formatLocalTime(appointment.endTime)}
                                 </span>
                               </div>
                             )}
                             <div className="flex items-center text-gray-600 text-sm col-span-2">
                               <Coins className="h-4 w-4 mr-1.5 text-[#de9151]" />
-                              <span className="text-[#de9151] font-medium">{appointment.price === 0 ? 'No cost' : `$${appointment.price}`}</span>
+                              <span className="text-[#de9151] font-medium">
+                                {appointment.price === 0
+                                  ? "No cost"
+                                  : `$${appointment.price}`}
+                              </span>
                           </div>
                           </div>
                         </div>
@@ -1021,13 +1265,22 @@ export function AppointmentsPage() {
                         >
                           Previous
                         </Button>
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        {Array.from(
+                          { length: totalPages },
+                          (_, i) => i + 1
+                        ).map((page) => (
                           <Button
                             key={page}
-                            variant={page === pageNumber ? "default" : "outline"}
+                            variant={
+                              page === pageNumber ? "default" : "outline"
+                            }
                             size="sm"
                             onClick={() => handlePageChange(page)}
-                            className={page === pageNumber ? "bg-[#de9151] hover:bg-[#de9151]/90" : ""}
+                            className={
+                              page === pageNumber
+                                ? "bg-[#de9151] hover:bg-[#de9151]/90"
+                                : ""
+                            }
                           >
                             {page}
                           </Button>
@@ -1048,10 +1301,12 @@ export function AppointmentsPage() {
             </div>
 
             {/* Right Side - Details */}
-            <div className={cn(
+            <div
+              className={cn(
               "flex-1 bg-white rounded-lg shadow-xl p-6 overflow-y-auto h-full transition-all duration-500 relative",
               showSidebars ? "w-[70%]" : "w-[65%]"
-            )}>
+              )}
+            >
               {isLoadingDetails ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#de9151]"></div>
@@ -1067,7 +1322,9 @@ export function AppointmentsPage() {
       {/* Text container with better positioning */}
       <div className="absolute top-[22px] right-[-10px] flex items-center justify-center transform -rotate-45">
         <div className="flex flex-col items-center">
-          <span className="text-white font-bold text-sm tracking-widest drop-shadow-md">FINISHED</span>
+                            <span className="text-white font-bold text-sm tracking-widest drop-shadow-md">
+                              FINISHED
+                            </span>
           <div className="w-12 h-0.5 bg-white/70 mt-1"></div>
         </div>
       </div>
@@ -1077,24 +1334,19 @@ export function AppointmentsPage() {
     </div>
   </div>
 )}
-{/* {appointmentStatus === 4 && (
-  <div className="absolute top-3 right-3 group">
-    <div className="bg-white text-gray-800 px-4 py-2 rounded-lg shadow-lg border border-purple-200 flex items-center gap-2 transform transition-all hover:scale-105">
-      <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
-      <span className="font-semibold text-sm tracking-wide text-purple-600">FINISHED</span>
-    </div>
-    <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full animate-ping"></div>
-  </div>
-)} */}
               <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center w-full justify-between gap-2">
                       <div className="flex items-center gap-4">
-                        <h2 className="text-2xl font-bold">{selectedAppointment.name}</h2>
-                        {getRepeatingTypeLabel(selectedAppointment.repeatingType) && (
+                        <h2 className="text-2xl font-bold">
+                          {selectedAppointment.name}
+                        </h2>
+                        {getRepeatingTypeLabel(
+                          selectedAppointment.repeatingType
+                        ) && (
                           <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                            {getRepeatingTypeLabel(selectedAppointment.repeatingType)}
+                            {getRepeatingTypeLabel(
+                              selectedAppointment.repeatingType
+                            )}
                           </span>
                         )}
                         {appointmentStatus === 4 && (
@@ -1104,15 +1356,19 @@ export function AppointmentsPage() {
                         )}
                         <div className="flex items-center gap-1.5 text-[#de9151] font-medium">
                           <Coins className="h-4 w-4" />
-                          {selectedAppointment.price === 0 ? 'No cost' : `$${selectedAppointment.price}`}
+                          {selectedAppointment.price === 0
+                            ? "No cost"
+                            : `$${selectedAppointment.price}`}
                         </div>
                       </div>
                       <div className="flex gap-2 items-center">
-                        {appointmentStatus === 1 && (
-                          selectedAppointment.status === 4 ? (
+                        {appointmentStatus === 1 &&
+                          (selectedAppointment.status === 4 ? (
                             <Button 
                               variant="ghost" 
-                              className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedAppointment.status)}`}
+                              className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                                selectedAppointment.status
+                              )}`}
                               disabled
                             >
                               {getStatusText(selectedAppointment.status)}
@@ -1121,22 +1377,45 @@ export function AppointmentsPage() {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:from-gray-100 hover:to-gray-200 transition-all duration-200 cursor-pointer group">
-                              <div className={`w-2 h-2 rounded-full ${
-                                selectedAppointment.status === 0 ? "bg-gray-400" :
-                                selectedAppointment.status === 1 ? "bg-yellow-400 animate-pulse" :
-                                selectedAppointment.status === 2 ? "bg-green-400" :
-                                "bg-red-400"
-                              }`}></div>
-                              <span className={`text-sm font-medium ${
-                                selectedAppointment.status === 0 ? "text-gray-600" :
-                                selectedAppointment.status === 1 ? "text-yellow-600" :
-                                selectedAppointment.status === 2 ? "text-green-600" :
-                                "text-red-600"
-                              }`}>
+                                  <div
+                                    className={`w-2 h-2 rounded-full ${
+                                      selectedAppointment.status === 0
+                                        ? "bg-gray-400"
+                                        : selectedAppointment.status === 1
+                                        ? "bg-yellow-400 animate-pulse"
+                                        : selectedAppointment.status === 2
+                                        ? "bg-green-400"
+                                        : "bg-red-400"
+                                    }`}
+                                  ></div>
+                                  <span
+                                    className={`text-sm font-medium ${
+                                      selectedAppointment.status === 0
+                                        ? "text-gray-600"
+                                        : selectedAppointment.status === 1
+                                        ? "text-yellow-600"
+                                        : selectedAppointment.status === 2
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }`}
+                                  >
                               {getStatusText(selectedAppointment.status)}
                               </span>
-                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400 group-hover:text-gray-600 transition-colors">
-                                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                  <svg
+                                    width="12"
+                                    height="12"
+                                    viewBox="0 0 12 12"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="text-gray-400 group-hover:text-gray-600 transition-colors"
+                                  >
+                                    <path
+                                      d="M3 4.5L6 7.5L9 4.5"
+                                      stroke="currentColor"
+                                      strokeWidth="1.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
                               </svg>
                             </div>
                           </DropdownMenuTrigger>
@@ -1179,9 +1458,9 @@ export function AppointmentsPage() {
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                          )
-                        )}
-                        {appointmentStatus === 1 && selectedAppointment.editable && (
+                          ))}
+                        {appointmentStatus === 1 &&
+                          selectedAppointment.editable && (
                           <>
                             <Button variant="outline" size="icon">
                               <Edit className="h-4 w-4" />
@@ -1199,23 +1478,38 @@ export function AppointmentsPage() {
                       </div>
                     </div>
                   </div>
-
                   
                   <div className="space-y-6">
                     <div className="flex gap-8 text-xs text-gray-500">
-                      <div>Created: {formatLocalTime(selectedAppointment.created)}</div>
-                      <div>Last modified: {formatLocalTime(selectedAppointment.modified)}</div>
+                      <div>
+                        Created: {formatLocalTime(selectedAppointment.created)}
+                      </div>
+                      <div>
+                        Last modified:{" "}
+                        {formatLocalTime(selectedAppointment.modified)}
+                      </div>
                     </div>
-                  
 
               {/* Ultra Premium Progress Bar */}
-              {appointmentStatus === 2 && (() => {
-                const start = new Date(selectedAppointment.startTime).getTime();
-                const end = new Date(selectedAppointment.endTime).getTime();
+                    {appointmentStatus === 2 &&
+                      (() => {
+                        const start = new Date(
+                          selectedAppointment.startTime
+                        ).getTime();
+                        const end = new Date(
+                          selectedAppointment.endTime
+                        ).getTime();
                 const now = Date.now();
-                const progress = Math.max(0, Math.min(1, (now - start) / (end - start)));
-                const startDate = formatLocalDate(selectedAppointment.startTime);
-                const endDate = formatLocalDate(selectedAppointment.endTime);
+                        const progress = Math.max(
+                          0,
+                          Math.min(1, (now - start) / (end - start))
+                        );
+                        const startDate = formatLocalDate(
+                          selectedAppointment.startTime
+                        );
+                        const endDate = formatLocalDate(
+                          selectedAppointment.endTime
+                        );
                 return (
                   <div className="w-full mb-6">
                     <div className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-xl border border-white/40 rounded-2xl p-5 shadow-[0_20px_50px_rgba(0,0,0,0.1)] relative overflow-hidden">
@@ -1230,7 +1524,9 @@ export function AppointmentsPage() {
                               <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
                               <div className="absolute inset-0 w-3 h-3 bg-blue-400 rounded-full animate-ping opacity-75"></div>
                             </div>
-                            <span className="text-sm font-semibold text-gray-800">Session in Progress</span>
+                                    <span className="text-sm font-semibold text-gray-800">
+                                      Session in Progress
+                                    </span>
                           </div>
                           <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
                             {Math.round(progress * 100)}%
@@ -1240,21 +1536,31 @@ export function AppointmentsPage() {
                         {/* Time display */}
                         <div className="grid grid-cols-2 gap-4 mb-4">
                           <div className="text-center">
-                            <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Started</div>
+                                    <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+                                      Started
+                                    </div>
                             <div className="text-xs font-semibold text-gray-700 bg-gray-50 px-2 py-1 rounded-lg">
                               {startDate === endDate 
-                                ? formatLocalTimeOnly(selectedAppointment.startTime)
-                                : formatLocalTime(selectedAppointment.startTime)
-                              }
+                                        ? formatLocalTimeOnly(
+                                            selectedAppointment.startTime
+                                          )
+                                        : formatLocalTime(
+                                            selectedAppointment.startTime
+                                          )}
                             </div>
                           </div>
                           <div className="text-center">
-                            <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Ends</div>
+                                    <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+                                      Ends
+                                    </div>
                             <div className="text-xs font-semibold text-gray-700 bg-gray-50 px-2 py-1 rounded-lg">
                               {startDate === endDate
-                                ? formatLocalTimeOnly(selectedAppointment.endTime)
-                                : formatLocalTime(selectedAppointment.endTime)
-                              }
+                                        ? formatLocalTimeOnly(
+                                            selectedAppointment.endTime
+                                          )
+                                        : formatLocalTime(
+                                            selectedAppointment.endTime
+                                          )}
                             </div>
                           </div>
                         </div>
@@ -1275,7 +1581,9 @@ export function AppointmentsPage() {
                             {/* Enhanced progress indicator */}
                             <div
                               className="absolute top-1/2 -translate-y-1/2 w-5 h-5 transition-all duration-1000 ease-out"
-                              style={{ left: `calc(${progress * 100}% - 10px)` }}
+                                      style={{
+                                        left: `calc(${progress * 100}% - 10px)`,
+                                      }}
                             >
                               <div className="w-5 h-5 bg-white border-3 border-blue-500 rounded-full shadow-lg flex items-center justify-center">
                                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -1286,14 +1594,25 @@ export function AppointmentsPage() {
                         
                         {/* Time remaining with icon */}
                         <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
                           </svg>
                           <span className="font-medium">
                             {progress < 1 
-                              ? `${Math.ceil((end - now) / (1000 * 60))} min remaining`
-                              : 'Session completed'
-                            }
+                                      ? `${Math.ceil(
+                                          (end - now) / (1000 * 60)
+                                        )} min remaining`
+                                      : "Session completed"}
                           </span>
                         </div>
                       </div>
@@ -1302,13 +1621,23 @@ export function AppointmentsPage() {
                 );
               })()}
   <div>
-                      <h3 className="text-lg font-semibold mb-2">Participants</h3>
+                      <h3 className="text-lg font-semibold mb-2">
+                        Participants
+                      </h3>
                       <div className="space-y-4">
                         {[
-                          {...selectedAppointment.booker, roleLabel: 'Booker'}, 
-                          ...(selectedAppointment.otherParticipants || []).map(p => ({...p, roleLabel: 'Participant'}))
+                          {
+                            ...selectedAppointment.booker,
+                            roleLabel: "Booker",
+                          },
+                          ...(selectedAppointment.otherParticipants || []).map(
+                            (p) => ({ ...p, roleLabel: "Participant" })
+                          ),
                         ].map((user) => (
-                          <div key={user.id} className="flex items-center gap-3">
+                          <div
+                            key={user.id}
+                            className="flex items-center gap-3"
+                          >
                             <button
                               className="focus:outline-none"
                               onClick={() => navigate(`/profile/${user.id}`)}
@@ -1323,13 +1652,21 @@ export function AppointmentsPage() {
                               <div className="flex items-center gap-2">
                                 <button
                                   className="font-medium text-left focus:outline-none truncate"
-                                  onClick={() => navigate(`/profile/${user.id}`)}
+                                  onClick={() =>
+                                    navigate(`/profile/${user.id}`)
+                                  }
                                 >
                                   {user.firstName} {user.lastName}
                                 </button>
-                                <span className="text-xs text-gray-400">{user.roleLabel}</span>
+                                <span className="text-xs text-gray-400">
+                                  {user.roleLabel}
+                                </span>
                                 {user.status !== undefined && (
-                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getParticipantStatusColor(user.status)}`}>
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${getParticipantStatusColor(
+                                      user.status
+                                    )}`}
+                                  >
                                     {getParticipantStatusText(user.status)}
                                   </span>
                                 )}
@@ -1346,10 +1683,15 @@ export function AppointmentsPage() {
                       </div>
                     </div>
 
-                    {selectedAppointment.description && selectedAppointment.description.trim() !== '' && (
+                    {selectedAppointment.description &&
+                      selectedAppointment.description.trim() !== "" && (
                       <div>
-                        <h3 className="text-lg font-semibold mb-2">Description</h3>
-                        <p className="text-gray-600">{selectedAppointment.description}</p>
+                          <h3 className="text-lg font-semibold mb-2">
+                            Description
+                          </h3>
+                          <p className="text-gray-600">
+                            {selectedAppointment.description}
+                          </p>
                       </div>
                     )}
 
@@ -1357,7 +1699,10 @@ export function AppointmentsPage() {
                       <h3 className="text-lg font-semibold mb-2">Location</h3>
                       <div className="flex items-center text-gray-600 mb-2">
                         <MapPin className="h-5 w-5 mr-2" />
-                        <span>{selectedAppointment.location?.formattedAddress || 'No location'}</span>
+                        <span>
+                          {selectedAppointment.location?.formattedAddress ||
+                            "No location"}
+                        </span>
                       </div>
                       {selectedAppointment.location && (
                         <div className="rounded-lg overflow-hidden border w-[320px] h-[180px]">
@@ -1374,7 +1719,11 @@ export function AppointmentsPage() {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-semibold mb-2">{selectedAppointment.repeatingType ? 'Upcoming Schedule' : 'Schedule'}</h3>
+                      <h3 className="text-lg font-semibold mb-2">
+                        {selectedAppointment.repeatingType
+                          ? "Upcoming Schedule"
+                          : "Schedule"}
+                      </h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-gray-500">Start Time</p>
@@ -1398,35 +1747,50 @@ export function AppointmentsPage() {
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                               <History className="h-5 w-5 text-purple-600" />
-                              <h3 className="text-lg font-semibold">Confirmation Request</h3>
+                              <h3 className="text-lg font-semibold">
+                                Confirmation Request
+                              </h3>
                             </div>
                      
                             <div className="flex items-center gap-3">
                               {selectedAppointment?.confirmationRequest && (
                           <div className="flex items-center gap-2">
-                                  <div className={`w-2 h-2 rounded-full ${
-                              selectedAppointment.confirmationRequest.status === 0 
+                                  <div
+                                    className={`w-2 h-2 rounded-full ${
+                                      selectedAppointment.confirmationRequest
+                                        .status === 0
                                       ? "bg-gray-400"
-                                : selectedAppointment.confirmationRequest.status === 1
+                                        : selectedAppointment
+                                            .confirmationRequest.status === 1
                                       ? "bg-yellow-400 animate-pulse"
-                                      : selectedAppointment.confirmationRequest.status === 2
+                                        : selectedAppointment
+                                            .confirmationRequest.status === 2
                                       ? "bg-green-400"
                                       : "bg-red-400"
-                                  }`}></div>
-                                  <span className={`text-sm ${
-                                    selectedAppointment.confirmationRequest.status === 0 
+                                    }`}
+                                  ></div>
+                                  <span
+                                    className={`text-sm ${
+                                      selectedAppointment.confirmationRequest
+                                        .status === 0
                                       ? "text-gray-500"
-                                      : selectedAppointment.confirmationRequest.status === 1
+                                        : selectedAppointment
+                                            .confirmationRequest.status === 1
                                       ? "text-yellow-600"
-                                      : selectedAppointment.confirmationRequest.status === 2
+                                        : selectedAppointment
+                                            .confirmationRequest.status === 2
                                       ? "text-green-600"
                                       : "text-red-600"
-                            }`}>
-                              {selectedAppointment.confirmationRequest.status === 0 
+                                    }`}
+                                  >
+                                    {selectedAppointment.confirmationRequest
+                                      .status === 0
                                       ? "None"
-                                : selectedAppointment.confirmationRequest.status === 1
+                                      : selectedAppointment.confirmationRequest
+                                          .status === 1
                                       ? "Requested"
-                                      : selectedAppointment.confirmationRequest.status === 2
+                                      : selectedAppointment.confirmationRequest
+                                          .status === 2
                                       ? "Confirmed"
                                 : "Rejected"}
                             </span>
@@ -1436,17 +1800,22 @@ export function AppointmentsPage() {
                                 <Button
                                   variant="ghost"
                                   className="bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 text-purple-600 hover:text-purple-700 px-4 py-2 rounded-lg shadow-sm transition-all duration-200 flex items-center gap-2 hover:shadow-md"
-                                  onClick={() => setShowConfirmationDetails(true)}
+                                  onClick={() =>
+                                    setShowConfirmationDetails(true)
+                                  }
                                 >
                                   <History className="h-4 w-4" />
                                   View Details
                                 </Button>
                               ) : (
                                 // Show send button if user is coach and booker
-                                selectedAppointment && isCoachAndBooker(selectedAppointment) && (
+                                selectedAppointment &&
+                                isCoachAndBooker(selectedAppointment) && (
                                   <Button
                                     className="bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 text-white px-6 py-2 rounded-lg shadow-lg transition-all duration-300 text-sm font-medium flex items-center gap-2 hover:shadow-xl hover:scale-[1.02]"
-                                    onClick={() => setShowConfirmationForm(true)}
+                                    onClick={() =>
+                                      setShowConfirmationForm(true)
+                                    }
                                   >
                                     <History className="h-4 w-4" />
                                     Send Request
@@ -1458,7 +1827,8 @@ export function AppointmentsPage() {
                         </div>
 
                         {/* Confirmation Request Details Modal */}
-                        {showConfirmationDetails && selectedAppointment?.confirmationRequest && (
+                        {showConfirmationDetails &&
+                          selectedAppointment?.confirmationRequest && (
                           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
                             <div className="bg-white rounded-2xl p-8 w-[500px] max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-slideUp">
                               <div className="flex justify-between items-start mb-6">
@@ -1467,31 +1837,52 @@ export function AppointmentsPage() {
                                     <History className="h-6 w-6 text-white" />
                             </div>
                             <div>
-                                    <h2 className="text-2xl font-bold text-gray-900">Confirmation Request</h2>
+                                      <h2 className="text-2xl font-bold text-gray-900">
+                                        Confirmation Request
+                                      </h2>
                                     <div className="flex items-center gap-2 mt-1">
-                                      <div className={`w-2 h-2 rounded-full ${
-                                        selectedAppointment.confirmationRequest.status === 0 
+                                        <div
+                                          className={`w-2 h-2 rounded-full ${
+                                            selectedAppointment
+                                              .confirmationRequest.status === 0
                                           ? "bg-gray-400"
-                                          : selectedAppointment.confirmationRequest.status === 1
+                                              : selectedAppointment
+                                                  .confirmationRequest
+                                                  .status === 1
                                           ? "bg-yellow-400 animate-pulse"
-                                          : selectedAppointment.confirmationRequest.status === 2
+                                              : selectedAppointment
+                                                  .confirmationRequest
+                                                  .status === 2
                                           ? "bg-green-400"
                                           : "bg-red-400"
-                                      }`}></div>
-                                      <span className={`text-sm ${
-                                        selectedAppointment.confirmationRequest.status === 0 
+                                          }`}
+                                        ></div>
+                                        <span
+                                          className={`text-sm ${
+                                            selectedAppointment
+                                              .confirmationRequest.status === 0
                                           ? "text-gray-500"
-                                          : selectedAppointment.confirmationRequest.status === 1
+                                              : selectedAppointment
+                                                  .confirmationRequest
+                                                  .status === 1
                                           ? "text-yellow-600"
-                                          : selectedAppointment.confirmationRequest.status === 2
+                                              : selectedAppointment
+                                                  .confirmationRequest
+                                                  .status === 2
                                           ? "text-green-600"
                                           : "text-red-600"
-                                      }`}>
-                                        {selectedAppointment.confirmationRequest.status === 0 
+                                          }`}
+                                        >
+                                          {selectedAppointment
+                                            .confirmationRequest.status === 0
                                           ? "None"
-                                          : selectedAppointment.confirmationRequest.status === 1
+                                            : selectedAppointment
+                                                .confirmationRequest.status ===
+                                              1
                                           ? "Requested"
-                                          : selectedAppointment.confirmationRequest.status === 2
+                                            : selectedAppointment
+                                                .confirmationRequest.status ===
+                                              2
                                           ? "Confirmed"
                                           : "Rejected"}
                                       </span>
@@ -1501,7 +1892,9 @@ export function AppointmentsPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => setShowConfirmationDetails(false)}
+                                    onClick={() =>
+                                      setShowConfirmationDetails(false)
+                                    }
                                   className="h-8 w-8 hover:bg-gray-100 rounded-full transition-all duration-200"
                                 >
                                   <X className="h-4 w-4" />
@@ -1511,34 +1904,80 @@ export function AppointmentsPage() {
                               <div className="space-y-6">
                                 <div className="flex items-center justify-between text-xs text-gray-500">
                                   <div className="flex items-center gap-2">
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      <svg
+                                        className="w-3 h-3"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
                                     </svg>
-                                    <span>Created: {formatLocalTime(selectedAppointment.confirmationRequest.createdAt)}</span>
+                                      <span>
+                                        Created:{" "}
+                                        {formatLocalTime(
+                                          selectedAppointment
+                                            .confirmationRequest.createdAt
+                                        )}
+                                      </span>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      <svg
+                                        className="w-3 h-3"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
                                     </svg>
-                                    <span>Expires: {formatLocalTime(selectedAppointment.confirmationRequest.expiresdAt)}</span>
+                                      <span>
+                                        Expires:{" "}
+                                        {formatLocalTime(
+                                          selectedAppointment
+                                            .confirmationRequest.expiresdAt
+                                        )}
+                                      </span>
                                   </div>
                                 </div>
 
-                                {selectedAppointment.confirmationRequest.content && (
+                                  {selectedAppointment.confirmationRequest
+                                    .content && (
                                   <div className="animate-fadeIn">
-                                    <p className="text-sm font-medium text-gray-700 mb-3">Message:</p>
+                                      <p className="text-sm font-medium text-gray-700 mb-3">
+                                        Message:
+                                      </p>
                                     <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
-                                      <p className="text-gray-700 whitespace-pre-wrap">{selectedAppointment.confirmationRequest.content}</p>
+                                        <p className="text-gray-700 whitespace-pre-wrap">
+                                          {
+                                            selectedAppointment
+                                              .confirmationRequest.content
+                                          }
+                                        </p>
                         </div>
                       </div>
                     )}
 
-                                {selectedAppointment.confirmationRequest.img && (
+                                  {selectedAppointment.confirmationRequest
+                                    .img && (
                                   <div className="animate-fadeIn">
-                                    <p className="text-sm font-medium text-gray-700 mb-3">Image:</p>
+                                      <p className="text-sm font-medium text-gray-700 mb-3">
+                                        Image:
+                                      </p>
                                     <div className="relative group">
                                       <img 
-                                        src={selectedAppointment.confirmationRequest.img} 
+                                          src={
+                                            selectedAppointment
+                                              .confirmationRequest.img
+                                          }
                                         alt="Confirmation" 
                                         className="w-full h-auto rounded-xl border shadow-sm transition-all duration-300 group-hover:shadow-lg"
                                       />
@@ -1549,54 +1988,106 @@ export function AppointmentsPage() {
 
                                 {/* Only show confirm button if user is seeker and not booker */}
                                 {(() => {
-                                  const storedBasicInfo = localStorage.getItem('basicInfo')
+                                    const storedBasicInfo =
+                                      localStorage.getItem("basicInfo");
                                   if (storedBasicInfo) {
-                                    const info = JSON.parse(storedBasicInfo) as BasicInfo
-                                    return info.role === 1 && selectedAppointment.booker.id !== info.id
-                                  }
-                                  return false
+                                      const info = JSON.parse(
+                                        storedBasicInfo
+                                      ) as BasicInfo;
+                                      return (
+                                        info.role === 1 &&
+                                        selectedAppointment.booker.id !==
+                                          info.id
+                                      );
+                                    }
+                                    return false;
                                 })() && (
                                   <div className="animate-fadeIn">
-                                    {selectedAppointment.confirmationRequest?.status === 2 ? (
+                                      {selectedAppointment.confirmationRequest
+                                        ?.status === 2 ? (
                                       <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                          <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M5 13l4 4L19 7"
+                                            />
                                         </svg>
-                                        <span className="font-medium">Appointment Confirmed</span>
+                                          <span className="font-medium">
+                                            Appointment Confirmed
+                                          </span>
                                       </div>
                                     ) : (
                           <Button 
                                         className="w-full bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 text-white px-6 py-4 rounded-xl shadow-lg transition-all duration-300 flex items-center justify-center gap-3 text-base font-medium hover:shadow-xl hover:scale-[1.02]"
                                         onClick={async () => {
-                                          if (selectedAppointment.confirmationRequest) {
-                                            const result = await confirmRequest(selectedAppointment.confirmationRequest.id)
+                                            if (
+                                              selectedAppointment.confirmationRequest
+                                            ) {
+                                              const result =
+                                                await confirmRequest(
+                                                  selectedAppointment
+                                                    .confirmationRequest.id
+                                                );
                                             if (result.success) {
-                                              const updatedConfirmationRequest = {
+                                                const updatedConfirmationRequest =
+                                                  {
                                                 ...selectedAppointment.confirmationRequest,
-                                                status: 2
-                                              }
+                                                    status: 2,
+                                                  };
                                               setSelectedAppointment({
                                                 ...selectedAppointment,
-                                                confirmationRequest: updatedConfirmationRequest
-                                              })
-                                              getBalance()
-                                              fetchAppointments(searchQuery, sortBy, sortOrder, statusFilter, appointmentStatus)
+                                                  confirmationRequest:
+                                                    updatedConfirmationRequest,
+                                                });
+                                                getBalance();
+                                              }
                                             }
+                                          }}
+                                          disabled={
+                                            selectedAppointment
+                                              .confirmationRequest?.status === 2
                                           }
-                                        }}
-                                        disabled={selectedAppointment.confirmationRequest?.status === 2}
-                          >
-                                        {selectedAppointment.confirmationRequest?.status === 2 ? (
-                                          <>
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        >
+                                          {selectedAppointment
+                                            .confirmationRequest?.status ===
+                                          2 ? (
+                                            <>
+                                              <svg
+                                                className="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M5 13l4 4L19 7"
+                                                />
                                             </svg>
                                             Confirmed
                                           </>
                                         ) : (
                                           <>
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                              <svg
+                                                className="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                              >
+                                                <path
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                  strokeWidth={2}
+                                                  d="M5 13l4 4L19 7"
+                                                />
                                             </svg>
                                             Confirm Request
                                           </>
@@ -1609,13 +2100,74 @@ export function AppointmentsPage() {
                         </div>
                       </div>
                         )}
+                        {/* Feedback display or button */}
+                        <div className="border-t border-gray-200 my-6"></div>
+                        {selectedAppointment && selectedAppointment.feedbacks && selectedAppointment.feedbacks.length > 0 ? (
+                          <div className="mt-6">
+                            <h3 className="text-lg font-semibold mb-2">Feedback</h3>
+                            {selectedAppointment.feedbacks.map((fb) => (
+                              <div key={fb.id} className="bg-white rounded-xl shadow p-4 mb-4 border border-gray-100">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <img src={fb.user.avatar} alt={fb.user.firstName} className="w-10 h-10 rounded-full" />
+                                  <div>
+                                    <div className="font-medium">{fb.user.firstName} {fb.user.lastName}</div>
+                                    <div className="flex items-center gap-1">
+                                      {[1,2,3,4,5].map((star) => (
+                                        <Star key={star} className="h-4 w-4" fill={star <= fb.star ? '#facc15' : 'none'} stroke={star <= fb.star ? '#facc15' : '#d1d5db'} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-gray-700 mb-2 whitespace-pre-line">{fb.content}</div>
+                                {fb.medias && fb.medias.length > 0 && (
+                                  <div className="flex gap-2 flex-wrap mt-2">
+                                    {fb.medias.map((url, idx) => (
+                                      <img key={idx} src={url} alt="feedback-media" className="w-24 h-24 object-cover rounded-lg border" />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (() => {
+                          const storedBasicInfo = localStorage.getItem("basicInfo");
+                          let canFeedback = false;
+                          let userId = "";
+                          if (storedBasicInfo) {
+                            const info = JSON.parse(storedBasicInfo) as BasicInfo;
+                            userId = info.id;
+                          }
+                          // Only if not booker, booker is PT, and confirmed
+                          if (
+                            selectedAppointment &&
+                            userId &&
+                            selectedAppointment.booker.id !== userId &&
+                            selectedAppointment.booker.role === 2 &&
+                            selectedAppointment.confirmationRequest?.status === 2
+                          ) {
+                            canFeedback = true;
+                          }
+                          if (!canFeedback) return null;
+                          return (
+                            <div className="mt-6 flex justify-end">
+                              <Button
+                                className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white px-6 py-2 rounded-lg shadow-lg transition-all duration-300 text-sm font-medium flex items-center gap-2 hover:shadow-xl hover:scale-[1.02]"
+                                onClick={() => setShowFeedbackForm(true)}
+                              >
+                                Give Feedback
+                              </Button>
+                            </div>
+                          );
+                        })()}
                       </>
                     )}
                   </div>
                 </>
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-500">Select an appointment to view details</p>
+                  <p className="text-gray-500">
+                    Select an appointment to view details
+                  </p>
                 </div>
               )}
             </div>
@@ -1640,16 +2192,34 @@ export function AppointmentsPage() {
             </div>
             <div className="space-y-4">
               {bookingMessage && (
-                <div className={`text-center text-sm font-medium mb-2 ${bookingMessage.success ? 'text-green-600' : 'text-red-600'}`}>{bookingMessage.text}</div>
+                <div
+                  className={`text-center text-sm font-medium mb-2 ${
+                    bookingMessage.success ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {bookingMessage.text}
+                </div>
               )}
               <div>
                 <Label className="mb-2 block">Appointment Name</Label>
-                <Input id="appointment-name" placeholder="Enter appointment name" disabled={isBooking} />
-                {formErrors.name && <div className="text-red-500 text-xs mt-1">{formErrors.name}</div>}
+                <Input
+                  id="appointment-name"
+                  placeholder="Enter appointment name"
+                  disabled={isBooking}
+                />
+                {formErrors.name && (
+                  <div className="text-red-500 text-xs mt-1">
+                    {formErrors.name}
+                  </div>
+                )}
               </div>
               <div>
                 <Label className="mb-2 block">Description</Label>
-                <Textarea id="appointment-description" placeholder="Enter appointment description" disabled={isBooking} />
+                <Textarea
+                  id="appointment-description"
+                  placeholder="Enter appointment description"
+                  disabled={isBooking}
+                />
               </div>
               <div>
                 <Label className="mb-2 block">Price ($)</Label>
@@ -1667,11 +2237,22 @@ export function AppointmentsPage() {
                 <Label className="mb-2 block">Participant</Label>
                 <div className="relative" ref={participantDropdownRef}>
                   <div className="w-full flex flex-wrap items-center gap-2 rounded-md border border-input bg-white px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-[#2563eb]">
-                    {selectedParticipants.map(user => (
-                      <div key={user.id} className="flex items-center gap-1 bg-gray-100 rounded-full px-2 py-1 text-sm border border-gray-300">
-                        <img src={user.avatar} alt={user.firstName} className="w-6 h-6 rounded-full" />
-                        <span className="font-medium">{user.firstName} {user.lastName}</span>
-                        <span className="text-xs text-gray-500 ml-1">{getRoleLabel(user.role)}</span>
+                    {selectedParticipants.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center gap-1 bg-gray-100 rounded-full px-2 py-1 text-sm border border-gray-300"
+                      >
+                        <img
+                          src={user.avatar}
+                          alt={user.firstName}
+                          className="w-6 h-6 rounded-full"
+                        />
+                        <span className="font-medium">
+                          {user.firstName} {user.lastName}
+                        </span>
+                        <span className="text-xs text-gray-500 ml-1">
+                          {getRoleLabel(user.role)}
+                        </span>
                         <button
                           className="ml-1 text-gray-400 hover:text-red-500"
                           onClick={() => setSelectedParticipants([])}
@@ -1685,7 +2266,7 @@ export function AppointmentsPage() {
                       className="flex-1 min-w-[120px] outline-none border-none bg-transparent h-full"
                       placeholder="Search connected friends"
                       value={participantSearch}
-                      onChange={e => setParticipantSearch(e.target.value)}
+                        onChange={(e) => setParticipantSearch(e.target.value)}
                       style={{ minWidth: 120 }}
                       disabled={isBooking}
                     />
@@ -1693,29 +2274,40 @@ export function AppointmentsPage() {
                   </div>
                   {participantResults.length > 0 && (
                     <div className="absolute z-10 bg-white border rounded w-full mt-1 max-h-48 overflow-y-auto shadow-lg">
-                      {participantResults.map(user => (
+                      {participantResults.map((user) => (
                         <div
                           key={user.id}
                           className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 cursor-pointer"
                           onClick={() => {
-                            setSelectedParticipants([user])
-                            setParticipantSearch("")
-                            setParticipantResults([])
+                            setSelectedParticipants([user]);
+                            setParticipantSearch("");
+                            setParticipantResults([]);
                           }}
                         >
-                          <img src={user.avatar} alt={user.firstName} className="w-6 h-6 rounded-full" />
+                          <img
+                            src={user.avatar}
+                            alt={user.firstName}
+                            className="w-6 h-6 rounded-full"
+                          />
                           <div className="flex flex-col justify-center">
-                            <span className="font-medium flex items-center gap-1">{user.firstName} {user.lastName}
-                              <span className="text-xs text-gray-500 ml-1">{getRoleLabel(user.role)}</span>
+                            <span className="font-medium flex items-center gap-1">
+                              {user.firstName} {user.lastName}
+                              <span className="text-xs text-gray-500 ml-1">
+                                {getRoleLabel(user.role)}
                             </span>
-                            <span className="text-xs text-gray-500">{user.email}</span>
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {user.email}
+                            </span>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
                   {isSearchingParticipants && (
-                    <div className="absolute z-10 bg-white border rounded w-full mt-1 px-3 py-2 text-sm text-gray-500">Searching...</div>
+                    <div className="absolute z-10 bg-white border rounded w-full mt-1 px-3 py-2 text-sm text-gray-500">
+                      Searching...
+                    </div>
                   )}
                 </div>
               </div>
@@ -1724,23 +2316,27 @@ export function AppointmentsPage() {
                 <div className="relative" ref={locationDropdownRef}>
                   <Input
                     placeholder="Search location"
-                    value={selectedLocation ? selectedLocation.description : locationSearch}
-                    onChange={e => {
-                      setSelectedLocation(null)
-                      setLocationSearch(e.target.value)
+                    value={
+                      selectedLocation
+                        ? selectedLocation.description
+                        : locationSearch
+                    }
+                    onChange={(e) => {
+                      setSelectedLocation(null);
+                      setLocationSearch(e.target.value);
                     }}
                     disabled={isBooking}
                   />
                   {locationResults.length > 0 && !selectedLocation && (
                     <div className="absolute z-10 bg-white border rounded w-full mt-1 max-h-48 overflow-y-auto shadow-lg">
-                      {locationResults.map(loc => (
+                      {locationResults.map((loc) => (
                         <div
                           key={loc.placeId}
                           className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                           onClick={() => {
-                            setSelectedLocation(loc)
-                            setLocationSearch("")
-                            setLocationResults([])
+                            setSelectedLocation(loc);
+                            setLocationSearch("");
+                            setLocationResults([]);
                           }}
                         >
                           {loc.description}
@@ -1749,7 +2345,9 @@ export function AppointmentsPage() {
                     </div>
                   )}
                   {isSearchingLocation && (
-                    <div className="absolute z-10 bg-white border rounded w-full mt-1 px-3 py-2 text-sm text-gray-500">Searching...</div>
+                    <div className="absolute z-10 bg-white border rounded w-full mt-1 px-3 py-2 text-sm text-gray-500">
+                      Searching...
+                    </div>
                   )}
                 </div>
               </div>
@@ -1760,15 +2358,20 @@ export function AppointmentsPage() {
                     type="datetime-local" 
                     min={new Date().toISOString().slice(0, 16)}
                     value={bookingStart}
-                    onChange={e => {
-                      setBookingStart(e.target.value)
-                      if (bookingEnd && e.target.value > bookingEnd) setBookingEnd("")
+                    onChange={(e) => {
+                      setBookingStart(e.target.value);
+                      if (bookingEnd && e.target.value > bookingEnd)
+                        setBookingEnd("");
                     }}
                     lang="en-GB"
                     step={60}
                     disabled={isBooking}
                   />
-                  {formErrors.start && <div className="text-red-500 text-xs mt-1">{formErrors.start}</div>}
+                  {formErrors.start && (
+                    <div className="text-red-500 text-xs mt-1">
+                      {formErrors.start}
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1">
                   <Label className="mb-2 block">End Time</Label>
@@ -1776,12 +2379,16 @@ export function AppointmentsPage() {
                     type="datetime-local" 
                     min={bookingStart || new Date().toISOString().slice(0, 16)}
                     value={bookingEnd}
-                    onChange={e => setBookingEnd(e.target.value)}
+                    onChange={(e) => setBookingEnd(e.target.value)}
                     lang="en-GB"
                     step={60}
                     disabled={isBooking}
                   />
-                  {formErrors.end && <div className="text-red-500 text-xs mt-1">{formErrors.end}</div>}
+                  {formErrors.end && (
+                    <div className="text-red-500 text-xs mt-1">
+                      {formErrors.end}
+                    </div>
+                  )}
                 </div>
               </div>
               <div>
@@ -1789,7 +2396,7 @@ export function AppointmentsPage() {
                 <select
                   className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[#2563eb]"
                   value={repeatingType}
-                  onChange={e => setRepeatingType(Number(e.target.value))}
+                  onChange={(e) => setRepeatingType(Number(e.target.value))}
                   disabled={isBooking}
                 >
                   <option value={0}>None</option>
@@ -1807,8 +2414,14 @@ export function AppointmentsPage() {
                 >
                   Cancel
                 </Button>
-                <Button className="bg-[#de9151] hover:bg-[#de9151]/90 flex items-center justify-center min-w-[120px]" onClick={handleCreateAppointment} disabled={isBooking}>
-                  {isBooking && <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>}
+                <Button
+                  className="bg-[#de9151] hover:bg-[#de9151]/90 flex items-center justify-center min-w-[120px]"
+                  onClick={handleCreateAppointment}
+                  disabled={isBooking}
+                >
+                  {isBooking && (
+                    <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
+                  )}
                   Create Appointment
                 </Button>
               </div>
@@ -1821,18 +2434,33 @@ export function AppointmentsPage() {
       {showConfirmDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            {confirmStatus === 'idle' && (
+            {confirmStatus === "idle" && (
               <>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className={`w-10 h-10 rounded-full ${
-                    confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children 
+                  <div
+                    className={`w-10 h-10 rounded-full ${
+                      confirmButtonText &&
+                      React.isValidElement(confirmButtonText) &&
+                      Array.isArray((confirmButtonText as React.ReactElement).props.children as unknown[]) &&
+                      ((confirmButtonText as React.ReactElement).props.children as unknown[]).some((child: unknown): child is string => typeof child === "string" && child.includes("Delete"))
                       ? "bg-red-100" 
                       : "bg-[#de9151]/10"
-                  } flex items-center justify-center`}>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10 6.66667V10M10 13.3333H10.0083M18.3333 10C18.3333 14.6024 14.6024 18.3333 10 18.3333C5.39763 18.3333 1.66667 14.6024 1.66667 10C1.66667 5.39763 5.39763 1.66667 10 1.66667C14.6024 1.66667 18.3333 5.39763 18.3333 10Z" 
+                    } flex items-center justify-center`}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M10 6.66667V10M10 13.3333H10.0083M18.3333 10C18.3333 14.6024 14.6024 18.3333 10 18.3333C5.39763 18.3333 1.66667 14.6024 1.66667 10C1.66667 5.39763 5.39763 1.66667 10 1.66667C14.6024 1.66667 18.3333 5.39763 18.3333 10Z"
                         stroke={
-                          confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children 
+                          confirmButtonText &&
+                          React.isValidElement(confirmButtonText) &&
+                          Array.isArray((confirmButtonText as React.ReactElement).props.children as unknown[]) &&
+                          ((confirmButtonText as React.ReactElement).props.children as unknown[]).some((child: unknown): child is string => typeof child === "string" && child.includes("Delete"))
                             ? "#ef4444" 
                             : "#de9151"
                         } 
@@ -1843,10 +2471,12 @@ export function AppointmentsPage() {
                     </svg>
                   </div>
                   <h3 className="text-lg font-medium text-gray-900">
-                    {confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children 
+                    {confirmButtonText &&
+                    React.isValidElement(confirmButtonText) &&
+                    Array.isArray((confirmButtonText as React.ReactElement).props.children as unknown[]) &&
+                    ((confirmButtonText as React.ReactElement).props.children as unknown[]).some((child: unknown): child is string => typeof child === "string" && child.includes("Delete"))
                       ? "Confirm Delete" 
-                      : "Confirm Action"
-                    }
+                      : "Confirm Action"}
                   </h3>
                 </div>
                 <p className="text-gray-600 mb-6">{confirmMessage}</p>
@@ -1860,7 +2490,10 @@ export function AppointmentsPage() {
                   </Button>
                   <Button 
                     className={
-                      confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                      confirmButtonText &&
+                      React.isValidElement(confirmButtonText) &&
+                      Array.isArray((confirmButtonText as React.ReactElement).props.children as unknown[]) &&
+                      ((confirmButtonText as React.ReactElement).props.children as unknown[]).some((child: unknown): child is string => typeof child === "string" && child.includes("Delete"))
                         ? "bg-red-600 hover:bg-red-700 text-white" 
                         : "bg-[#de9151] hover:bg-[#de9151]/90 text-white"
                     }
@@ -1873,43 +2506,76 @@ export function AppointmentsPage() {
               </>
             )}
 
-            {confirmStatus === 'loading' && (
+            {confirmStatus === "loading" && (
               <div className="text-center py-4">
-                <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${
-                  confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                <div
+                  className={`animate-spin rounded-full h-12 w-12 border-b-2 ${
+                    confirmButtonText &&
+                    React.isValidElement(confirmButtonText) &&
+                    Array.isArray((confirmButtonText as React.ReactElement).props.children as unknown[]) &&
+                    ((confirmButtonText as React.ReactElement).props.children as unknown[]).some((child: unknown): child is string => typeof child === "string" && child.includes("Delete"))
                     ? "border-red-600" 
                     : "border-[#de9151]"
-                } mx-auto mb-4`}></div>
+                  } mx-auto mb-4`}
+                ></div>
                 <p className="text-gray-600">
-                  {confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                  {confirmButtonText &&
+                  React.isValidElement(confirmButtonText) &&
+                  Array.isArray((confirmButtonText as React.ReactElement).props.children as unknown[]) &&
+                  ((confirmButtonText as React.ReactElement).props.children as unknown[]).some((child: unknown): child is string => typeof child === "string" && child.includes("Delete"))
                     ? "Deleting appointment..." 
-                    : "Processing your request..."
-                  }
+                    : "Processing your request..."}
                 </p>
               </div>
             )}
 
-            {confirmStatus === 'success' && (
+            {confirmStatus === "success" && (
               <div className="text-center py-4">
                 <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 6L9 17L4 12" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M20 6L9 17L4 12"
+                      stroke="#22c55e"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
                 <p className="text-gray-600">
-                  {confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                  {confirmButtonText &&
+                  React.isValidElement(confirmButtonText) &&
+                  Array.isArray((confirmButtonText as React.ReactElement).props.children as unknown[]) &&
+                  ((confirmButtonText as React.ReactElement).props.children as unknown[]).some((child: unknown): child is string => typeof child === "string" && child.includes("Delete"))
                     ? "Appointment deleted successfully!" 
-                    : "Action completed successfully!"
-                  }
+                    : "Action completed successfully!"}
                 </p>
               </div>
             )}
 
-            {confirmStatus === 'error' && (
+            {confirmStatus === "error" && (
               <div className="text-center py-4">
                 <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 8V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 8V12M12 16H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                      stroke="#ef4444"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
                 <p className="text-red-600 mb-4">{confirmError}</p>
@@ -1923,13 +2589,16 @@ export function AppointmentsPage() {
                   </Button>
                   <Button 
                     className={
-                      confirmButtonText && typeof confirmButtonText !== 'string' && 'Delete' in (confirmButtonText as any)?.props?.children
+                      confirmButtonText &&
+                      React.isValidElement(confirmButtonText) &&
+                      Array.isArray((confirmButtonText as React.ReactElement).props.children as unknown[]) &&
+                      ((confirmButtonText as React.ReactElement).props.children as unknown[]).some((child: unknown): child is string => typeof child === "string" && child.includes("Delete"))
                         ? "bg-red-600 hover:bg-red-700 text-white" 
                         : "bg-[#de9151] hover:bg-[#de9151]/90 text-white"
                     }
                     onClick={() => {
-                      setConfirmStatus('idle')
-                      setConfirmError("")
+                      setConfirmStatus("idle");
+                      setConfirmError("");
                     }}
                   >
                     Try Again
@@ -1951,8 +2620,12 @@ export function AppointmentsPage() {
                   <History className="h-5 w-5 text-purple-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Send Confirmation Request</h2>
-                  <p className="text-sm text-gray-500">Verify the completion of this appointment</p>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Send Confirmation Request
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Verify the completion of this appointment
+                  </p>
                 </div>
               </div>
               <Button
@@ -1968,7 +2641,9 @@ export function AppointmentsPage() {
 
             <div className="space-y-6">
               <div className="relative">
-                <Label className="mb-2 block text-sm font-medium text-gray-700">Message (Optional)</Label>
+                <Label className="mb-2 block text-sm font-medium text-gray-700">
+                  Message (Optional)
+                </Label>
                 <Textarea 
                   placeholder="Add a message to your confirmation request..." 
                   value={confirmationMessage}
@@ -1982,15 +2657,17 @@ export function AppointmentsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="block text-sm font-medium text-gray-700">Image (Optional)</Label>
+                <Label className="block text-sm font-medium text-gray-700">
+                  Image (Optional)
+                </Label>
                 <div className="relative">
                   <Input
                     type="file"
                     accept="image/*"
                     ref={fileInputRef}
                     onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) setConfirmationImage(file)
+                      const file = e.target.files?.[0];
+                      if (file) setConfirmationImage(file);
                     }}
                     disabled={isSendingConfirmation}
                     className="hidden"
@@ -1999,9 +2676,10 @@ export function AppointmentsPage() {
                   <label
                     htmlFor="confirmation-image"
                     className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer transition-colors
-                      ${confirmationImage 
-                        ? 'border-purple-200 bg-purple-50' 
-                        : 'border-gray-200 hover:border-purple-200 hover:bg-gray-50'
+                      ${
+                        confirmationImage
+                          ? "border-purple-200 bg-purple-50"
+                          : "border-gray-200 hover:border-purple-200 hover:bg-gray-50"
                       }`}
                   >
                     {confirmationImage ? (
@@ -2014,9 +2692,10 @@ export function AppointmentsPage() {
                         <button
                           type="button"
                           onClick={(e) => {
-                            e.stopPropagation()
-                            setConfirmationImage(null)
-                            if (fileInputRef.current) fileInputRef.current.value = ""
+                            e.stopPropagation();
+                            setConfirmationImage(null);
+                            if (fileInputRef.current)
+                              fileInputRef.current.value = "";
                           }}
                           className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-sm hover:bg-gray-100"
                         >
@@ -2025,13 +2704,26 @@ export function AppointmentsPage() {
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <svg className="w-8 h-8 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        <svg
+                          className="w-8 h-8 mb-3 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
                         </svg>
                         <p className="mb-2 text-sm text-gray-500">
-                          <span className="font-medium">Click to upload</span> or drag and drop
+                          <span className="font-medium">Click to upload</span>{" "}
+                          or drag and drop
                         </p>
-                        <p className="text-xs text-gray-500">PNG, JPG or GIF (max. 2MB)</p>
+                        <p className="text-xs text-gray-500">
+                          PNG, JPG or GIF (max. 2MB)
+                        </p>
                       </div>
                     )}
                   </label>
@@ -2072,7 +2764,9 @@ export function AppointmentsPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-slate-900">Send Confirmation Request</h2>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Send Confirmation Request
+              </h2>
               <Button
                 variant="ghost"
                 size="icon"
@@ -2085,7 +2779,9 @@ export function AppointmentsPage() {
 
             <div className="space-y-4">
               <div>
-                <Label className="text-sm font-medium text-slate-700 mb-1 block">Message</Label>
+                <Label className="text-sm font-medium text-slate-700 mb-1 block">
+                  Message
+                </Label>
                 <Textarea
                   value={confirmationMessage}
                   onChange={(e) => setConfirmationMessage(e.target.value)}
@@ -2095,7 +2791,9 @@ export function AppointmentsPage() {
               </div>
 
               <div>
-                <Label className="text-sm font-medium text-slate-700 mb-1 block">Image (Optional)</Label>
+                <Label className="text-sm font-medium text-slate-700 mb-1 block">
+                  Image (Optional)
+                </Label>
                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-200 border-dashed rounded-lg">
                   <div className="space-y-1 text-center">
                     {confirmationImage ? (
@@ -2129,14 +2827,16 @@ export function AppointmentsPage() {
                               className="sr-only"
                               accept="image/*"
                               onChange={(e) => {
-                                const file = e.target.files?.[0]
-                                if (file) setConfirmationImage(file)
+                                const file = e.target.files?.[0];
+                                if (file) setConfirmationImage(file);
                               }}
                             />
                           </label>
                           <p className="pl-1">or drag and drop</p>
                         </div>
-                        <p className="text-xs text-slate-500">PNG, JPG, GIF up to 10MB</p>
+                        <p className="text-xs text-slate-500">
+                          PNG, JPG, GIF up to 10MB
+                        </p>
                       </>
                     )}
                   </div>
@@ -2154,7 +2854,9 @@ export function AppointmentsPage() {
                 <Button
                   onClick={handleSendConfirmation}
                   className="bg-[#de9151] hover:bg-[#de9151]/90 text-white"
-                  disabled={isSendingConfirmation || !confirmationMessage.trim()}
+                  disabled={
+                    isSendingConfirmation || !confirmationMessage.trim()
+                  }
                 >
                   {isSendingConfirmation ? (
                     <div className="flex items-center gap-2">
@@ -2170,6 +2872,222 @@ export function AppointmentsPage() {
           </div>
         </div>
       )}
+
+      {/* Feedback Form Modal */}
+      {showFeedbackForm && selectedAppointment && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 w-[500px] max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                  <Star className="h-5 w-5 text-yellow-600" />
     </div>
-  )
-} 
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Give Feedback to Coach
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Share your experience with this coach
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowFeedbackForm(false)}
+                className="h-8 w-8 hover:bg-gray-100"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Error Message Display */}
+              {feedbackMessage && !feedbackMessage.success && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-red-700 font-medium">Error</span>
+                  </div>
+                  <p className="text-red-600 mt-1">{feedbackMessage.text}</p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium text-gray-700">
+                  Rating
+                </Label>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setFeedbackStar(star)}
+                      className={`p-1 transition-transform ${!isSendingFeedback ? 'hover:scale-110' : 'cursor-not-allowed opacity-50'}`}
+                      disabled={isSendingFeedback}
+                    >
+                      <Star 
+                        className="h-8 w-8" 
+                        fill={star <= feedbackStar ? '#facc15' : 'none'} 
+                        stroke={star <= feedbackStar ? '#facc15' : '#d1d5db'} 
+                      />
+                    </button>
+                  ))}
+                  <span className="ml-2 text-sm text-gray-500">
+                    {feedbackStar} star{feedbackStar !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+
+              <div className="relative">
+                <Label className="mb-2 block text-sm font-medium text-gray-700">
+                  Feedback Message
+                </Label>
+                <Textarea
+                  placeholder="Share your experience with this coach..."
+                  value={feedbackContent}
+                  onChange={(e) => setFeedbackContent(e.target.value)}
+                  className={`min-h-[120px] resize-none border-gray-200 focus:border-yellow-500 focus:ring-yellow-500/20 ${isSendingFeedback ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isSendingFeedback}
+                />
+                <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+                  {feedbackContent.length}/500
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium text-gray-700">
+                  Images (Optional)
+                </Label>
+                <div className="space-y-3">
+                  {feedbackImages.map((image, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={URL.createObjectURL(image)}
+                        alt={`Feedback ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFeedbackImages(feedbackImages.filter((_, i) => i !== index));
+                        }}
+                        className={`absolute top-2 right-2 p-1 bg-white rounded-full shadow-sm ${!isSendingFeedback ? 'hover:bg-gray-100' : 'cursor-not-allowed opacity-50'}`}
+                        disabled={isSendingFeedback}
+                      >
+                        <X className="h-4 w-4 text-gray-500" />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  
+                  {feedbackImages.length < 5 && !isSendingFeedback && (
+                    <div className="relative">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file && feedbackImages.length < 5) {
+                            setFeedbackImages([...feedbackImages, file]);
+                          }
+                        }}
+                        className="hidden"
+                        id="feedback-image"
+                        disabled={isSendingFeedback}
+                      />
+                      <label
+                        htmlFor="feedback-image"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-yellow-200 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg
+                          className="w-8 h-8 mb-3 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-medium">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          PNG, JPG or GIF (max. 5 images)
+                        </p>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFeedbackForm(false)}
+                  className={`px-4 py-2 text-sm font-medium text-gray-700 ${!isSendingFeedback ? 'hover:bg-gray-50' : 'opacity-50 cursor-not-allowed'}`}
+                  disabled={isSendingFeedback}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white px-6 py-2 rounded-lg shadow-sm transition-all duration-300 text-sm font-medium"
+                  onClick={async () => {
+                    if (selectedAppointment && feedbackStar > 0) {
+                      setIsSendingFeedback(true);
+                      setFeedbackMessage(null);
+                      const result = await sendFeedback({
+                        appointmentId: selectedAppointment.id,
+                        coachId: selectedAppointment.booker.id,
+                        content: feedbackContent,
+                        star: feedbackStar,
+                        medias: feedbackImages.length > 0 ? feedbackImages : undefined
+                      });
+                      
+                      if (result.success) {
+                        setShowFeedbackForm(false);
+                        setFeedbackContent("");
+                        setFeedbackStar(0);
+                        setFeedbackImages([]);
+                        setIsSendingFeedback(false);
+                        // Refresh appointment data to show the new feedback
+                        if (selectedAppointment) {
+                          const updatedAppointment = await fetchAppointmentById(selectedAppointment.id);
+                          if (updatedAppointment) {
+                            setSelectedAppointment(updatedAppointment);
+                          }
+                        }
+                      } else {
+                        setFeedbackMessage({
+                          text: result.message || "Failed to send feedback",
+                          success: false
+                        });
+                        setIsSendingFeedback(false);
+                      }
+                    }
+                  }}
+                  disabled={feedbackStar === 0 || isSendingFeedback}
+                >
+                  {isSendingFeedback ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Sending...
+                    </div>
+                  ) : (
+                    "Submit Feedback"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
