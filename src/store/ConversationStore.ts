@@ -12,8 +12,10 @@ export interface Conversation {
     senderId: string
     type: number
     body: string
+    time: string
   } | null
   role: number
+  notiCount: number
 }
 
 // Define the API response type
