@@ -10,6 +10,7 @@ import AICoachContent from "./AICoachContent"
 import StatisticsContent from "./StatisticsContent"
 import PlanningContent from "./PlanningContent"
 import { PhysicalStatsContent } from "./PhysicalStatsContent"
+import ExercisesContent from "./ExercisesContent"
 
 const AiChatPage = () => {
   const location = useLocation()
@@ -28,6 +29,8 @@ const AiChatPage = () => {
         return <PlanningContent />
       case "physical-stats":
         return <PhysicalStatsContent />
+      case "exercises":
+        return <ExercisesContent />
       case "chat":
         return <AICoachContent />
       default:

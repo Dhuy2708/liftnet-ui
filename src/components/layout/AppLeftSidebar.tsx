@@ -20,6 +20,7 @@ import {
 import { Link, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { useMediaQuery } from "@/hooks/use-mobile"
+import { useSideBarStore } from "@/store/SideBarStore"
 
 export function AppLeftSidebar({
   onToggle,
@@ -34,6 +35,7 @@ export function AppLeftSidebar({
   const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0 })
   const [buttonRef, setButtonRef] = useState<HTMLButtonElement | null>(null)
   const isLargeScreen = useMediaQuery("(min-width: 1350px)")
+  const { unreadCounts, fetchUnreadCounts } = useSideBarStore()
 
   useEffect(() => {
     const updateRole = () => {
@@ -62,6 +64,15 @@ export function AppLeftSidebar({
       window.removeEventListener("sidebarToggled", updateSidebarShow)
     }
   }, [])
+
+  // Fetch unread counts every 10 seconds
+  useEffect(() => {
+    fetchUnreadCounts()
+    const interval = setInterval(() => {
+      fetchUnreadCounts()
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [fetchUnreadCounts])
 
   useEffect(() => {
     if (location.pathname.startsWith("/plan-ai")) {
@@ -97,25 +108,47 @@ export function AppLeftSidebar({
         if (location.pathname === '/') {
           window.dispatchEvent(new Event('refreshFeed'))
         }
-      }
+      },
+      unreadCount: unreadCounts.finder
     },
     ...(role === 1
-      ? [{ name: "Trainer Finder", icon: Dumbbell, path: "/trainer-finder" }]
+      ? [{ 
+          name: "Trainer Finder", 
+          icon: Dumbbell, 
+          path: "/trainer-finder",
+          unreadCount: unreadCounts.finder
+        }]
       : role === 2
-        ? [{ name: "Explore Finders", icon: Search, path: "/explore-finders" }]
+        ? [{ 
+            name: "Explore Finders", 
+            icon: Search, 
+            path: "/explore-finders",
+            unreadCount: unreadCounts.finder
+          }]
         : []),
-    { name: "Appointments", icon: Calendar, path: "/appointments" },
+    { 
+      name: "Appointments", 
+      icon: Calendar, 
+      path: "/appointments",
+      unreadCount: unreadCounts.appointment
+    },
   ]
 
   const aiSubItems = [
     { name: "Analytics", icon: BarChart3, path: "/plan-ai/statistic" },
     { name: "Planning", icon: Calendar, path: "/plan-ai/planning" },
     { name: "Physical Stats", icon: User, path: "/plan-ai/physical-stats" },
+    { name: "Exercises", icon: Dumbbell, path: "/plan-ai/exercises" },
     { name: "Lift AI", icon: Sparkles, path: "/plan-ai/chat" },
   ]
 
   const quickAccessItems = [
-    { name: "Messages", icon: MessageSquare, path: "/chat" },
+    { 
+      name: "Messages", 
+      icon: MessageSquare, 
+      path: "/chat",
+      unreadCount: unreadCounts.chat
+    },
     { name: "Friends", icon: UserCircle, path: "/friends/suggestions" },
     { name: "Schedule", icon: Clock, path: "/schedule" },
     { name: "Statistics", icon: BarChart2, path: "/statistics" },
@@ -233,6 +266,11 @@ export function AppLeftSidebar({
                       >
                         {item.name}
                       </span>
+                      {typeof item.unreadCount === 'number' && item.unreadCount > 0 && (
+                        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-[#de9151] text-xs font-bold text-white">
+                          {item.unreadCount}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 )
@@ -400,6 +438,11 @@ export function AppLeftSidebar({
                       >
                         {item.name}
                       </span>
+                      {typeof item.unreadCount === 'number' && item.unreadCount > 0 && (
+                        <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-[#de9151] text-xs font-bold text-white">
+                          {item.unreadCount}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 )

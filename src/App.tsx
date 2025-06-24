@@ -147,6 +147,17 @@ function AppContent() {
         />
 
         <Route
+          path="/plan-ai/exercises"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <AiChatPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/plan-ai/chat"
           element={
             <ProtectedRoute>
