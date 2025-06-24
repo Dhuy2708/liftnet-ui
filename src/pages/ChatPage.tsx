@@ -80,6 +80,8 @@ export function ChatPage() {
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [localMessages, setLocalMessages] = useState<MessageWithStatus[]>([])
   const [isLoadingSidebar, setIsLoadingSidebar] = useState(false)
+  const [clearedNotifications, setClearedNotifications] = useState<Set<string>>(new Set())
+  const [resetNotificationCounts, setResetNotificationCounts] = useState<Map<string, number>>(new Map())
   const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
   const searchTimeout = useRef<NodeJS.Timeout | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -226,6 +228,10 @@ export function ChatPage() {
             return {
               ...conv,
               lastMessage: message,
+              // Only increment notiCount if user is not in this conversation
+              notiCount: selectedChat?.id === message.conversationId 
+                ? conv.notiCount 
+                : (conv.notiCount || 0) + 1
             }
           }
           return conv
@@ -240,6 +246,15 @@ export function ChatPage() {
 
         // Update the conversations in the store
         useConversationStore.setState({ conversations: updatedConversations })
+        
+        // Remove from cleared notifications if new message arrives and user is not in conversation
+        if (selectedChat?.id !== message.conversationId) {
+          setClearedNotifications(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(message.conversationId)
+            return newSet
+          })
+        }
       }
       connection.off("MessageSent")
       connection.off("RecieveMessage")
@@ -391,6 +406,16 @@ export function ChatPage() {
 
   const handleConversationClick = async (chat: ChatItem) => {
     if (selectedChat && selectedChat.id === chat.id) return // Prevent reloading same chat
+    
+    // Clear notification count locally for this conversation
+    setClearedNotifications(prev => new Set([...prev, chat.id]))
+    
+    // Set the reset count to the current notiCount to reset it to 0
+    const currentConversation = conversations.find(conv => conv.id === chat.id)
+    if (currentConversation) {
+      setResetNotificationCounts(prev => new Map(prev).set(chat.id, currentConversation.notiCount || 0))
+    }
+    
     navigate(`/chat/${chat.id}`)
     setSelectedChat({ ...chat })
     // Clear all message caches
@@ -670,13 +695,15 @@ export function ChatPage() {
               </>
             ) : (
               conversations.map((conv: Conversation) => {
+                const resetCount = resetNotificationCounts.get(conv.id) || 0
+                const actualCount = Math.max(0, (conv.notiCount || 0) - resetCount)
                 const chat: ChatItem = {
                   id: conv.id,
                   name: conv.name,
                   avatar: conv.img,
                   lastMessage: conv.lastMessage?.body || "",
-                  lastTime: "Just now",
-                  unread: 0,
+                  lastTime: conv.lastMessage?.time ? new Date(conv.lastMessage.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now",
+                  unread: clearedNotifications.has(conv.id) ? 0 : actualCount,
                   isGroup: conv.isGroup,
                   role: conv.role,
                 }
@@ -714,15 +741,15 @@ export function ChatPage() {
                             </span>
                           )}
                         </div>
-                        <span className="text-xs text-gray-400 ml-2">Just now</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500 truncate">{chat.lastMessage || "No messages yet"}</span>
                         {chat.unread > 0 && (
                           <span className="ml-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#de9151] text-xs font-bold text-white">
                             {chat.unread}
                           </span>
                         )}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500 truncate">{chat.lastMessage || "No messages yet"}</span>
+                        <span className="text-xs text-gray-400 ml-2">{chat.lastTime}</span>
                       </div>
                     </div>
                   </div>
