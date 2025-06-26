@@ -28,6 +28,7 @@ import { PaymentCallbackPage } from "./pages/PaymentCallbackPage"
 import { Toaster } from "sonner"
 import SuggestionsPage from './pages/SuggestionsPage'
 import { useNotificationHub } from "./hooks/useNotificationHub"
+import { SeekerRecommendationsPage } from "./pages/SeekerRecommendationsPage"
 
 function AppContent() {
   const location = useLocation();
@@ -306,6 +307,17 @@ function AppContent() {
             <AuthRoute>
               <AuthPage />
             </AuthRoute>
+          }
+        />
+
+        <Route
+          path="/seeker-recommendations"
+          element={
+            <ProtectedRoute>
+              <LargeAppLayout>
+                <SeekerRecommendationsPage />
+              </LargeAppLayout>
+            </ProtectedRoute>
           }
         />
       </Routes>

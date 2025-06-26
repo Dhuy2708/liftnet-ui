@@ -331,17 +331,21 @@ export function FeedPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-base font-semibold text-gray-900">
-                {detailPost.userOverview.firstName} {detailPost.userOverview.lastName}
+                {detailPost.userOverview ? `${detailPost.userOverview.firstName} ${detailPost.userOverview.lastName}` : "Unknown User"}
               </div>
               <div className="flex items-center text-xs text-gray-500 mt-0.5">
-                <span
-                  className={`px-1.5 py-0.5 rounded-sm text-xs ${
-                    detailPost.userOverview.role === 2 ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
-                  }`}
-                >
-                  {detailPost.userOverview.role === 2 ? "PT" : "User"}
-                </span>
-                <span className="mx-1">•</span>
+                {detailPost.userOverview && (
+                  <>
+                    <span
+                      className={`px-1.5 py-0.5 rounded-sm text-xs ${
+                        detailPost.userOverview.role === 2 ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                      }`}
+                    >
+                      {detailPost.userOverview.role === 2 ? "PT" : "User"}
+                    </span>
+                    <span className="mx-1">•</span>
+                  </>
+                )}
                 <span>{formatTimeAgo(detailPost.createdAt)}</span>
               </div>
             </div>
@@ -388,7 +392,7 @@ export function FeedPage() {
                       "flex items-center justify-center w-8 h-8 rounded-full transition-colors text-base",
                       localLikes[detailPost.id]?.isLiked ? "bg-[#de9151]/10 text-[#de9151]" : "hover:bg-gray-100",
                     )}
-                    onClick={() => handleReact(detailPost.id, localLikes[detailPost.id]?.isLiked ? 2 : 1, detailPost.userOverview.id)}
+                    onClick={() => handleReact(detailPost.id, localLikes[detailPost.id]?.isLiked ? 2 : 1, detailPost.userOverview?.id || "")}
                   >
                     <ArrowBigUp
                       className={cn(
@@ -414,7 +418,7 @@ export function FeedPage() {
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors text-base"
-                    onClick={() => handleReact(detailPost.id, localLikes[detailPost.id]?.isLiked ? 2 : 1, detailPost.userOverview.id)}
+                    onClick={() => handleReact(detailPost.id, localLikes[detailPost.id]?.isLiked ? 2 : 1, detailPost.userOverview?.id || "")}
                   >
                     <ArrowBigDown
                       className={cn(
@@ -600,19 +604,23 @@ export function FeedPage() {
             <div className="flex-1 min-w-0">
               <div
                 className="text-base font-semibold text-gray-900 hover:text-[#de9151] transition-colors cursor-pointer"
-                onClick={() => navigate(`/profile/${post.userOverview.id}`)}
+                onClick={() => post.userOverview && navigate(`/profile/${post.userOverview.id}`)}
               >
-                {post.userOverview.firstName} {post.userOverview.lastName}
+                {post.userOverview ? `${post.userOverview.firstName} ${post.userOverview.lastName}` : "Unknown User"}
               </div>
               <div className="flex items-center text-xs text-gray-500 mt-0.5">
-                <span
-                  className={`px-1.5 py-0.5 rounded-sm text-xs ${
-                    post.userOverview.role === 2 ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
-                  }`}
-                >
-                  {post.userOverview.role === 2 ? "PT" : "User"}
-                </span>
-                <span className="mx-1">•</span>
+                {post.userOverview && (
+                  <>
+                    <span
+                      className={`px-1.5 py-0.5 rounded-sm text-xs ${
+                        post.userOverview.role === 2 ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                      }`}
+                    >
+                      {post.userOverview.role === 2 ? "PT" : "User"}
+                    </span>
+                    <span className="mx-1">•</span>
+                  </>
+                )}
                 <span>{formatTimeAgo(post.createdAt)}</span>
               </div>
             </div>
@@ -664,7 +672,7 @@ export function FeedPage() {
                 )}
                 onClick={(e) => {
                   e.stopPropagation()
-                  handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview.id)
+                  handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview?.id || "")
                 }}
               >
                 <ArrowBigUp
@@ -693,7 +701,7 @@ export function FeedPage() {
                 className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors text-base"
                 onClick={(e) => {
                   e.stopPropagation()
-                  handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview.id)
+                  handleReact(post.id, localLikes[post.id]?.isLiked ? 2 : 1, post.userOverview?.id || "")
                 }}
               >
                 <ArrowBigDown

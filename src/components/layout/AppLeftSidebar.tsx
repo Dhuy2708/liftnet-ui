@@ -119,12 +119,19 @@ export function AppLeftSidebar({
           unreadCount: unreadCounts.finder
         }]
       : role === 2
-        ? [{ 
+        ? [
+            { 
             name: "Explore Finders", 
             icon: Search, 
             path: "/explore-finders",
             unreadCount: unreadCounts.finder
-          }]
+            },
+            { 
+              name: "Seeker Recommendations", 
+              icon: User, 
+              path: "/seeker-recommendations"
+            }
+          ]
         : []),
     { 
       name: "Appointments", 
