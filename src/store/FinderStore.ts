@@ -47,11 +47,19 @@ export interface FinderApplicant {
   modifiedAt: string
 }
 
+export interface SeekerRecommendation {
+  seeker: FinderPoster
+  description: string
+  recommendedAt: string
+}
+
 interface FinderStoreState {
   posts: FinderPost[]
   applicants: FinderApplicant[]
+  seekerRecommendations: SeekerRecommendation[]
   isLoading: boolean
   isLoadingApplicants: boolean
+  isLoadingRecommendations: boolean
   error: string | null
   pageNumber: number
   pageSize: number
@@ -66,6 +74,7 @@ interface FinderStoreState {
   fetchApplicants: (postId: string) => Promise<void>
   fetchExplorePosts: (maxDistance: number, pageNumber?: number) => Promise<void>
   fetchAppliedPosts: (pageNumber?: number) => Promise<void>
+  fetchSeekerRecommendations: () => Promise<void>
   applyToPost: (postId: string, message: string) => Promise<boolean>
   respondToApplicant: (applicantId: number, status: number, postId: string) => Promise<boolean>
 }
@@ -73,8 +82,10 @@ interface FinderStoreState {
 export const useFinderStore = create<FinderStoreState>((set, get) => ({
   posts: [],
   applicants: [],
+  seekerRecommendations: [],
   isLoading: false,
   isLoadingApplicants: false,
+  isLoadingRecommendations: false,
   error: null,
   pageNumber: 1,
   pageSize: 10,
@@ -203,6 +214,34 @@ export const useFinderStore = create<FinderStoreState>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch applied posts"
       set({ 
         isLoading: false, 
+        error: errorMessage
+      })
+    }
+  },
+  fetchSeekerRecommendations: async () => {
+    set({ isLoadingRecommendations: true, error: null })
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/Finder/seekerRecommendations`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      })
+      if (res.data.success) {
+        set({
+          seekerRecommendations: res.data.datas?.[0] || [],
+          isLoadingRecommendations: false,
+          error: null
+        })
+      } else {
+        set({
+          isLoadingRecommendations: false,
+          error: res.data.message || "Failed to fetch seeker recommendations"
+        })
+      }
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch seeker recommendations"
+      set({ 
+        isLoadingRecommendations: false, 
         error: errorMessage
       })
     }

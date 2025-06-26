@@ -3,11 +3,12 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useAuthStore } from "@/store/AuthStore"
 import { useSocialStore } from "@/store/SocialStore"
 import { useWalletStore } from "@/store/WalletStore"
 import { useNotificationStore } from "@/store/NotificationStore"
+import type { Notification } from "@/store/NotificationStore"
 import {
   Bell,
   MessageSquare,
@@ -48,6 +49,7 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
   const { searchPrioritizedUsers, searchResults, hasMore, currentPage, clearSearchResults } = useSocialStore()
   const { balance, getBalance } = useWalletStore()
   const { notifications: notificationStoreNotifications, isLoading, hasMore: notificationStoreHasMore, fetchNotifications, pageNumber, pageSize } = useNotificationStore()
+  const navigate = useNavigate()
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
@@ -123,8 +125,17 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
     }
   }
 
-  const handleNotificationClick = () => {
+  const handleNotificationClick = (notification: Notification) => {
     setShowNotifications(false)
+    
+    // Handle location type 4 - redirect to SeekerRecommendationsPage
+    if (notification.location === 4) {
+      navigate('/seeker-recommendations')
+      return
+    }
+    
+    // Handle other location types as needed
+    // Add more location type handlers here
   }
 
   const handleNotificationScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -150,6 +161,8 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
         return <UserCheck className="h-5 w-5 text-emerald-500" />
       case 12: // Reject Finder
         return <UserX className="h-5 w-5 text-rose-500" />
+      case 13: // Seeker Recommendation
+        return <Sparkles className="h-5 w-5 text-purple-500" />
       case 20: // Follow
         return <Heart className="h-5 w-5 text-pink-500" />
       default:
@@ -308,7 +321,7 @@ export function TopBar({ toggleLeftSidebar, showLeftSidebar }: TopBarProps) {
                         <button
                           key={notification.id}
                           className="w-full text-left p-4 hover:bg-gray-50 transition-all duration-200 border-b border-gray-100 last:border-0"
-                          onClick={() => handleNotificationClick()}
+                          onClick={() => handleNotificationClick(notification)}
                         >
                           <div className="flex items-start gap-3">
                             <div className="flex-shrink-0">

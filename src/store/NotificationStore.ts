@@ -1,7 +1,7 @@
 import { create } from "zustand"
 import axios from "axios"
 
-interface Notification {
+export interface Notification {
   id: number
   recieverId: string
   senderName: string

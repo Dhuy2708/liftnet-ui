@@ -3,7 +3,10 @@ import { useParams, Navigate, useSearchParams } from "react-router-dom"
 import { useSocialStore } from "@/store/SocialStore"
 import { useFeedStore } from "@/store/FeedStore"
 import { useProfileStore } from "@/store/ProfileStore"
+import { GeoStore } from "@/store/GeoStore"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   UserPlus,
   Users,
@@ -20,6 +23,8 @@ import {
   MoreHorizontal,
   Trophy,
   MessageCircle,
+  MapPin,
+  Search,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -29,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { AppLeftSidebar } from "@/components/layout/AppLeftSidebar"
 import { AppRightSidebar } from "@/components/layout/AppRightSidebar"
+import { toast } from "react-toastify"
 
 // Helper to format time ago
 const formatTimeAgo = (dateString: string): string => {
@@ -46,12 +52,21 @@ export function ProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { profile, isLoading: isProfileLoading, getProfile, followUser, unfollowUser } = useSocialStore()
   const { posts, isLoading: isPostsLoading, fetchProfilePosts, reactPost } = useFeedStore()
-  const { uploadAvatar } = useProfileStore()
+  const { uploadAvatar, updateAddress, address, fetchAddress } = useProfileStore()
   const activeTab = searchParams.get("tab") || "overview"
   const [localLikes, setLocalLikes] = useState<Record<string, { isLiked: boolean; count: number }>>({})
   const [avatarHover, setAvatarHover] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
+  const [addressLoading, setAddressLoading] = useState(false)
+  const [locationSearch, setLocationSearch] = useState("")
+  const [locationSuggestions, setLocationSuggestions] = useState<Array<{description: string, placeId: string}>>([])
+  const [selectedLocation, setSelectedLocation] = useState("")
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false)
+  const locationTimeout = useRef<NodeJS.Timeout | null>(null)
+  const locationDropdownRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { searchLocations } = GeoStore()
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -88,6 +103,43 @@ export function ProfilePage() {
     setLocalLikes(newLocalLikes)
   }, [posts])
 
+  useEffect(() => {
+    if (activeTab === "address" && profile?.isSelf) {
+      fetchAddress()
+    }
+  }, [activeTab, fetchAddress, profile?.isSelf])
+
+  // Debounced location search
+  useEffect(() => {
+    if (!locationSearch) {
+      setLocationSuggestions([])
+      return
+    }
+    setIsSearchingLocation(true)
+    if (locationTimeout.current) clearTimeout(locationTimeout.current)
+    locationTimeout.current = setTimeout(async () => {
+      const results = await searchLocations(locationSearch)
+      setLocationSuggestions(results)
+      setIsSearchingLocation(false)
+    }, 500)
+    // eslint-disable-next-line
+  }, [locationSearch])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        locationDropdownRef.current &&
+        !locationDropdownRef.current.contains(event.target as Node)
+      ) {
+        setLocationSuggestions([])
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
+
   const handleTabChange = (tabId: string) => {
     setSearchParams({ tab: tabId })
   }
@@ -118,6 +170,37 @@ export function ProfilePage() {
       await unfollowUser(profile.id)
     } else {
       await followUser(profile.id)
+    }
+  }
+
+  const handleLocationSearch = (searchText: string) => {
+    setLocationSearch(searchText)
+    setSelectedLocation("")
+  }
+
+  const handleLocationSelect = (suggestion: {description: string, placeId: string}) => {
+    setLocationSearch(suggestion.description)
+    setSelectedLocation(suggestion.placeId)
+    setLocationSuggestions([])
+  }
+
+  const handleUpdateAddress = async () => {
+    if (!selectedLocation) {
+      toast.error("Please select a location")
+      return
+    }
+
+    setAddressLoading(true)
+    const success = await updateAddress(selectedLocation)
+    setAddressLoading(false)
+
+    if (success) {
+      toast.success("Address updated successfully")
+      fetchAddress()
+      setLocationSearch("")
+      setSelectedLocation("")
+    } else {
+      toast.error("Failed to update address")
     }
   }
 
@@ -320,6 +403,20 @@ export function ProfilePage() {
                   )
                 })}
 
+                {profile?.isSelf && (
+                  <button
+                    onClick={() => handleTabChange("address")}
+                    className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-all hover:bg-gray-50 ${
+                      activeTab === "address"
+                        ? "border-[#de9151] text-[#de9151]"
+                        : "border-transparent text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    <MapPin className="w-4 h-4" />
+                    <span>Address</span>
+                  </button>
+                )}
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
@@ -442,6 +539,86 @@ export function ProfilePage() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+              {activeTab === "address" && profile?.isSelf && (
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h2 className="text-lg font-semibold mb-6 text-gray-900">Update Address</h2>
+                  
+                  {address ? (
+                    <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                      <h3 className="font-medium text-gray-900 mb-2">Current Address</h3>
+                      <p className="text-gray-600">{address.placeName}</p>
+                    </div>
+                  ) : (
+                    <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <h3 className="font-medium text-yellow-800 mb-2">No Address Set</h3>
+                      <p className="text-yellow-700">You haven't set your address yet.</p>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="location-search" className="text-sm font-semibold text-gray-700">
+                        Search Location
+                      </Label>
+                      <div className="relative" ref={locationDropdownRef}>
+                        <Input
+                          id="location-search"
+                          placeholder="Search for your address..."
+                          value={locationSearch}
+                          onChange={(e) => handleLocationSearch(e.target.value)}
+                          className="h-11 border-2 border-gray-200 focus:border-[#de9151] focus:ring-2 focus:ring-[#de9151]/20 rounded-xl transition-all duration-300 bg-gray-50/50 focus:bg-white pr-12"
+                        />
+                        <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        
+                        {locationSuggestions.length > 0 && (
+                          <div className="absolute z-10 bg-white border rounded-lg w-full mt-1 max-h-48 overflow-y-auto shadow-lg">
+                            {locationSuggestions.map((suggestion, index) => (
+                              <div
+                                key={index}
+                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                onClick={() => handleLocationSelect(suggestion)}
+                              >
+                                <p className="text-sm text-gray-900">{suggestion.description}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {isSearchingLocation && (
+                          <div className="absolute z-10 bg-white border rounded-lg w-full mt-1 px-3 py-2 text-sm text-gray-500">
+                            Searching...
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedLocation && (
+                      <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                        <h3 className="font-medium text-green-800 mb-2">Selected Location</h3>
+                        <p className="text-green-700">{locationSearch}</p>
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={handleUpdateAddress}
+                      disabled={!selectedLocation || addressLoading}
+                      className="w-full h-11 bg-gradient-to-r from-[#de9151] to-[#e8b07f] hover:from-[#e8b07f] hover:to-[#de9151] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    >
+                      {addressLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Updating Address...
+                        </>
+                      ) : (
+                        <>
+                          <MapPin className="mr-2 h-4 w-4" />
+                          Update Address
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
               {activeTab === "achievements" && (
